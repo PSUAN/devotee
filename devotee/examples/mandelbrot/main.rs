@@ -5,8 +5,7 @@ use devotee::app::input::VirtualKeyCode;
 use devotee::app::setup;
 use devotee::math::vector::Vector;
 use devotee::node::Node;
-use devotee::visual::canvas::box_slice_canvas::BoxSliceCanvas;
-use devotee::visual::canvas::{Canvas, CanvasSet};
+use devotee::visual::canvas::Canvas;
 use devotee::visual::color;
 
 fn main() {
@@ -55,7 +54,7 @@ impl Default for Mandelbrot {
 
 impl Node for Mandelbrot {
     type Update = UpdateContext;
-    type Render = BoxSliceCanvas<<Config as config::Config>::Palette>;
+    type Render = Canvas<<Config as config::Config>::Palette>;
 
     fn update(&mut self, update: &mut Self::Update) {
         let delta = update.delta().as_secs_f64();
@@ -95,16 +94,12 @@ impl Node for Mandelbrot {
 
     fn render(&self, render: &mut Self::Render) {
         let scale = 2.0_f64.powf(self.scale);
-        for x in 0..render.resolution().x() {
-            for y in 0..render.resolution().y() {
-                let x0 = (x - render.resolution().x() / 2) as f64
-                    / render.resolution().x() as f64
-                    / scale
-                    - self.center.x();
-                let y0 = (y - render.resolution().y() / 2) as f64
-                    / render.resolution().y() as f64
-                    / scale
-                    - self.center.y();
+        let width = render.width() as i32;
+        let height = render.height() as i32;
+        for x in 0..width {
+            for y in 0..height {
+                let x0 = (x - width / 2) as f64 / width as f64 / scale - self.center.x();
+                let y0 = (y - height / 2) as f64 / height as f64 / scale - self.center.y();
                 let mut px = 0.0;
                 let mut py = 0.0;
                 let mut iteration: u8 = 0;
@@ -112,7 +107,7 @@ impl Node for Mandelbrot {
                     (px, py) = (px * px - py * py + x0, 2.0 * px * py + y0);
                     iteration += 1;
                 }
-                render.set_pixel((x, y), iteration / 2);
+                render.draw_pixel((x, y), (iteration / 2).into());
             }
         }
     }
@@ -160,6 +155,13 @@ impl From<u8> for FourBits {
             15 => FourBits::Beige,
             _ => FourBits::Black,
         }
+    }
+}
+
+impl color::Color for FourBits {
+    #[inline]
+    fn mix(self, other: Self) -> Self {
+        other
     }
 }
 

@@ -1,5 +1,5 @@
 use crate::node::Node;
-use crate::visual::canvas::box_slice_canvas::BoxSliceCanvas;
+use crate::visual::canvas::Canvas;
 use crate::visual::color::Converter;
 use config::Config;
 use context::UpdateContext;
@@ -39,7 +39,7 @@ where
     node: Cfg::Node,
     update_delay: Duration,
     input: Input,
-    canvas: BoxSliceCanvas<Cfg::Palette>,
+    canvas: Canvas<Cfg::Palette>,
     converter: Cfg::Converter,
 }
 
@@ -56,7 +56,7 @@ where
         let node = config.node;
         let update_delay = config.update_delay;
         let input = Input::default();
-        let canvas = BoxSliceCanvas::with_resolution(
+        let canvas = Canvas::with_resolution(
             Cfg::background_color(),
             config.resolution.x(),
             config.resolution.y(),
@@ -79,15 +79,11 @@ where
 impl<Cfg> App<Cfg>
 where
     Cfg: 'static + Config,
-    Cfg::Node: Node<Update = UpdateContext, Render = BoxSliceCanvas<Cfg::Palette>>,
+    Cfg::Node: Node<Update = UpdateContext, Render = Canvas<Cfg::Palette>>,
     Cfg::Converter: Converter<Palette = Cfg::Palette>,
     Cfg::Palette: Copy,
 {
-    fn convert(
-        pixels: &mut Pixels,
-        canvas: &BoxSliceCanvas<Cfg::Palette>,
-        converter: &Cfg::Converter,
-    ) {
+    fn convert(pixels: &mut Pixels, canvas: &Canvas<Cfg::Palette>, converter: &Cfg::Converter) {
         for (pixel, palette) in pixels.get_frame().chunks_exact_mut(4).zip(canvas.iter()) {
             let color = converter.convert(palette);
             pixel.copy_from_slice(&color);

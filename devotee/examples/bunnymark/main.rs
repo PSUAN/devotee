@@ -5,8 +5,7 @@ use devotee::app::input::VirtualKeyCode;
 use devotee::app::setup;
 use devotee::math::vector::Vector;
 use devotee::node::Node;
-use devotee::visual::canvas::box_slice_canvas::BoxSliceCanvas;
-use devotee::visual::canvas::{Canvas, CanvasDraw, CanvasSet};
+use devotee::visual::canvas::Canvas;
 use devotee::visual::color;
 use std::time::{Duration, Instant};
 
@@ -77,7 +76,7 @@ impl color::Converter for Converter {
 
 struct BunnyMark {
     bunnies: Vec<Bunny>,
-    texture: BoxSliceCanvas<<Config as config::Config>::Palette>,
+    texture: Canvas<<Config as config::Config>::Palette>,
     counter: i32,
     previous: Instant,
 }
@@ -85,15 +84,15 @@ struct BunnyMark {
 impl Default for BunnyMark {
     fn default() -> Self {
         let bunnies = Vec::new();
-        let mut texture = BoxSliceCanvas::with_resolution(0.into(), BUNNY_WIDTH, BUNNY_HEIGHT);
-        texture.set_filled_rect((1, 0), (2, 15), FourBits::White);
-        texture.set_filled_rect((5, 0), (6, 15), FourBits::White);
-        texture.set_filled_rect((0, 5), (8, 10), FourBits::White);
-        texture.set_filled_rect((3, 11), (4, 14), FourBits::White);
-        texture.set_pixel((2, 7), FourBits::Pink);
-        texture.set_pixel((5, 7), FourBits::Pink);
-        texture.set_line((7, 4), (7, 8), FourBits::Gray);
-        texture.set_line((6, 9), (6, 15), FourBits::Gray);
+        let mut texture = Canvas::with_resolution(0.into(), BUNNY_WIDTH, BUNNY_HEIGHT);
+        texture.draw_filled_rect((1, 0), (2, 15), FourBits::White);
+        texture.draw_filled_rect((5, 0), (6, 15), FourBits::White);
+        texture.draw_filled_rect((0, 5), (8, 10), FourBits::White);
+        texture.draw_filled_rect((3, 11), (4, 14), FourBits::White);
+        texture.draw_pixel((2, 7), FourBits::Pink);
+        texture.draw_pixel((5, 7), FourBits::Pink);
+        texture.draw_line((7, 4), (7, 8), FourBits::Gray);
+        texture.draw_line((6, 9), (6, 15), FourBits::Gray);
         let counter = 0;
         let previous = Instant::now();
         Self {
@@ -115,7 +114,7 @@ impl BunnyMark {
 
 impl Node for BunnyMark {
     type Update = UpdateContext;
-    type Render = BoxSliceCanvas<<Config as config::Config>::Palette>;
+    type Render = Canvas<<Config as config::Config>::Palette>;
 
     fn update(&mut self, update: &mut Self::Update) {
         if update.input().is_key_pressed(VirtualKeyCode::Space) {
@@ -149,8 +148,8 @@ impl Node for BunnyMark {
         render.clear(FourBits::Black);
         for bunny in self.bunnies.iter() {
             render.draw_image(
-                &self.texture,
                 (bunny.pose.x() as i32, bunny.pose.y() as i32),
+                &self.texture,
             );
         }
     }

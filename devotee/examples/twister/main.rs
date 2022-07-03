@@ -4,8 +4,7 @@ use devotee::app::context::UpdateContext;
 use devotee::app::input::VirtualKeyCode;
 use devotee::app::setup;
 use devotee::node::Node;
-use devotee::visual::canvas::box_slice_canvas::BoxSliceCanvas;
-use devotee::visual::canvas::{Canvas, CanvasSet};
+use devotee::visual::canvas::Canvas;
 use devotee::visual::color;
 use std::f64::consts;
 
@@ -47,7 +46,7 @@ struct TwisterNode {
 
 impl Node for TwisterNode {
     type Update = UpdateContext;
-    type Render = BoxSliceCanvas<<Config as config::Config>::Palette>;
+    type Render = Canvas<<Config as config::Config>::Palette>;
 
     fn update(&mut self, update: &mut Self::Update) {
         if update.input().just_key_pressed(VirtualKeyCode::Escape) {
@@ -69,14 +68,15 @@ impl Node for TwisterNode {
 
     fn render(&self, render: &mut Self::Render) {
         render.clear(FourBits::Black);
-        let (resolution_x, resolution_y) = render.resolution().into();
+        let resolution_x = render.width() as i32;
+        let resolution_y = render.height() as i32;
         let rotation = 2.0 * self.rotation;
         let center = resolution_y as f64 / 2.0;
 
-        render.set_filled_rect(
+        render.draw_filled_rect(
             (resolution_x / 4, resolution_y / 4),
             (3 * resolution_x / 4, 3 * resolution_y / 4),
-            15,
+            15.into(),
         );
 
         let twist = 4.0 * consts::PI * (consts::FRAC_PI_4 * self.twist).cos();
@@ -90,16 +90,16 @@ impl Node for TwisterNode {
             let y4 = (f64::sin(twist - consts::FRAC_PI_2) * width + center) as i32;
 
             if y1 < y2 {
-                render.set_line((x, y1), (x, y2), 8);
+                render.draw_line((x, y1), (x, y2), 8.into());
             }
             if y2 < y3 {
-                render.set_line((x, y2), (x, y3), 2);
+                render.draw_line((x, y2), (x, y3), 2.into());
             }
             if y3 < y4 {
-                render.set_line((x, y3), (x, y4), 3);
+                render.draw_line((x, y3), (x, y4), 3.into());
             }
             if y4 < y1 {
-                render.set_line((x, y4), (x, y1), 4);
+                render.draw_line((x, y4), (x, y1), 4.into());
             }
         }
     }
@@ -146,6 +146,15 @@ impl From<u8> for FourBits {
             14 => FourBits::Pink,
             15 => FourBits::Beige,
             _ => FourBits::Black,
+        }
+    }
+}
+
+impl color::Color for FourBits {
+    fn mix(self, other: Self) -> Self {
+        match other {
+            FourBits::Black => self,
+            value => value,
         }
     }
 }
