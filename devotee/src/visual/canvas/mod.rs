@@ -1,5 +1,6 @@
 use super::color::Color;
 use crate::math::vector::Vector;
+use std::mem;
 use std::slice::Iter;
 
 /// Canvas based on box slice of pixel data.
@@ -103,10 +104,12 @@ where
         let mut from = from.into();
         let mut to = to.into();
         if from.x() == to.x() {
-            // TODO: add optimized `set_vertical_line` here
+            self.draw_vertical_line(from.x(), from.y(), to.y(), color);
+            return;
         }
         if from.y() == to.y() {
-            // TODO: add optimized `set_horizontal_line` here
+            self.draw_horizontal_line(from.x(), to.x(), from.y(), color);
+            return;
         }
 
         let steep = (to.y() - from.y()).abs() > (to.x() - from.x()).abs();
@@ -208,6 +211,42 @@ where
                     let pixel = self.pixel_unsafe(step).clone().mix(color.clone());
                     *self.pixel_mut_unsafe(step) = pixel;
                 }
+            }
+        }
+    }
+
+    fn draw_vertical_line(&mut self, x: i32, mut from_y: i32, mut to_y: i32, color: P) {
+        if x < 0 || x >= self.width as i32 {
+            return;
+        }
+        if from_y > to_y {
+            mem::swap(&mut from_y, &mut to_y);
+        }
+        from_y = from_y.max(0);
+        to_y = to_y.min(self.height as i32);
+        for y in from_y..to_y {
+            let step = (x, y);
+            unsafe {
+                let pixel = self.pixel_unsafe(step).clone().mix(color.clone());
+                *self.pixel_mut_unsafe(step) = pixel;
+            }
+        }
+    }
+
+    fn draw_horizontal_line(&mut self, mut from_x: i32, mut to_x: i32, y: i32, color: P) {
+        if y < 0 || y >= self.height as i32 {
+            return;
+        }
+        if from_x > to_x {
+            mem::swap(&mut from_x, &mut to_x);
+        }
+        from_x = from_x.max(0);
+        to_x = to_x.min(self.height as i32);
+        for x in from_x..to_x {
+            let step = (x, y);
+            unsafe {
+                let pixel = self.pixel_unsafe(step).clone().mix(color.clone());
+                *self.pixel_mut_unsafe(step) = pixel;
             }
         }
     }

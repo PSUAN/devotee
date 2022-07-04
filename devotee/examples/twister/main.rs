@@ -67,11 +67,17 @@ impl Node for TwisterNode {
     }
 
     fn render(&self, render: &mut Self::Render) {
-        render.clear(FourBits::Black);
+        render.clear(0.into());
         let resolution_x = render.width() as i32;
         let resolution_y = render.height() as i32;
         let rotation = 2.0 * self.rotation;
         let center = resolution_y as f64 / 2.0;
+
+        render.draw_filled_rect(
+            (resolution_x / 6, resolution_y / 6),
+            (5 * resolution_x / 6, 5 * resolution_y / 6),
+            14.into(),
+        );
 
         render.draw_filled_rect(
             (resolution_x / 4, resolution_y / 4),
@@ -90,7 +96,7 @@ impl Node for TwisterNode {
             let y4 = (f64::sin(twist - consts::FRAC_PI_2) * width + center) as i32;
 
             if y1 < y2 {
-                render.draw_line((x, y1), (x, y2), 8.into());
+                render.draw_line((x, y1), (x, y2), 1.into());
             }
             if y2 < y3 {
                 render.draw_line((x, y2), (x, y3), 2.into());
@@ -100,6 +106,27 @@ impl Node for TwisterNode {
             }
             if y4 < y1 {
                 render.draw_line((x, y4), (x, y1), 4.into());
+            }
+        }
+
+        for y in 0..resolution_y {
+            let twist = y as f64 / resolution_y as f64 * twist + rotation;
+            let x1 = (f64::sin(twist) * width + center) as i32;
+            let x2 = (f64::sin(twist + consts::FRAC_PI_2) * width + center) as i32;
+            let x3 = (f64::sin(twist + consts::PI) * width + center) as i32;
+            let x4 = (f64::sin(twist - consts::FRAC_PI_2) * width + center) as i32;
+
+            if x1 < x2 {
+                render.draw_line((x1, y), (x2, y), 5.into());
+            }
+            if x2 < x3 {
+                render.draw_line((x2, y), (x3, y), 6.into());
+            }
+            if x3 < x4 {
+                render.draw_line((x3, y), (x4, y), 7.into());
+            }
+            if x4 < x1 {
+                render.draw_line((x4, y), (x1, y), 8.into());
             }
         }
     }
