@@ -148,7 +148,7 @@ where
             if pose.x() >= self.width as i32 && pose.y() >= self.height as i32 {
                 return;
             }
-            if pose.x() > 0 && pose.y() > 0 {
+            if pose.x() >= 0 && pose.y() >= 0 {
                 unsafe {
                     let pixel = self.pixel_unsafe(pose).clone().mix(color.clone());
                     *self.pixel_mut_unsafe(pose) = pixel;
