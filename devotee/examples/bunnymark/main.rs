@@ -112,11 +112,8 @@ impl BunnyMark {
     }
 }
 
-impl<'a> Node<'a> for BunnyMark {
-    type Update = UpdateContext<'a>;
-    type Render = Canvas<<Config as config::Config>::Palette>;
-
-    fn update(&mut self, update: &mut Self::Update) {
+impl<'a> Node<&mut UpdateContext<'a>, &mut Canvas<FourBits>> for BunnyMark {
+    fn update(&mut self, update: &mut UpdateContext<'_>) {
         if update.input().is_key_pressed(VirtualKeyCode::Space) {
             self.add_bunny();
         }
@@ -144,7 +141,7 @@ impl<'a> Node<'a> for BunnyMark {
         }
     }
 
-    fn render(&self, render: &mut Self::Render) {
+    fn render(&self, render: &mut Canvas<FourBits>) {
         render.clear(FourBits::Black);
         for bunny in self.bunnies.iter() {
             render.draw_image(

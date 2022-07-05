@@ -46,11 +46,8 @@ struct TwisterNode {
     twist: f64,
 }
 
-impl<'a> Node<'a> for TwisterNode {
-    type Update = UpdateContext<'a>;
-    type Render = Canvas<<Config as config::Config>::Palette>;
-
-    fn update(&mut self, update: &mut Self::Update) {
+impl<'a> Node<&mut UpdateContext<'a>, &mut Canvas<FourBits>> for TwisterNode {
+    fn update(&mut self, update: &mut UpdateContext<'_>) {
         if update.input().just_key_pressed(VirtualKeyCode::Escape) {
             update.shutdown();
         }
@@ -74,7 +71,7 @@ impl<'a> Node<'a> for TwisterNode {
         self.twist += delta;
     }
 
-    fn render(&self, render: &mut Self::Render) {
+    fn render(&self, render: &mut Canvas<FourBits>) {
         render.clear(0.into());
         let resolution_x = render.width() as i32;
         let resolution_y = render.height() as i32;

@@ -85,7 +85,7 @@ where
 impl<Cfg> App<Cfg>
 where
     Cfg: 'static + Config,
-    for<'a> Cfg::Node: Node<'a, Update = UpdateContext<'a>, Render = Canvas<Cfg::Palette>>,
+    for<'a, 'b> Cfg::Node: Node<&'b mut UpdateContext<'a>, &'b mut Canvas<Cfg::Palette>>,
     Cfg::Converter: Converter<Palette = Cfg::Palette>,
     Cfg::Palette: Copy,
 {

@@ -52,11 +52,8 @@ impl Default for Mandelbrot {
     }
 }
 
-impl<'a> Node<'a> for Mandelbrot {
-    type Update = UpdateContext<'a>;
-    type Render = Canvas<<Config as config::Config>::Palette>;
-
-    fn update(&mut self, update: &mut Self::Update) {
+impl<'a> Node<&mut UpdateContext<'a>, &mut Canvas<FourBits>> for Mandelbrot {
+    fn update(&mut self, update: &mut UpdateContext<'_>) {
         let delta = update.delta().as_secs_f64();
 
         if update.input().is_key_pressed(VirtualKeyCode::Z)
@@ -92,7 +89,7 @@ impl<'a> Node<'a> for Mandelbrot {
         }
     }
 
-    fn render(&self, render: &mut Self::Render) {
+    fn render(&self, render: &mut Canvas<FourBits>) {
         let scale = 2.0_f64.powf(self.scale);
         let width = render.width() as i32;
         let height = render.height() as i32;

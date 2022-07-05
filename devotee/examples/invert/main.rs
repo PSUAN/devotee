@@ -65,11 +65,8 @@ impl RootNode {
     }
 }
 
-impl<'a> Node<'a> for RootNode {
-    type Update = UpdateContext<'a>;
-    type Render = Canvas<<Config as config::Config>::Palette>;
-
-    fn update(&mut self, update: &mut Self::Update) {
+impl<'a> Node<&mut UpdateContext<'a>, &mut Canvas<Color>> for RootNode {
+    fn update(&mut self, update: &mut UpdateContext<'_>) {
         if update.input().just_key_pressed(VirtualKeyCode::Escape) {
             update.shutdown();
         }
@@ -88,7 +85,7 @@ impl<'a> Node<'a> for RootNode {
         }
     }
 
-    fn render(&self, render: &mut Self::Render) {
+    fn render(&self, render: &mut Canvas<Color>) {
         render.clear(Color([0, 0, 0]));
         for x in 8..(render.width() - 8) {
             for y in 8..(render.height() - 8) {
