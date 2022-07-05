@@ -65,8 +65,8 @@ impl RootNode {
     }
 }
 
-impl Node for RootNode {
-    type Update = UpdateContext;
+impl<'a> Node<'a> for RootNode {
+    type Update = UpdateContext<'a>;
     type Render = Canvas<<Config as config::Config>::Palette>;
 
     fn update(&mut self, update: &mut Self::Update) {

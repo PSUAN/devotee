@@ -1,6 +1,6 @@
 /// `Node` is basic building block of `devotee`.
 /// Every app has one `Node` as root and may contain other inner nodes.
-pub trait Node {
+pub trait Node<'a> {
     /// The update context provided to this `Node` during update call.
     type Update;
     /// The render context provided to this `Node` during render call.

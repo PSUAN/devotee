@@ -112,8 +112,8 @@ impl BunnyMark {
     }
 }
 
-impl Node for BunnyMark {
-    type Update = UpdateContext;
+impl<'a> Node<'a> for BunnyMark {
+    type Update = UpdateContext<'a>;
     type Render = Canvas<<Config as config::Config>::Palette>;
 
     fn update(&mut self, update: &mut Self::Update) {

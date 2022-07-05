@@ -6,7 +6,9 @@ use devotee::app::setup;
 use devotee::node::Node;
 use devotee::visual::canvas::Canvas;
 use devotee::visual::color;
+use rodio::source::{SineWave, Source};
 use std::f64::consts;
+use std::time::Duration;
 
 fn main() {
     let init_config = setup::Setup::<Config>::default()
@@ -44,8 +46,8 @@ struct TwisterNode {
     twist: f64,
 }
 
-impl Node for TwisterNode {
-    type Update = UpdateContext;
+impl<'a> Node<'a> for TwisterNode {
+    type Update = UpdateContext<'a>;
     type Render = Canvas<<Config as config::Config>::Palette>;
 
     fn update(&mut self, update: &mut Self::Update) {
@@ -62,6 +64,12 @@ impl Node for TwisterNode {
         if update.input().just_key_pressed(VirtualKeyCode::Space) {
             self.rotation = 0.0;
             self.twist = 0.0;
+
+            update.sound_system().map(|s| {
+                s.play(Box::new(
+                    SineWave::new(500.0).take_duration(Duration::from_secs_f64(0.05)),
+                ))
+            });
         }
         self.twist += delta;
     }

@@ -6,6 +6,7 @@ use context::UpdateContext;
 use input::Input;
 use pixels::Pixels;
 use setup::Setup;
+use sound_system::SoundSystem;
 use std::time::{Duration, Instant};
 use winit::event::{Event, StartCause, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop};
@@ -18,6 +19,8 @@ pub mod context;
 pub mod input;
 /// Application launch setup.
 pub mod setup;
+/// `rodio`-based sound system.
+pub mod sound_system;
 /// Main application window.
 pub mod window;
 
@@ -41,6 +44,7 @@ where
     input: Input,
     canvas: Canvas<Cfg::Palette>,
     converter: Cfg::Converter,
+    sound_system: Option<SoundSystem>,
 }
 
 impl<Cfg> App<Cfg>
@@ -62,6 +66,7 @@ where
             config.resolution.y(),
         );
         let converter = Cfg::converter();
+        let sound_system = SoundSystem::try_new();
         Some(Self {
             event_loop,
             inner: Inner {
@@ -71,6 +76,7 @@ where
                 input,
                 canvas,
                 converter,
+                sound_system,
             },
         })
     }
@@ -79,7 +85,7 @@ where
 impl<Cfg> App<Cfg>
 where
     Cfg: 'static + Config,
-    Cfg::Node: Node<Update = UpdateContext, Render = Canvas<Cfg::Palette>>,
+    for<'a> Cfg::Node: Node<'a, Update = UpdateContext<'a>, Render = Canvas<Cfg::Palette>>,
     Cfg::Converter: Converter<Palette = Cfg::Palette>,
     Cfg::Palette: Copy,
 {
@@ -94,6 +100,7 @@ where
     pub fn run(self) {
         let mut app = self.inner;
         let event_loop = self.event_loop;
+        let mut paused = false;
         event_loop.run(
             move |event, _, control_flow: &mut ControlFlow| match event {
                 Event::NewEvents(StartCause::Init) => {
@@ -103,16 +110,24 @@ where
                     requested_resume, ..
                 }) => {
                     *control_flow = ControlFlow::WaitUntil(requested_resume + app.update_delay);
-
-                    let mut update = UpdateContext::new(app.update_delay, app.input.clone());
-                    {
-                        app.node.update(&mut update);
+                    if !paused {
+                        let mut update = UpdateContext::new(
+                            app.update_delay,
+                            &app.input,
+                            app.sound_system.as_mut(),
+                        );
+                        {
+                            app.node.update(&mut update);
+                        }
+                        if update.shall_stop() {
+                            *control_flow = ControlFlow::Exit;
+                        }
+                        app.window.apply(update.extract_window_commands());
+                        app.input.step();
+                        if let Some(sound_system) = &mut app.sound_system {
+                            sound_system.clean_up_sinks();
+                        }
                     }
-                    if update.shall_stop() {
-                        *control_flow = ControlFlow::Exit;
-                    }
-                    app.window.apply(update.extract_window_commands());
-                    app.input.step();
                 }
                 Event::RedrawRequested(_) => {
                     app.node.render(&mut app.canvas);
@@ -139,6 +154,17 @@ where
                     app.window
                         .pixels_mut()
                         .resize_surface(size.width, size.height);
+                }
+                Event::WindowEvent {
+                    event: WindowEvent::Focused(focused),
+                    ..
+                } => {
+                    paused = !focused;
+                    if paused {
+                        app.sound_system.as_ref().map(SoundSystem::pause);
+                    } else {
+                        app.sound_system.as_ref().map(SoundSystem::resume);
+                    }
                 }
                 _ => {}
             },

@@ -52,8 +52,8 @@ impl Default for Mandelbrot {
     }
 }
 
-impl Node for Mandelbrot {
-    type Update = UpdateContext;
+impl<'a> Node<'a> for Mandelbrot {
+    type Update = UpdateContext<'a>;
     type Render = Canvas<<Config as config::Config>::Palette>;
 
     fn update(&mut self, update: &mut Self::Update) {
