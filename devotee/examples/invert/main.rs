@@ -13,7 +13,7 @@ fn main() {
         .with_title("invert")
         .with_resolution((128, 128))
         .with_scale(2);
-    let app = app::App::with_config(init_config).unwrap();
+    let app = app::App::with_setup(init_config).unwrap();
 
     app.run();
 }

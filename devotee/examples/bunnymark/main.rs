@@ -20,7 +20,7 @@ fn main() {
         .with_title("bunnymark")
         .with_resolution((WIDTH, HEIGHT))
         .with_update_delay(Duration::from_secs_f64(1.0 / 60.0));
-    let app = app::App::with_config(init_config).unwrap();
+    let app = app::App::with_setup(init_config).unwrap();
 
     app.run();
 }
