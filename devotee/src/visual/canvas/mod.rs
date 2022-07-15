@@ -30,13 +30,13 @@ where
     P: Clone,
 {
     /// Get canvas width.
-    pub fn width(&self) -> usize {
-        self.width
+    pub fn width(&self) -> i32 {
+        self.width as i32
     }
 
     /// Get canvas height.
-    pub fn height(&self) -> usize {
-        self.height
+    pub fn height(&self) -> i32 {
+        self.height as i32
     }
 
     /// Get individual canvas pixel.
@@ -73,7 +73,7 @@ where
     }
 
     /// Apply given function to each pixel at a line from the `from` position to the `to` position.
-    pub fn map_on_line<I: Into<Vector<i32>>, F: FnMut(P) -> P>(
+    pub fn map_on_line<I: Into<Vector<i32>>, F: FnMut(i32, i32, P) -> P>(
         &mut self,
         from: I,
         to: I,
@@ -130,7 +130,7 @@ where
                 && pose.y() < self.height as i32
             {
                 unsafe {
-                    let pixel = function(self.pixel_unsafe(pose).clone());
+                    let pixel = function(pose.x(), pose.y(), self.pixel_unsafe(pose).clone());
                     *self.pixel_mut_unsafe(pose) = pixel;
                 }
             }
@@ -138,7 +138,7 @@ where
     }
 
     /// Apply given function to each pixel in a given rectangle.
-    pub fn map_on_filled_rect<I: Into<Vector<i32>>, F: FnMut(P) -> P>(
+    pub fn map_on_filled_rect<I: Into<Vector<i32>>, F: FnMut(i32, i32, P) -> P>(
         &mut self,
         from: I,
         to: I,
@@ -157,7 +157,7 @@ where
             for y in start_y..end_y {
                 let step = (x, y);
                 unsafe {
-                    let pixel = function(self.pixel_unsafe(step).clone());
+                    let pixel = function(x, y, self.pixel_unsafe(step).clone());
                     *self.pixel_mut_unsafe(step) = pixel;
                 }
             }
@@ -186,7 +186,7 @@ where
         &mut self.data[x + self.width * y]
     }
 
-    fn map_vertical_line<F: FnMut(P) -> P>(
+    fn map_vertical_line<F: FnMut(i32, i32, P) -> P>(
         &mut self,
         x: i32,
         mut from_y: i32,
@@ -204,13 +204,13 @@ where
         for y in from_y..to_y {
             let step = (x, y);
             unsafe {
-                let pixel = function(self.pixel_unsafe(step).clone());
+                let pixel = function(x, y, self.pixel_unsafe(step).clone());
                 *self.pixel_mut_unsafe(step) = pixel;
             }
         }
     }
 
-    fn map_horizontal_line<F: FnMut(P) -> P>(
+    fn map_horizontal_line<F: FnMut(i32, i32, P) -> P>(
         &mut self,
         mut from_x: i32,
         mut to_x: i32,
@@ -228,14 +228,18 @@ where
         for x in from_x..to_x {
             let step = (x, y);
             unsafe {
-                let pixel = function(self.pixel_unsafe(step).clone());
+                let pixel = function(x, y, self.pixel_unsafe(step).clone());
                 *self.pixel_mut_unsafe(step) = pixel;
             }
         }
     }
 
     /// Combine two images and apply provided function to result.
-    pub fn zip_map_images<I: Into<Vector<i32>>, O: Clone, F: FnMut(P, O) -> P>(
+    pub fn zip_map_images<
+        I: Into<Vector<i32>>,
+        O: Clone,
+        F: FnMut(i32, i32, P, i32, i32, O) -> P,
+    >(
         &mut self,
         at: I,
         image: &Canvas<O>,
@@ -263,7 +267,14 @@ where
                 let pose = at + step;
                 unsafe {
                     let color = image.pixel_unsafe(step);
-                    let pixel = function(self.pixel_unsafe(pose).clone(), color.clone());
+                    let pixel = function(
+                        pose.x(),
+                        pose.y(),
+                        self.pixel_unsafe(pose).clone(),
+                        x,
+                        y,
+                        color.clone(),
+                    );
                     *self.pixel_mut_unsafe(pose) = pixel;
                 }
             }
@@ -277,7 +288,7 @@ where
 {
     /// Draw a line in given `color` from the `from` position to the `to` position.
     pub fn draw_line<I: Into<Vector<i32>>>(&mut self, from: I, to: I, color: P) {
-        self.map_on_line(from, to, |pixel| pixel.mix(color.clone()));
+        self.map_on_line(from, to, |_, _, pixel| pixel.mix(color.clone()));
     }
 
     /// Draw pixel at the given position `at`.
@@ -289,11 +300,11 @@ where
 
     /// Draw filled rect at the given position `from` to the `to` position.
     pub fn draw_filled_rect<I: Into<Vector<i32>>>(&mut self, from: I, to: I, color: P) {
-        self.map_on_filled_rect(from, to, |pixel| pixel.mix(color.clone()));
+        self.map_on_filled_rect(from, to, |_, _, pixel| pixel.mix(color.clone()));
     }
 
     /// Draw image at the `at` position.
     pub fn draw_image<I: Into<Vector<i32>>>(&mut self, at: I, image: &Canvas<P>) {
-        self.zip_map_images(at, image, |pixel, other| pixel.mix(other))
+        self.zip_map_images(at, image, |_, _, pixel, _, _, other| pixel.mix(other))
     }
 }

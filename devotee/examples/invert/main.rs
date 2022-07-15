@@ -48,15 +48,15 @@ impl RootNode {
         let position = Vector::new(12.0, 12.0);
         let mut canvas = Canvas::with_resolution(false, 32, 32);
 
-        canvas.map_on_line((0, 0), (31, 0), |_| true);
-        canvas.map_on_line((0, 0), (0, 31), |_| true);
-        canvas.map_on_line((0, 31), (31, 31), |_| true);
-        canvas.map_on_line((31, 0), (31, 31), |_| true);
-        canvas.map_on_line((0, 0), (31, 31), |_| true);
-        canvas.map_on_line((31, 0), (0, 31), |_| true);
+        canvas.map_on_line((0, 0), (31, 0), |_, _, _| true);
+        canvas.map_on_line((0, 0), (0, 31), |_, _, _| true);
+        canvas.map_on_line((0, 31), (31, 31), |_, _, _| true);
+        canvas.map_on_line((31, 0), (31, 31), |_, _, _| true);
+        canvas.map_on_line((0, 0), (31, 31), |_, _, _| true);
+        canvas.map_on_line((31, 0), (0, 31), |_, _, _| true);
 
         let mut counter = 0;
-        canvas.map_on_filled_rect((4, 4), (32 - 4, 32 - 4), move |_| {
+        canvas.map_on_filled_rect((4, 4), (32 - 4, 32 - 4), move |_, _, _| {
             counter += 1;
             counter % 5 == 0 || counter % 7 == 0
         });
@@ -97,7 +97,7 @@ impl<'a> Node<&mut UpdateContext<'a>, &mut Canvas<Color>> for RootNode {
         }
 
         let (x, y) = (self.position.x() as i32, self.position.y() as i32);
-        render.zip_map_images((x, y), &self.canvas, |value, invert| {
+        render.zip_map_images((x, y), &self.canvas, |_, _, value, _, _, invert| {
             if invert {
                 Color([0xff - value.0[0], 0xff - value.0[1], 0xff - value.0[2]])
             } else {
