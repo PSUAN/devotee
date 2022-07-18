@@ -9,7 +9,7 @@ use devotee::visual::canvas::Canvas;
 use devotee::visual::color;
 
 fn main() {
-    let init_config = setup::Setup::<Config>::new(RootNode::new())
+    let init_config = setup::Setup::<Config>::new(|_| RootNode::new())
         .with_title("invert")
         .with_resolution((128, 128))
         .with_scale(2);

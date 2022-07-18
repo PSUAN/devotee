@@ -31,7 +31,13 @@ where
     Cfg: Config,
 {
     event_loop: EventLoop<()>,
-    inner: Inner<Cfg>,
+    window: window::Window,
+    update_delay: Duration,
+    input: Input,
+    canvas: Canvas<Cfg::Palette>,
+    converter: Cfg::Converter,
+    sound_system: Option<SoundSystem>,
+    constructor: Box<dyn FnOnce(&mut UpdateContext) -> Cfg::Node>,
 }
 
 struct Inner<Cfg>
@@ -57,7 +63,6 @@ where
     pub fn with_setup(setup: Setup<Cfg>) -> Option<Self> {
         let event_loop = EventLoop::new();
         let window = window::Window::with_setup(&event_loop, &setup)?;
-        let node = setup.node;
         let update_delay = setup.update_delay;
         let input = Input::default();
         let canvas = Canvas::with_resolution(
@@ -67,17 +72,16 @@ where
         );
         let converter = Cfg::converter();
         let sound_system = SoundSystem::try_new();
+        let constructor = setup.constructor;
         Some(Self {
             event_loop,
-            inner: Inner {
-                window,
-                node,
-                update_delay,
-                input,
-                canvas,
-                converter,
-                sound_system,
-            },
+            window,
+            update_delay,
+            input,
+            canvas,
+            converter,
+            sound_system,
+            constructor,
         })
     }
 }
@@ -98,8 +102,25 @@ where
 
     /// Start the application event loop.
     pub fn run(self) {
-        let mut app = self.inner;
-        let event_loop = self.event_loop;
+        let mut app = self;
+        let mut update =
+            UpdateContext::new(app.update_delay, &app.input, app.sound_system.as_mut());
+
+        let node = (app.constructor)(&mut update);
+        if update.shall_stop() {
+            return;
+        }
+
+        let event_loop = app.event_loop;
+        let mut app = Inner::<Cfg> {
+            node,
+            window: app.window,
+            canvas: app.canvas,
+            converter: app.converter,
+            input: app.input,
+            sound_system: app.sound_system,
+            update_delay: app.update_delay,
+        };
         let mut paused = false;
 
         event_loop.run(move |event, _, control_flow| match event {

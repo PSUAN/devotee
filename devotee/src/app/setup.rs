@@ -1,4 +1,5 @@
 use super::config::Config;
+use super::context::UpdateContext;
 use crate::math::vector::Vector;
 use std::time::Duration;
 
@@ -8,33 +9,37 @@ pub struct Setup<Cfg>
 where
     Cfg: Config,
 {
-    pub(super) node: Cfg::Node,
     pub(super) title: String,
     pub(super) update_delay: Duration,
     pub(super) fullscreen: bool,
     pub(super) scale: u32,
     pub(super) resolution: Vector<usize>,
+    pub(super) constructor: Box<dyn FnOnce(&mut UpdateContext) -> Cfg::Node>,
 }
 
 impl<Cfg> Setup<Cfg>
 where
     Cfg: Config,
 {
-    /// Create new setup with given node as root.
+    /// Create new setup with given `Node` constructor.
     /// Defaults to 30 frames per second update.
-    pub fn new(node: Cfg::Node) -> Self {
+    pub fn new<F>(constructor: F) -> Self
+    where
+        F: 'static + FnOnce(&mut UpdateContext) -> Cfg::Node,
+    {
         let title = String::new();
         let update_delay = Duration::from_secs_f64(1.0 / 30.0);
         let fullscreen = false;
         let scale = 1;
         let resolution = Vector::new(320, 240);
+        let constructor = Box::new(constructor);
         Self {
-            node,
             title,
             update_delay,
             fullscreen,
             scale,
             resolution,
+            constructor,
         }
     }
 
@@ -77,6 +82,6 @@ where
     Cfg::Node: Default,
 {
     fn default() -> Self {
-        Self::new(Cfg::Node::default())
+        Self::new(|_| Cfg::Node::default())
     }
 }

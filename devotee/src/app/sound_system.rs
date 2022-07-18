@@ -3,6 +3,11 @@ use rodio::{OutputStream, OutputStreamHandle, Sink};
 use std::mem;
 use std::rc::Rc;
 
+pub use rodio;
+
+/// `rodio`'s `Sink` wrapped in reference counter.
+pub type Sound = Rc<Sink>;
+
 /// `rodio`-bases sound system of `devotee`,
 pub struct SoundSystem {
     // We are storing `OutputStream` instance to save it from dropping and stopping sound.
