@@ -4,6 +4,8 @@ use crate::visual::color::Converter;
 use pixels::{wgpu, Error, Pixels, PixelsBuilder, SurfaceTexture};
 use winit::dpi::PhysicalSize;
 use winit::event_loop::EventLoop;
+#[cfg(target_arch = "wasm32")]
+use winit::platform::web::WindowExtWebSys;
 use winit::window::{Fullscreen, Window as WinitWindow, WindowBuilder};
 
 pub(super) type WindowCommand = Box<dyn FnOnce(&mut Window)>;
@@ -41,6 +43,16 @@ impl Window {
                 .with_title(&setup.title);
             builder.build(event_loop).ok()?
         };
+        #[cfg(target_arch = "wasm32")]
+        {
+            web_sys::window()
+                .and_then(|win| win.document())
+                .and_then(|doc| doc.body())
+                .and_then(|body| {
+                    body.append_child(&web_sys::Element::from(window.canvas()))
+                        .ok()
+                });
+        }
 
         let pixels = {
             let window_size = window.inner_size();
@@ -54,7 +66,14 @@ impl Window {
                     b: clear_color[2] as f64 / 255.0,
                     a: 1.0,
                 });
-            builder.build().ok()?
+            #[cfg(target_arch = "wasm32")]
+            {
+                pollster::block_on(builder.build_async()).ok()?
+            }
+            #[cfg(not(target_arch = "wasm32"))]
+            {
+                builder.build().ok()?
+            }
         };
 
         Some(Window {

@@ -4,10 +4,14 @@ use crate::visual::color::Converter;
 use config::Config;
 use context::UpdateContext;
 use input::Input;
+#[cfg(target_arch = "wasm32")]
+use instant::Instant;
 use pixels::Pixels;
 use setup::Setup;
 use sound_system::SoundSystem;
-use std::time::{Duration, Instant};
+use std::time::Duration;
+#[cfg(not(target_arch = "wasm32"))]
+use std::time::Instant;
 use winit::event::{Event, StartCause, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop};
 
