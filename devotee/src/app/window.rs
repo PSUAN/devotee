@@ -45,13 +45,16 @@ impl Window {
         };
         #[cfg(target_arch = "wasm32")]
         {
-            web_sys::window()
-                .and_then(|win| win.document())
-                .and_then(|doc| doc.body())
-                .and_then(|body| {
-                    body.append_child(&web_sys::Element::from(window.canvas()))
-                        .ok()
-                });
+            let document = web_sys::window()?.document()?;
+            if let Some(canvas_holder) =
+                document.get_element_by_id(setup.element_id.unwrap_or("devoteeCanvasHolder"))
+            {
+                let _ = canvas_holder.append_child(&web_sys::Element::from(window.canvas()));
+            } else {
+                let _ = document
+                    .body()?
+                    .append_child(&web_sys::Element::from(window.canvas()));
+            }
         }
 
         let pixels = {

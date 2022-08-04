@@ -15,6 +15,8 @@ where
     pub(super) scale: u32,
     pub(super) resolution: Vector<usize>,
     pub(super) constructor: Box<dyn FnOnce(&mut UpdateContext) -> Cfg::Node>,
+    #[cfg(target_arch = "wasm32")]
+    pub(super) element_id: Option<&'static str>,
 }
 
 impl<Cfg> Setup<Cfg>
@@ -40,6 +42,8 @@ where
             scale,
             resolution,
             constructor,
+            #[cfg(target_arch = "wasm32")]
+            element_id: None,
         }
     }
 
@@ -73,6 +77,13 @@ where
     pub fn with_resolution<T: Into<Vector<usize>>>(self, resolution: T) -> Self {
         let resolution = resolution.into();
         Self { resolution, ..self }
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    /// Set target element id for canvas holding on wasm32 target
+    pub fn with_element_id(self, element_id: &'static str) -> Self {
+        let element_id = Some(element_id);
+        Self { element_id, ..self }
     }
 }
 
