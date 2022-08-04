@@ -60,6 +60,8 @@ impl Window {
                 SurfaceTexture::new(window_size.width, window_size.height, &window);
             let clear_color = Cfg::window_background_color();
             let builder = PixelsBuilder::new(resolution.x(), resolution.y(), surface_texture)
+                .render_texture_format(wgpu::TextureFormat::Bgra8Unorm)
+                .texture_format(wgpu::TextureFormat::Rgba8Unorm)
                 .clear_color(wgpu::Color {
                     r: clear_color[0] as f64 / 255.0,
                     g: clear_color[1] as f64 / 255.0,
