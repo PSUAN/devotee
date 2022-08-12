@@ -25,5 +25,5 @@ cargo run --example <example_name>
 ```
 
 ## License
-`devotee` is licensed under the MIT license.
+`devotee` is distributed under the MIT license.
 
