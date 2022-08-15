@@ -1,5 +1,6 @@
 use super::config::Config;
 use super::context::UpdateContext;
+use super::Constructor;
 use crate::math::vector::Vector;
 use std::time::Duration;
 
@@ -14,7 +15,7 @@ where
     pub(super) fullscreen: bool,
     pub(super) scale: u32,
     pub(super) resolution: Vector<usize>,
-    pub(super) constructor: Box<dyn FnOnce(&mut UpdateContext) -> Cfg::Node>,
+    pub(super) constructor: Constructor<Cfg::Node>,
     #[cfg(target_arch = "wasm32")]
     pub(super) element_id: Option<&'static str>,
 }

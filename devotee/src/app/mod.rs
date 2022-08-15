@@ -28,6 +28,10 @@ pub mod sound_system;
 /// Main application window.
 pub mod window;
 
+/// Node constructor.
+/// Takes mutable reference to `UpdateContext` and provides new node.
+pub type Constructor<T> = Box<dyn FnOnce(&mut UpdateContext) -> T>;
+
 /// App is the root of the `devotee` project.
 /// It handles `winit`'s event loop and render.
 pub struct App<Cfg>
@@ -41,7 +45,7 @@ where
     canvas: Canvas<Cfg::Palette>,
     converter: Cfg::Converter,
     sound_system: Option<SoundSystem>,
-    constructor: Box<dyn FnOnce(&mut UpdateContext) -> Cfg::Node>,
+    constructor: Constructor<Cfg::Node>,
 }
 
 struct Inner<Cfg>

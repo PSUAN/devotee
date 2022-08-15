@@ -183,7 +183,7 @@ impl Bunny {
     }
 }
 
-#[derive(Copy, Clone, PartialEq)]
+#[derive(Copy, Clone, PartialEq, Eq)]
 pub enum FourBits {
     Black,
     DarkBlue,
