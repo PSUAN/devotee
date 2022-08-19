@@ -1,7 +1,7 @@
 use super::config::Config;
 use super::context::UpdateContext;
 use super::Constructor;
-use crate::math::vector::Vector;
+use crate::util::vector::Vector;
 use std::time::Duration;
 
 /// Application setup structure.

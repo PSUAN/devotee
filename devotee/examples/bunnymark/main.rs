@@ -3,10 +3,12 @@ use devotee::app::config;
 use devotee::app::context::UpdateContext;
 use devotee::app::input::VirtualKeyCode;
 use devotee::app::setup;
-use devotee::math::vector::Vector;
 use devotee::node::Node;
+use devotee::util::vector::Vector;
 use devotee::visual::canvas::Canvas;
 use devotee::visual::color;
+use devotee::visual::prelude::*;
+
 use std::time::{Duration, Instant};
 
 const BUNNY_WIDTH: usize = 8;
@@ -85,14 +87,14 @@ impl Default for BunnyMark {
     fn default() -> Self {
         let bunnies = Vec::new();
         let mut texture = Canvas::with_resolution(0.into(), BUNNY_WIDTH, BUNNY_HEIGHT);
-        texture.draw_filled_rect((1, 0), (2, 15), FourBits::White);
-        texture.draw_filled_rect((5, 0), (6, 15), FourBits::White);
-        texture.draw_filled_rect((0, 5), (8, 10), FourBits::White);
-        texture.draw_filled_rect((3, 11), (4, 14), FourBits::White);
-        texture.draw_pixel((2, 7), FourBits::Pink);
-        texture.draw_pixel((5, 7), FourBits::Pink);
-        texture.draw_line((7, 4), (7, 8), FourBits::Gray);
-        texture.draw_line((6, 9), (6, 15), FourBits::Gray);
+        texture.filled_rect((1, 0), (2, 15), paint(FourBits::White));
+        texture.filled_rect((5, 0), (6, 15), paint(FourBits::White));
+        texture.filled_rect((0, 5), (8, 10), paint(FourBits::White));
+        texture.filled_rect((3, 11), (4, 14), paint(FourBits::White));
+        texture.mod_pixel((2, 7), paint(FourBits::Pink));
+        texture.mod_pixel((5, 7), paint(FourBits::Pink));
+        texture.line((7, 4), (7, 8), paint(FourBits::Gray));
+        texture.line((6, 9), (6, 15), paint(FourBits::Gray));
         let counter = 0;
         let previous = Instant::now();
         Self {
@@ -144,9 +146,10 @@ impl<'a> Node<&mut UpdateContext<'a>, &mut Canvas<FourBits>> for BunnyMark {
     fn render(&self, render: &mut Canvas<FourBits>) {
         render.clear(FourBits::Black);
         for bunny in self.bunnies.iter() {
-            render.draw_image(
+            render.image(
                 (bunny.pose.x() as i32, bunny.pose.y() as i32),
                 &self.texture,
+                |_, _, p, _, _, o| p.mix(o),
             );
         }
     }

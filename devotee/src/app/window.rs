@@ -1,5 +1,5 @@
 use super::{Config, Setup};
-use crate::math::vector::Vector;
+use crate::util::vector::Vector;
 use crate::visual::color::Converter;
 use pixels::{wgpu, Error, Pixels, PixelsBuilder, SurfaceTexture};
 use winit::dpi::PhysicalSize;

@@ -3,10 +3,11 @@ use devotee::app::config;
 use devotee::app::context::UpdateContext;
 use devotee::app::input::VirtualKeyCode;
 use devotee::app::setup;
-use devotee::math::vector::Vector;
 use devotee::node::Node;
+use devotee::util::vector::Vector;
 use devotee::visual::canvas::Canvas;
 use devotee::visual::color;
+use devotee::visual::prelude::*;
 
 fn main() {
     let init_config = setup::Setup::<Config>::default()
@@ -104,7 +105,9 @@ impl<'a> Node<&mut UpdateContext<'a>, &mut Canvas<FourBits>> for Mandelbrot {
                     (px, py) = (px * px - py * py + x0, 2.0 * px * py + y0);
                     iteration += 1;
                 }
-                render.draw_pixel((x, y), (iteration / 2).into());
+                if let Some(p) = render.pixel_mut((x, y)) {
+                    *p = (iteration % 16).into();
+                }
             }
         }
     }

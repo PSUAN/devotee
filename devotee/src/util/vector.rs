@@ -1,7 +1,7 @@
 use std::ops::{Add, Mul, Sub};
 
 /// Generic two-dimensional vector.
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, Debug, Default, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Vector<T> {
     x: T,
     y: T,

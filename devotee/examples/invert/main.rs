@@ -3,10 +3,12 @@ use devotee::app::config;
 use devotee::app::context::UpdateContext;
 use devotee::app::input::VirtualKeyCode;
 use devotee::app::setup;
-use devotee::math::vector::Vector;
 use devotee::node::Node;
+use devotee::util::vector::Vector;
 use devotee::visual::canvas::Canvas;
 use devotee::visual::color;
+use devotee::visual::prelude::*;
+use devotee::visual::UnsafePixel;
 
 fn main() {
     let init_config = setup::Setup::<Config>::new(|_| RootNode::new())
@@ -48,15 +50,15 @@ impl RootNode {
         let position = Vector::new(12.0, 12.0);
         let mut canvas = Canvas::with_resolution(false, 32, 32);
 
-        canvas.map_on_line((0, 0), (31, 0), |_, _, _| true);
-        canvas.map_on_line((0, 0), (0, 31), |_, _, _| true);
-        canvas.map_on_line((0, 31), (31, 31), |_, _, _| true);
-        canvas.map_on_line((31, 0), (31, 31), |_, _, _| true);
-        canvas.map_on_line((0, 0), (31, 31), |_, _, _| true);
-        canvas.map_on_line((31, 0), (0, 31), |_, _, _| true);
+        canvas.line((0, 0), (31, 0), paint(true));
+        canvas.line((0, 0), (0, 31), paint(true));
+        canvas.line((0, 31), (31, 31), paint(true));
+        canvas.line((31, 0), (31, 31), paint(true));
+        canvas.line((0, 0), (31, 31), paint(true));
+        canvas.line((31, 0), (0, 31), paint(true));
 
         let mut counter = 0;
-        canvas.map_on_filled_rect((4, 4), (32 - 4, 32 - 4), move |_, _, _| {
+        canvas.filled_rect((4, 4), (32 - 4, 32 - 4), move |_, _, _| {
             counter += 1;
             counter % 5 == 0 || counter % 7 == 0
         });
@@ -90,14 +92,14 @@ impl<'a> Node<&mut UpdateContext<'a>, &mut Canvas<Color>> for RootNode {
         for x in 8..(render.width() - 8) {
             for y in 8..(render.height() - 8) {
                 unsafe {
-                    *render.pixel_mut_unsafe((x as i32, y as i32)) =
+                    *UnsafePixel::pixel_mut(render, (x, y)) =
                         Color([2 * x as u8, 2 * y as u8, 0x00]);
                 }
             }
         }
 
         let (x, y) = (self.position.x() as i32, self.position.y() as i32);
-        render.zip_map_images((x, y), &self.canvas, |_, _, value, _, _, invert| {
+        render.image((x, y), &self.canvas, |_, _, value, _, _, invert| {
             if invert {
                 Color([0xff - value.0[0], 0xff - value.0[1], 0xff - value.0[2]])
             } else {

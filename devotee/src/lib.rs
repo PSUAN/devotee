@@ -6,9 +6,9 @@
 /// Application is the visualization core.
 /// It provides basic event loop handling.
 pub mod app;
-/// Math is dedicated to basic concepts like Vectors.
-pub mod math;
 /// Node is the block of the `devotee` project.
 pub mod node;
+/// Set of random useful stuff.
+pub mod util;
 /// Set of visualization primitives.
 pub mod visual;

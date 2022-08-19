@@ -1,6 +1,6 @@
 [package]
 name = "devotee"
-version = "0.1.8"
+version = "0.1.9"
 edition = "2021"
 publish = false
 authors = ["PSUAN collective", "Hara Red <rtc6fg4.fejg2@gmail.com>"]
