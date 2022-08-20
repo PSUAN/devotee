@@ -94,10 +94,10 @@ where
     ) {
         let start_x = from.x().max(0);
         let start_y = from.y().max(0);
-        let end_x = (to.x() + 1).min(self.width as i32);
-        let end_y = (to.y() + 1).min(self.height as i32);
+        let end_x = (to.x()).min(self.width as i32);
+        let end_y = (to.y()).min(self.height as i32);
 
-        for x in start_x..=end_x {
+        for x in start_x..end_x {
             for y in start_y..end_y {
                 let step = (x, y);
                 unsafe {
@@ -192,7 +192,7 @@ where
             mem::swap(&mut from_x, &mut to_x);
         }
         from_x = from_x.max(0);
-        to_x = to_x.min(self.height as i32);
+        to_x = to_x.min(self.width as i32);
         for x in from_x..to_x {
             let step = (x, y);
             unsafe {

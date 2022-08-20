@@ -80,7 +80,7 @@ pub trait Line<I, F>: Draw {
     fn line(&mut self, from: I, to: I, function: F);
 }
 
-/// Allow function application on a rectangle in the given (inclusive) range.
+/// Allow function application on a rectangle in the given (exclusive) range.
 pub trait Rect<I, F>: Draw {
     /// Use provided function on each pixel in a rectangle.
     fn filled_rect(&mut self, from: I, to: I, function: F);
