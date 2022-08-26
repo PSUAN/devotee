@@ -8,6 +8,7 @@ use devotee::util::vector::Vector;
 use devotee::visual::canvas::Canvas;
 use devotee::visual::color;
 use devotee::visual::prelude::*;
+use devotee::visual::sprite::Sprite;
 
 use std::time::{Duration, Instant};
 
@@ -78,7 +79,7 @@ impl color::Converter for Converter {
 
 struct BunnyMark {
     bunnies: Vec<Bunny>,
-    texture: Canvas<<Config as config::Config>::Palette>,
+    texture: Sprite<<Config as config::Config>::Palette, BUNNY_WIDTH, BUNNY_HEIGHT>,
     counter: i32,
     previous: Instant,
 }
@@ -86,29 +87,35 @@ struct BunnyMark {
 impl Default for BunnyMark {
     fn default() -> Self {
         let bunnies = Vec::new();
-        let mut texture = Canvas::with_resolution(0.into(), BUNNY_WIDTH, BUNNY_HEIGHT);
+        let mut texture = Sprite::with_color(0.into());
         texture.filled_rect((1, 0), (2, 15), paint(FourBits::White));
         texture.filled_rect((5, 0), (6, 15), paint(FourBits::White));
         texture.filled_rect((0, 5), (8, 10), paint(FourBits::White));
-        texture.filled_rect((3, 11), (4, 14), paint(FourBits::White));
+        texture.filled_rect((2, 10), (5, 14), paint(FourBits::White));
         texture.mod_pixel((2, 7), paint(FourBits::Pink));
         texture.mod_pixel((5, 7), paint(FourBits::Pink));
-        texture.line((7, 4), (7, 8), paint(FourBits::Gray));
+        texture.line((7, 5), (7, 8), paint(FourBits::Gray));
         texture.line((6, 9), (6, 15), paint(FourBits::Gray));
         let counter = 0;
         let previous = Instant::now();
-        Self {
+        let mut result = Self {
             bunnies,
             texture,
             counter,
             previous,
-        }
+        };
+        result.add_bunny();
+        result
     }
 }
 
 impl BunnyMark {
     fn add_bunny(&mut self) {
-        for i in 0..32 {
+        self.bunnies.push(Bunny::new(0.0));
+    }
+
+    fn add_bunnies(&mut self) {
+        for i in 0..1000 {
             self.bunnies.push(Bunny::new(i as f64));
         }
     }
@@ -116,8 +123,14 @@ impl BunnyMark {
 
 impl<'a> Node<&mut UpdateContext<'a>, &mut Canvas<FourBits>> for BunnyMark {
     fn update(&mut self, update: &mut UpdateContext<'_>) {
-        if update.input().is_key_pressed(VirtualKeyCode::Space) {
-            self.add_bunny();
+        if update.input().just_key_pressed(VirtualKeyCode::Escape) {
+            update.shutdown();
+        }
+        if update.input().just_key_pressed(VirtualKeyCode::Z) {
+            self.add_bunnies();
+        }
+        if update.input().is_key_pressed(VirtualKeyCode::X) {
+            self.add_bunnies();
         }
 
         let delta = update.delta().as_secs_f64();
@@ -125,7 +138,7 @@ impl<'a> Node<&mut UpdateContext<'a>, &mut Canvas<FourBits>> for BunnyMark {
 
         let now = Instant::now();
         let real_delta = now - self.previous;
-        if real_delta > Duration::from_secs_f64(0.25) {
+        if real_delta > Duration::from_secs(1) {
             let real_delta = real_delta.as_secs_f64();
             println!("Bunny count: {}", self.bunnies.len());
             println!(

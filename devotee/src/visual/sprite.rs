@@ -2,29 +2,27 @@ use super::prelude::*;
 use super::UnsafePixel;
 use crate::util::vector::Vector;
 use std::mem;
-use std::slice::Iter;
 
-/// Canvas based on box slice of pixel data.
-pub struct Canvas<P> {
-    data: Box<[P]>,
-    width: usize,
-    height: usize,
+/// Sprite of fixed size.
+pub struct Sprite<P, const W: usize, const H: usize> {
+    data: [[P; W]; H],
 }
 
-impl<P> Canvas<P>
+impl<P, const W: usize, const H: usize> Sprite<P, W, H>
+where
+    P: Copy,
+{
+    /// Create new Sprite with given color for each pixel.
+    pub fn with_color(color: P) -> Self {
+        let data = [[color; W]; H];
+        Self { data }
+    }
+}
+
+impl<P, const W: usize, const H: usize> Sprite<P, W, H>
 where
     P: Clone,
 {
-    /// Create new canvas with given color and resolution.
-    pub fn with_resolution(color: P, width: usize, height: usize) -> Self {
-        let data = vec![color; width * height].into_boxed_slice();
-        Self {
-            data,
-            width,
-            height,
-        }
-    }
-
     fn map_on_line(
         &mut self,
         mut from: Vector<i32>,
@@ -73,11 +71,7 @@ where
 
             *current.x_mut() += 1;
 
-            if pose.x() >= 0
-                && pose.y() >= 0
-                && pose.x() < self.width as i32
-                && pose.y() < self.height as i32
-            {
+            if pose.x() >= 0 && pose.y() >= 0 && pose.x() < W as i32 && pose.y() < H as i32 {
                 unsafe {
                     let pixel = function(pose.x(), pose.y(), self.pixel_unsafe(pose).clone());
                     *self.pixel_mut_unsafe(pose) = pixel;
@@ -94,8 +88,8 @@ where
     ) {
         let start_x = from.x().max(0);
         let start_y = from.y().max(0);
-        let end_x = (to.x()).min(self.width as i32);
-        let end_y = (to.y()).min(self.height as i32);
+        let end_x = (to.x()).min(W as i32);
+        let end_y = (to.y()).min(H as i32);
 
         for x in start_x..end_x {
             for y in start_y..end_y {
@@ -108,19 +102,15 @@ where
         }
     }
 
-    pub(crate) fn iter(&self) -> Iter<'_, P> {
-        self.data.iter()
-    }
-
     fn pixel(&self, position: Vector<i32>) -> Option<&P> {
         if position.x() < 0 || position.y() < 0 {
             return None;
         }
         let (x, y) = (position.x() as usize, position.y() as usize);
-        if x >= self.width || y >= self.height {
+        if x >= W || y >= H {
             None
         } else {
-            self.data.get(x + self.width * y)
+            Some(&self.data[y][x])
         }
     }
 
@@ -129,10 +119,10 @@ where
             return None;
         }
         let (x, y) = (position.x() as usize, position.y() as usize);
-        if x >= self.width || y >= self.height {
+        if x >= W || y >= H {
             None
         } else {
-            self.data.get_mut(x + self.width * y)
+            Some(&mut self.data[y][x])
         }
     }
 
@@ -142,7 +132,7 @@ where
     unsafe fn pixel_unsafe<I: Into<Vector<i32>>>(&self, position: I) -> &P {
         let position = position.into();
         let (x, y) = (position.x() as usize, position.y() as usize);
-        &self.data[x + self.width * y]
+        &self.data[y][x]
     }
 
     /// Get mutable reference to pixel.
@@ -151,7 +141,7 @@ where
     unsafe fn pixel_mut_unsafe<I: Into<Vector<i32>>>(&mut self, position: I) -> &mut P {
         let position = position.into();
         let (x, y) = (position.x() as usize, position.y() as usize);
-        &mut self.data[x + self.width * y]
+        &mut self.data[y][x]
     }
 
     fn map_vertical_line(
@@ -161,14 +151,14 @@ where
         mut to_y: i32,
         function: &mut dyn FnMut(i32, i32, P) -> P,
     ) {
-        if x < 0 || x >= self.width as i32 {
+        if x < 0 || x >= W as i32 {
             return;
         }
         if from_y > to_y {
             mem::swap(&mut from_y, &mut to_y);
         }
         from_y = from_y.max(0);
-        to_y = to_y.min(self.height as i32);
+        to_y = to_y.min(H as i32);
         for y in from_y..to_y {
             let step = (x, y);
             unsafe {
@@ -185,14 +175,14 @@ where
         y: i32,
         function: &mut dyn FnMut(i32, i32, P) -> P,
     ) {
-        if y < 0 || y >= self.height as i32 {
+        if y < 0 || y >= H as i32 {
             return;
         }
         if from_x > to_x {
             mem::swap(&mut from_x, &mut to_x);
         }
         from_x = from_x.max(0);
-        to_x = to_x.min(self.width as i32);
+        to_x = to_x.min(W as i32);
         for x in from_x..to_x {
             let step = (x, y);
             unsafe {
@@ -212,13 +202,13 @@ where
         let image_start_x = if at.x() < 0 { -at.x() } else { 0 };
         let image_start_y = if at.y() < 0 { -at.y() } else { 0 };
 
-        let image_end_x = if at.x() + image.width() as i32 >= self.width as i32 {
-            self.width as i32 - at.x()
+        let image_end_x = if at.x() + image.width() as i32 >= W as i32 {
+            W as i32 - at.x()
         } else {
             image.width() as i32
         };
-        let image_end_y = if at.y() + image.height() as i32 >= self.height as i32 {
-            self.height as i32 - at.y()
+        let image_end_y = if at.y() + image.height() as i32 >= H as i32 {
+            H as i32 - at.y()
         } else {
             image.height() as i32
         };
@@ -243,27 +233,27 @@ where
     }
 }
 
-impl<P> Draw for Canvas<P>
+impl<P, const W: usize, const H: usize> Draw for Sprite<P, W, H>
 where
-    P: Clone,
+    P: Copy,
 {
     type Pixel = P;
     fn width(&self) -> i32 {
-        self.width as i32
+        W as i32
     }
 
     fn height(&self) -> i32 {
-        self.height as i32
+        H as i32
     }
 
     fn clear(&mut self, color: P) {
-        self.data = vec![color; self.width * self.height].into_boxed_slice();
+        self.data = [[color; W]; H];
     }
 }
 
-impl<P, I> Pixel<I> for Canvas<P>
+impl<P, const W: usize, const H: usize, I> Pixel<I> for Sprite<P, W, H>
 where
-    P: Clone,
+    P: Copy,
     I: Into<Vector<i32>>,
 {
     fn pixel(&self, position: I) -> Option<&P> {
@@ -275,23 +265,23 @@ where
     }
 }
 
-impl<P, I, F> PixelMod<I, F> for Canvas<P>
+impl<P, const W: usize, const H: usize, I, F> PixelMod<I, F> for Sprite<P, W, H>
 where
-    P: Clone,
+    P: Copy,
     I: Into<Vector<i32>>,
     F: FnOnce(i32, i32, P) -> P,
 {
     fn mod_pixel(&mut self, position: I, function: F) {
         let position = position.into();
         if let Some(pixel) = self.pixel_mut(position) {
-            *pixel = function(position.x(), position.y(), pixel.clone());
+            *pixel = function(position.x(), position.y(), *pixel);
         }
     }
 }
 
-impl<P, I, F> Line<I, F> for Canvas<P>
+impl<P, const W: usize, const H: usize, I, F> Line<I, F> for Sprite<P, W, H>
 where
-    P: Clone,
+    P: Copy,
     I: Into<Vector<i32>>,
     F: FnMut(i32, i32, P) -> P,
 {
@@ -302,9 +292,9 @@ where
     }
 }
 
-impl<P, I, F> Rect<I, F> for Canvas<P>
+impl<P, const W: usize, const H: usize, I, F> Rect<I, F> for Sprite<P, W, H>
 where
-    P: Clone,
+    P: Copy,
     I: Into<Vector<i32>>,
     F: FnMut(i32, i32, P) -> P,
 {
@@ -324,9 +314,9 @@ where
     }
 }
 
-impl<P, I> UnsafePixel<I> for Canvas<P>
+impl<P, const W: usize, const H: usize, I> UnsafePixel<I> for Sprite<P, W, H>
 where
-    P: Clone,
+    P: Copy,
     I: Into<Vector<i32>>,
 {
     unsafe fn pixel(&self, position: I) -> &Self::Pixel {
@@ -338,9 +328,9 @@ where
     }
 }
 
-impl<P, I, U, O, F> Image<I, O, U, F> for Canvas<P>
+impl<P, const W: usize, const H: usize, I, O, U, F> Image<I, O, U, F> for Sprite<P, W, H>
 where
-    P: Clone,
+    P: Copy,
     I: Into<Vector<i32>>,
     U: UnsafePixel<Vector<i32>, Pixel = O>,
     O: Clone,
@@ -348,6 +338,7 @@ where
 {
     fn image(&mut self, at: I, image: &U, function: F) {
         let at = at.into();
-        self.zip_map_images(at, image, function)
+        let mut function = function;
+        self.zip_map_images(at, image, &mut function)
     }
 }

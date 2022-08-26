@@ -1,10 +1,11 @@
-use crate::util::vector::Vector;
 use color::Color;
 
 /// Image with dimensions unknown at compile-time.
 pub mod canvas;
 /// Color system used in `devotee`.
 pub mod color;
+/// Image with compile-time known dimensions.
+pub mod sprite;
 
 /// Drawing traits prelude.
 pub mod prelude {
@@ -90,7 +91,7 @@ pub trait Rect<I, F>: Draw {
 }
 
 /// Apply image using provided mapper function.
-pub trait Image<I, O, F>: UnsafePixel<I> {
+pub trait Image<I, O, U, F>: UnsafePixel<I> {
     /// Use provided function and given image on this drawable.
-    fn image(&mut self, at: I, image: &dyn UnsafePixel<Vector<i32>, Pixel = O>, function: F);
+    fn image(&mut self, at: I, image: &U, function: F);
 }
