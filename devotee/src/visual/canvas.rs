@@ -1,5 +1,6 @@
 use super::prelude::*;
 use super::UnsafePixel;
+use crate::util::getter::Getter;
 use crate::util::vector::Vector;
 use std::mem;
 use std::slice::Iter;
@@ -58,7 +59,7 @@ where
 
         let mut current = from;
 
-        while current.x() <= to.x() {
+        while current.x() < to.x() {
             let pose = if steep {
                 (current.y(), current.x()).into()
             } else {
@@ -206,9 +207,8 @@ where
         &mut self,
         at: Vector<i32>,
         image: &dyn UnsafePixel<Vector<i32>, Pixel = O>,
-        function: F,
+        function: &mut F,
     ) {
-        let mut function = function;
         let image_start_x = if at.x() < 0 { -at.x() } else { 0 };
         let image_start_y = if at.y() < 0 { -at.y() } else { 0 };
 
@@ -315,12 +315,12 @@ where
     }
 
     fn rect(&mut self, from: I, to: I, function: F) {
-        let (from, to) = (from.into(), to.into());
+        let (from, to) = (from.into(), to.into() - (1, 1).into());
         let mut function = function;
-        self.map_horizontal_line(from.x(), to.x(), from.y(), &mut function);
-        self.map_horizontal_line(from.x(), to.x(), to.y(), &mut function);
-        self.map_vertical_line(from.x(), from.y(), to.y(), &mut function);
-        self.map_vertical_line(to.x(), from.y(), to.y(), &mut function);
+        self.map_horizontal_line(from.x(), to.x() + 1, from.y(), &mut function);
+        self.map_horizontal_line(from.x(), to.x() + 1, to.y(), &mut function);
+        self.map_vertical_line(from.x(), from.y(), to.y() + 1, &mut function);
+        self.map_vertical_line(to.x(), from.y(), to.y() + 1, &mut function);
     }
 }
 
@@ -338,7 +338,7 @@ where
     }
 }
 
-impl<P, I, U, O, F> Image<I, O, U, F> for Canvas<P>
+impl<P, I, U, O, F> Image<I, U, F> for Canvas<P>
 where
     P: Clone,
     I: Into<Vector<i32>>,
@@ -348,6 +348,35 @@ where
 {
     fn image(&mut self, at: I, image: &U, function: F) {
         let at = at.into();
-        self.zip_map_images(at, image, function)
+        let mut function = function;
+        self.zip_map_images(at, image, &mut function)
+    }
+}
+
+impl<P, I, M, U, O, F> Tilemap<I, U, F, M> for Canvas<P>
+where
+    P: Clone,
+    I: Into<Vector<i32>>,
+    M: Fn(usize) -> Vector<i32>,
+    U: UnsafePixel<Vector<i32>, Pixel = O>,
+    O: Clone,
+    F: FnMut(i32, i32, Self::Pixel, i32, i32, O) -> Self::Pixel,
+{
+    fn tilemap(
+        &mut self,
+        at: I,
+        mapper: M,
+        tiles: &dyn Getter<Index = usize, Item = U>,
+        tile_data: &mut dyn Iterator<Item = usize>,
+        function: F,
+    ) {
+        let at = at.into();
+        let mut function = function;
+        for (index, tile) in tile_data.enumerate() {
+            if let Some(tile_image) = tiles.get(&tile) {
+                let local = at + mapper(index);
+                self.zip_map_images(local, tile_image, &mut function);
+            }
+        }
     }
 }

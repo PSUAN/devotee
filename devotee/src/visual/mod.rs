@@ -1,3 +1,4 @@
+use crate::util::getter::Getter;
 use color::Color;
 
 /// Image with dimensions unknown at compile-time.
@@ -11,7 +12,7 @@ pub mod sprite;
 pub mod prelude {
     pub use super::color::Color;
     pub use super::{draw, paint};
-    pub use super::{Draw, Image, Line, Pixel, PixelMod, Rect};
+    pub use super::{Draw, Image, Line, Pixel, PixelMod, Rect, Tilemap};
 }
 
 /// Mapper function accepts `x` and `y` coordinates and pixel value.
@@ -91,7 +92,20 @@ pub trait Rect<I, F>: Draw {
 }
 
 /// Apply image using provided mapper function.
-pub trait Image<I, O, U, F>: UnsafePixel<I> {
+pub trait Image<I, U, F>: UnsafePixel<I> {
     /// Use provided function and given image on this drawable.
     fn image(&mut self, at: I, image: &U, function: F);
+}
+
+/// Apply multiple images provided spatial and color mapper functions.
+pub trait Tilemap<I, U, F, M>: Image<I, U, F> {
+    /// Use provided spatial mapper, tiles and color mapper function.
+    fn tilemap(
+        &mut self,
+        at: I,
+        mapper: M,
+        tiles: &dyn Getter<Index = usize, Item = U>,
+        tile_data: &mut dyn Iterator<Item = usize>,
+        function: F,
+    );
 }

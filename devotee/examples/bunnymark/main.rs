@@ -94,7 +94,7 @@ impl Default for BunnyMark {
         texture.filled_rect((2, 10), (5, 14), paint(FourBits::White));
         texture.mod_pixel((2, 7), paint(FourBits::Pink));
         texture.mod_pixel((5, 7), paint(FourBits::Pink));
-        texture.line((7, 5), (7, 8), paint(FourBits::Gray));
+        texture.line((7, 5), (7, 10), paint(FourBits::Gray));
         texture.line((6, 9), (6, 15), paint(FourBits::Gray));
         let counter = 0;
         let previous = Instant::now();
@@ -119,6 +119,14 @@ impl BunnyMark {
             self.bunnies.push(Bunny::new(i as f64));
         }
     }
+
+    fn remove_bunnies(&mut self) {
+        if self.bunnies.len() > 1000 {
+            for _ in 0..1000 {
+                self.bunnies.swap_remove(0);
+            }
+        }
+    }
 }
 
 impl<'a> Node<&mut UpdateContext<'a>, &mut Canvas<FourBits>> for BunnyMark {
@@ -131,6 +139,9 @@ impl<'a> Node<&mut UpdateContext<'a>, &mut Canvas<FourBits>> for BunnyMark {
         }
         if update.input().is_key_pressed(VirtualKeyCode::X) {
             self.add_bunnies();
+        }
+        if update.input().just_key_pressed(VirtualKeyCode::C) {
+            self.remove_bunnies();
         }
 
         let delta = update.delta().as_secs_f64();
@@ -176,7 +187,7 @@ struct Bunny {
 impl Bunny {
     fn new(offset_vel: f64) -> Self {
         let pose = (1.0, 1.0).into();
-        let velocity = (8.0 + offset_vel, offset_vel).into();
+        let velocity = (8.0 + offset_vel / 100.0, offset_vel / 100.0).into();
         Self { pose, velocity }
     }
 

@@ -56,7 +56,7 @@ where
 
         let mut current = from;
 
-        while current.x() <= to.x() {
+        while current.x() < to.x() {
             let pose = if steep {
                 (current.y(), current.x()).into()
             } else {
@@ -305,12 +305,12 @@ where
     }
 
     fn rect(&mut self, from: I, to: I, function: F) {
-        let (from, to) = (from.into(), to.into());
+        let (from, to) = (from.into(), to.into() - (1, 1).into());
         let mut function = function;
-        self.map_horizontal_line(from.x(), to.x(), from.y(), &mut function);
-        self.map_horizontal_line(from.x(), to.x(), to.y(), &mut function);
-        self.map_vertical_line(from.x(), from.y(), to.y(), &mut function);
-        self.map_vertical_line(to.x(), from.y(), to.y(), &mut function);
+        self.map_horizontal_line(from.x(), to.x() + 1, from.y(), &mut function);
+        self.map_horizontal_line(from.x(), to.x() + 1, to.y(), &mut function);
+        self.map_vertical_line(from.x(), from.y(), to.y() + 1, &mut function);
+        self.map_vertical_line(to.x(), from.y(), to.y() + 1, &mut function);
     }
 }
 
@@ -328,7 +328,7 @@ where
     }
 }
 
-impl<P, const W: usize, const H: usize, I, O, U, F> Image<I, O, U, F> for Sprite<P, W, H>
+impl<P, const W: usize, const H: usize, I, O, U, F> Image<I, U, F> for Sprite<P, W, H>
 where
     P: Copy,
     I: Into<Vector<i32>>,
