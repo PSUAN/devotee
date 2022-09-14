@@ -87,13 +87,12 @@ impl<'a> Node<&mut UpdateContext<'a>, &mut Canvas<FourBits>> for TilemapNode {
     fn render(&self, render: &mut Canvas<FourBits>) {
         render.clear(0.into());
 
-        render.line((0, 0), (2, 2), paint(FourBits::White));
-
         let mut tile_data = self.tile_data.into_iter();
         let tiles: &[Sprite<_, 8, 8>] = &self.tiles;
+        render.rect((32, 32), (32 + 64, 32 + 64), paint(7.into()));
         render.tilemap(
             (32, 32),
-            |i| {
+            |i, _| {
                 let x = 8 * (i as i32 % 8);
                 let y = 8 * (i as i32 / 8);
                 Vector::new(

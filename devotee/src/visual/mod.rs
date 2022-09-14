@@ -1,4 +1,5 @@
 use crate::util::getter::Getter;
+use crate::util::vector::Vector;
 use color::Color;
 
 /// Image with dimensions unknown at compile-time.
@@ -11,8 +12,8 @@ pub mod sprite;
 /// Drawing traits prelude.
 pub mod prelude {
     pub use super::color::Color;
-    pub use super::{draw, paint};
-    pub use super::{Draw, Image, Line, Pixel, PixelMod, Rect, Tilemap};
+    pub use super::{draw, paint, printer, stamp};
+    pub use super::{Draw, Image, Line, Pixel, PixelMod, Rect, Text, Tilemap};
 }
 
 /// Mapper function accepts `x` and `y` coordinates and pixel value.
@@ -32,6 +33,33 @@ where
     P: Clone + Color,
 {
     move |_, _, pixel| Color::mix(pixel, value.clone())
+}
+
+/// Helper printer mapper for the `Text` trait.
+pub fn printer<U>() -> impl FnMut(char, &U) -> Vector<i32>
+where
+    U: Draw,
+{
+    let mut column = 0;
+    let mut line = 0;
+    move |code_point, representation| {
+        let result = (column, line).into();
+        if code_point == '\n' {
+            line += representation.height();
+            column = 0;
+        } else {
+            column += representation.width();
+        }
+        result
+    }
+}
+
+/// Helper stamper mapper for image-image mapping.
+pub fn stamp<P>() -> impl FnMut(i32, i32, P, i32, i32, P) -> P
+where
+    P: Clone + Color,
+{
+    move |_, _, pixel, _, _, other| pixel.mix(other)
 }
 
 /// General drawing trait.
@@ -106,6 +134,19 @@ pub trait Tilemap<I, U, F, M>: Image<I, U, F> {
         mapper: M,
         tiles: &dyn Getter<Index = usize, Item = U>,
         tile_data: &mut dyn Iterator<Item = usize>,
+        function: F,
+    );
+}
+
+/// Draw text using mapper, font and the text itself.
+pub trait Text<I, U, F, M>: Image<I, U, F> {
+    /// Use provided spatial mapper, tiles and color mapper function to draw text.
+    fn text(
+        &mut self,
+        at: I,
+        mapper: M,
+        font: &dyn Getter<Index = char, Item = U>,
+        text: &str,
         function: F,
     );
 }

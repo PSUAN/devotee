@@ -1,9 +1,11 @@
 use super::prelude::*;
 use super::UnsafePixel;
+use crate::util::getter::Getter;
 use crate::util::vector::Vector;
 use std::mem;
 
 /// Sprite of fixed size.
+#[derive(Clone, Copy, Debug)]
 pub struct Sprite<P, const W: usize, const H: usize> {
     data: [[P; W]; H],
 }
@@ -15,6 +17,11 @@ where
     /// Create new Sprite with given color for each pixel.
     pub fn with_color(color: P) -> Self {
         let data = [[color; W]; H];
+        Self { data }
+    }
+
+    /// Create new Sprite with given data.
+    pub fn with_data(data: [[P; W]; H]) -> Self {
         Self { data }
     }
 }
@@ -56,7 +63,7 @@ where
 
         let mut current = from;
 
-        while current.x() < to.x() {
+        while current.x() <= to.x() {
             let pose = if steep {
                 (current.y(), current.x()).into()
             } else {
@@ -158,7 +165,7 @@ where
             mem::swap(&mut from_y, &mut to_y);
         }
         from_y = from_y.max(0);
-        to_y = to_y.min(H as i32);
+        to_y = (to_y + 1).min(H as i32);
         for y in from_y..to_y {
             let step = (x, y);
             unsafe {
@@ -182,7 +189,7 @@ where
             mem::swap(&mut from_x, &mut to_x);
         }
         from_x = from_x.max(0);
-        to_x = to_x.min(W as i32);
+        to_x = (to_x + 1).min(W as i32);
         for x in from_x..to_x {
             let step = (x, y);
             unsafe {
@@ -307,10 +314,10 @@ where
     fn rect(&mut self, from: I, to: I, function: F) {
         let (from, to) = (from.into(), to.into() - (1, 1).into());
         let mut function = function;
-        self.map_horizontal_line(from.x(), to.x() + 1, from.y(), &mut function);
-        self.map_horizontal_line(from.x(), to.x() + 1, to.y(), &mut function);
-        self.map_vertical_line(from.x(), from.y(), to.y() + 1, &mut function);
-        self.map_vertical_line(to.x(), from.y(), to.y() + 1, &mut function);
+        self.map_horizontal_line(from.x(), to.x(), from.y(), &mut function);
+        self.map_horizontal_line(from.x(), to.x(), to.y(), &mut function);
+        self.map_vertical_line(from.x(), from.y(), to.y(), &mut function);
+        self.map_vertical_line(to.x(), from.y(), to.y(), &mut function);
     }
 }
 
@@ -340,5 +347,63 @@ where
         let at = at.into();
         let mut function = function;
         self.zip_map_images(at, image, &mut function)
+    }
+}
+
+impl<P, const W: usize, const H: usize, I, M, U, O, F> Tilemap<I, U, F, M> for Sprite<P, W, H>
+where
+    P: Copy,
+    I: Into<Vector<i32>>,
+    M: FnMut(usize, usize) -> Vector<i32>,
+    U: UnsafePixel<Vector<i32>, Pixel = O>,
+    O: Clone,
+    F: FnMut(i32, i32, Self::Pixel, i32, i32, O) -> Self::Pixel,
+{
+    fn tilemap(
+        &mut self,
+        at: I,
+        mapper: M,
+        tiles: &dyn Getter<Index = usize, Item = U>,
+        tile_data: &mut dyn Iterator<Item = usize>,
+        function: F,
+    ) {
+        let at = at.into();
+        let mut mapper = mapper;
+        let mut function = function;
+        for (index, tile) in tile_data.enumerate() {
+            if let Some(tile_image) = tiles.get(&tile) {
+                let local = at + mapper(index, tile);
+                self.zip_map_images(local, tile_image, &mut function);
+            }
+        }
+    }
+}
+
+impl<P, const W: usize, const H: usize, I, M, U, O, F> Text<I, U, F, M> for Sprite<P, W, H>
+where
+    P: Copy,
+    I: Into<Vector<i32>>,
+    M: FnMut(char, &U) -> Vector<i32>,
+    U: UnsafePixel<Vector<i32>, Pixel = O>,
+    O: Clone,
+    F: FnMut(i32, i32, Self::Pixel, i32, i32, O) -> Self::Pixel,
+{
+    fn text(
+        &mut self,
+        at: I,
+        mapper: M,
+        font: &dyn Getter<Index = char, Item = U>,
+        text: &str,
+        function: F,
+    ) {
+        let at = at.into();
+        let mut mapper = mapper;
+        let mut function = function;
+        for code_point in text.chars() {
+            if let Some(symbol) = font.get(&code_point) {
+                let local = at + mapper(code_point, symbol);
+                self.zip_map_images(local, symbol, &mut function);
+            }
+        }
     }
 }

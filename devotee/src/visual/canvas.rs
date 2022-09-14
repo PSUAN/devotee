@@ -6,6 +6,7 @@ use std::mem;
 use std::slice::Iter;
 
 /// Canvas based on box slice of pixel data.
+#[derive(Clone, Debug)]
 pub struct Canvas<P> {
     data: Box<[P]>,
     width: usize,
@@ -59,7 +60,7 @@ where
 
         let mut current = from;
 
-        while current.x() < to.x() {
+        while current.x() <= to.x() {
             let pose = if steep {
                 (current.y(), current.x()).into()
             } else {
@@ -169,7 +170,7 @@ where
             mem::swap(&mut from_y, &mut to_y);
         }
         from_y = from_y.max(0);
-        to_y = to_y.min(self.height as i32);
+        to_y = (to_y + 1).min(self.height as i32);
         for y in from_y..to_y {
             let step = (x, y);
             unsafe {
@@ -193,7 +194,7 @@ where
             mem::swap(&mut from_x, &mut to_x);
         }
         from_x = from_x.max(0);
-        to_x = to_x.min(self.width as i32);
+        to_x = (to_x + 1).min(self.width as i32);
         for x in from_x..to_x {
             let step = (x, y);
             unsafe {
@@ -317,10 +318,10 @@ where
     fn rect(&mut self, from: I, to: I, function: F) {
         let (from, to) = (from.into(), to.into() - (1, 1).into());
         let mut function = function;
-        self.map_horizontal_line(from.x(), to.x() + 1, from.y(), &mut function);
-        self.map_horizontal_line(from.x(), to.x() + 1, to.y(), &mut function);
-        self.map_vertical_line(from.x(), from.y(), to.y() + 1, &mut function);
-        self.map_vertical_line(to.x(), from.y(), to.y() + 1, &mut function);
+        self.map_horizontal_line(from.x(), to.x(), from.y(), &mut function);
+        self.map_horizontal_line(from.x(), to.x(), to.y(), &mut function);
+        self.map_vertical_line(from.x(), from.y(), to.y(), &mut function);
+        self.map_vertical_line(to.x(), from.y(), to.y(), &mut function);
     }
 }
 
@@ -357,7 +358,7 @@ impl<P, I, M, U, O, F> Tilemap<I, U, F, M> for Canvas<P>
 where
     P: Clone,
     I: Into<Vector<i32>>,
-    M: Fn(usize) -> Vector<i32>,
+    M: FnMut(usize, usize) -> Vector<i32>,
     U: UnsafePixel<Vector<i32>, Pixel = O>,
     O: Clone,
     F: FnMut(i32, i32, Self::Pixel, i32, i32, O) -> Self::Pixel,
@@ -371,11 +372,41 @@ where
         function: F,
     ) {
         let at = at.into();
+        let mut mapper = mapper;
         let mut function = function;
         for (index, tile) in tile_data.enumerate() {
             if let Some(tile_image) = tiles.get(&tile) {
-                let local = at + mapper(index);
+                let local = at + mapper(index, tile);
                 self.zip_map_images(local, tile_image, &mut function);
+            }
+        }
+    }
+}
+
+impl<P, I, M, U, O, F> Text<I, U, F, M> for Canvas<P>
+where
+    P: Clone,
+    I: Into<Vector<i32>>,
+    M: FnMut(char, &U) -> Vector<i32>,
+    U: UnsafePixel<Vector<i32>, Pixel = O>,
+    O: Clone,
+    F: FnMut(i32, i32, Self::Pixel, i32, i32, O) -> Self::Pixel,
+{
+    fn text(
+        &mut self,
+        at: I,
+        mapper: M,
+        font: &dyn Getter<Index = char, Item = U>,
+        text: &str,
+        function: F,
+    ) {
+        let at = at.into();
+        let mut mapper = mapper;
+        let mut function = function;
+        for code_point in text.chars() {
+            if let Some(symbol) = font.get(&code_point) {
+                let local = at + mapper(code_point, symbol);
+                self.zip_map_images(local, symbol, &mut function);
             }
         }
     }
