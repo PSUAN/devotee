@@ -316,7 +316,7 @@ where
     }
 
     fn rect(&mut self, from: I, to: I, function: F) {
-        let (from, to) = (from.into(), to.into() - (1, 1).into());
+        let (from, to) = (from.into(), to.into() - (1, 1));
         let mut function = function;
         self.map_horizontal_line(from.x(), to.x(), from.y(), &mut function);
         self.map_horizontal_line(from.x(), to.x(), to.y(), &mut function);

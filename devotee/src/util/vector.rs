@@ -1,4 +1,4 @@
-use std::ops::{Add, Mul, Sub};
+use std::ops::{Add, Div, Mul, Sub};
 
 /// Generic two-dimensional vector.
 #[derive(Clone, Copy, Debug, Default, Eq, Ord, PartialEq, PartialOrd)]
@@ -79,12 +79,27 @@ where
     }
 }
 
-impl<T> Add for Vector<T>
+impl<T> Div<T> for Vector<T>
 where
-    T: Add<Output = T> + Clone,
+    T: Div<Output = T> + Clone,
 {
     type Output = Self;
-    fn add(self, other: Self) -> Self::Output {
+    fn div(self, other: T) -> Self::Output {
+        Self {
+            x: self.x / other.clone(),
+            y: self.y / other,
+        }
+    }
+}
+
+impl<T, U> Add<U> for Vector<T>
+where
+    T: Add<Output = T>,
+    U: Into<Vector<T>>,
+{
+    type Output = Self;
+    fn add(self, other: U) -> Self::Output {
+        let other = other.into();
         Self {
             x: self.x + other.x,
             y: self.y + other.y,
@@ -92,12 +107,14 @@ where
     }
 }
 
-impl<T> Sub for Vector<T>
+impl<T, U> Sub<U> for Vector<T>
 where
-    T: Sub<Output = T> + Clone,
+    T: Sub<Output = T>,
+    U: Into<Vector<T>>,
 {
     type Output = Self;
-    fn sub(self, other: Self) -> Self::Output {
+    fn sub(self, other: U) -> Self::Output {
+        let other = other.into();
         Self {
             x: self.x - other.x,
             y: self.y - other.y,
