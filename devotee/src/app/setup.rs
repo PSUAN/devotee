@@ -18,6 +18,7 @@ where
     pub(super) constructor: Constructor<Cfg::Node>,
     #[cfg(target_arch = "wasm32")]
     pub(super) element_id: Option<&'static str>,
+    pub(super) pause_on_focus_lost: bool,
 }
 
 impl<Cfg> Setup<Cfg>
@@ -45,6 +46,7 @@ where
             constructor,
             #[cfg(target_arch = "wasm32")]
             element_id: None,
+            pause_on_focus_lost: true,
         }
     }
 
@@ -81,10 +83,18 @@ where
     }
 
     #[cfg(target_arch = "wasm32")]
-    /// Set target element id for canvas holding on wasm32 target
+    /// Set target element id for canvas holding on wasm32 target.
     pub fn with_element_id(self, element_id: &'static str) -> Self {
         let element_id = Some(element_id);
         Self { element_id, ..self }
+    }
+
+    /// Set whether to apply pause on focus lost.
+    pub fn with_pause_on_focus_lost(self, pause_on_focus_lost: bool) -> Self {
+        Self {
+            pause_on_focus_lost,
+            ..self
+        }
     }
 }
 

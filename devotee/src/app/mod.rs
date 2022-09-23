@@ -39,13 +39,8 @@ where
     Cfg: Config,
 {
     event_loop: EventLoop<()>,
-    window: window::Window,
-    update_delay: Duration,
-    input: Input,
-    canvas: Canvas<Cfg::Palette>,
-    converter: Cfg::Converter,
-    sound_system: Option<SoundSystem>,
     constructor: Constructor<Cfg::Node>,
+    inner: Inner<Cfg>,
 }
 
 struct Inner<Cfg>
@@ -53,12 +48,12 @@ where
     Cfg: Config,
 {
     window: window::Window,
-    node: Cfg::Node,
     update_delay: Duration,
     input: Input,
     canvas: Canvas<Cfg::Palette>,
     converter: Cfg::Converter,
     sound_system: Option<SoundSystem>,
+    pause_on_focus_lost: bool,
 }
 
 impl<Cfg> App<Cfg>
@@ -81,15 +76,19 @@ where
         let converter = Cfg::converter();
         let sound_system = SoundSystem::try_new();
         let constructor = setup.constructor;
+        let pause_on_focus_lost = setup.pause_on_focus_lost;
         Some(Self {
             event_loop,
-            window,
-            update_delay,
-            input,
-            canvas,
-            converter,
-            sound_system,
             constructor,
+            inner: Inner {
+                window,
+                update_delay,
+                input,
+                canvas,
+                converter,
+                sound_system,
+                pause_on_focus_lost,
+            },
         })
     }
 }
@@ -111,24 +110,19 @@ where
     /// Start the application event loop.
     pub fn run(self) {
         let mut app = self;
-        let mut update =
-            UpdateContext::new(app.update_delay, &app.input, app.sound_system.as_mut());
+        let mut update = UpdateContext::new(
+            app.inner.update_delay,
+            &app.inner.input,
+            app.inner.sound_system.as_mut(),
+        );
 
-        let node = (app.constructor)(&mut update);
+        let mut node = (app.constructor)(&mut update);
         if update.shall_stop() {
             return;
         }
 
         let event_loop = app.event_loop;
-        let mut app = Inner::<Cfg> {
-            node,
-            window: app.window,
-            canvas: app.canvas,
-            converter: app.converter,
-            input: app.input,
-            sound_system: app.sound_system,
-            update_delay: app.update_delay,
-        };
+        let mut app = app.inner;
         let mut paused = false;
 
         event_loop.run(move |event, _, control_flow| match event {
@@ -143,7 +137,7 @@ where
                     let mut update =
                         UpdateContext::new(app.update_delay, &app.input, app.sound_system.as_mut());
 
-                    app.node.update(&mut update);
+                    node.update(&mut update);
                     if update.shall_stop() {
                         *control_flow = ControlFlow::Exit;
                     }
@@ -155,7 +149,7 @@ where
                 }
             }
             Event::RedrawRequested(_) => {
-                app.node.render(&mut app.canvas);
+                node.render(&mut app.canvas);
                 Self::convert(app.window.pixels_mut(), &app.canvas, &app.converter);
                 if app.window.render().is_err() {
                     *control_flow = ControlFlow::Exit;
@@ -183,7 +177,7 @@ where
             Event::WindowEvent {
                 event: WindowEvent::Focused(focused),
                 ..
-            } => {
+            } if app.pause_on_focus_lost => {
                 paused = !focused;
                 if paused {
                     app.sound_system.as_ref().map(SoundSystem::pause);
