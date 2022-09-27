@@ -9,6 +9,7 @@ use devotee::visual::canvas::Canvas;
 use devotee::visual::color;
 use devotee::visual::prelude::*;
 use devotee::visual::sprite::Sprite;
+
 use std::f64::consts::PI;
 
 fn main() {
@@ -68,8 +69,8 @@ impl TilemapNode {
         if color != FourBits::Black {
             sprite.rect((0, 0), (8, 8), paint(color));
             sprite.filled_rect((2, 2), (6, 6), paint(color));
-            sprite.line((1, 1), (7, 7), paint(FourBits::Beige));
-            sprite.line((6, 1), (2, 5), paint(FourBits::White));
+            sprite.line((1, 1), (6, 6), paint(FourBits::Beige));
+            sprite.line((6, 1), (1, 6), paint(FourBits::White));
         }
         sprite
     }

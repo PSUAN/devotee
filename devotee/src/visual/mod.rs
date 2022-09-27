@@ -13,7 +13,7 @@ pub mod sprite;
 pub mod prelude {
     pub use super::color::Color;
     pub use super::{draw, paint, printer, stamp};
-    pub use super::{Draw, Image, Line, Pixel, PixelMod, Rect, Text, Tilemap};
+    pub use super::{Circle, Draw, Image, Line, Pixel, PixelMod, Rect, Text, Tilemap, Triangle};
 }
 
 /// Mapper function accepts `x` and `y` coordinates and pixel value.
@@ -104,19 +104,35 @@ pub trait UnsafePixel<I>: Draw {
     unsafe fn pixel_mut(&mut self, position: I) -> &mut Self::Pixel;
 }
 
-/// Allow function application on a line in the given (inclusive) range.
+/// Allow line drawing.
 pub trait Line<I, F>: Draw {
-    /// Use provided function on each pixel in a line.
+    /// Use provided function on each pixel in a line in inclusive range.
     fn line(&mut self, from: I, to: I, function: F);
 }
 
-/// Allow function application on a rectangle in the given (exclusive) range.
+/// Allow rectangle-related drawing.
 pub trait Rect<I, F>: Draw {
     /// Use provided function on each pixel in a rectangle.
     fn filled_rect(&mut self, from: I, to: I, function: F);
 
-    /// Use provided function on each pixel in rectangle bounds.
+    /// Use provided function on each pixel of rectangle bounds.
     fn rect(&mut self, from: I, to: I, function: F);
+}
+
+/// Allow triangle-related drawing.
+pub trait Triangle<I, F>: Draw {
+    /// Use provided function on each pixel in triangle.
+    fn filled_triangle(&mut self, vertex: [I; 3], function: F);
+    /// Use provided function on each pixel of triangle bounds.
+    fn triangle(&mut self, vertex: [I; 3], function: F);
+}
+
+/// Allow circle-related drawing.
+pub trait Circle<I, F>: Draw {
+    /// Use provided function on each pixel in circle.
+    fn filled_circle(&mut self, center: I, radius: i32, function: F);
+    /// Use provided function on each pixel of circle bounds.
+    fn circle(&mut self, center: I, radius: i32, function: F);
 }
 
 /// Apply image using provided mapper function.

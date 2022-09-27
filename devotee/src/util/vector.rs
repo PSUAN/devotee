@@ -9,7 +9,7 @@ pub struct Vector<T> {
 
 impl<T> Vector<T> {
     /// Create new vector with `x` and `y` values.
-    pub fn new(x: T, y: T) -> Self {
+    pub const fn new(x: T, y: T) -> Self {
         Self { x, y }
     }
 }
@@ -31,12 +31,12 @@ where
 
 impl<T> Vector<T> {
     /// Get reference to x value.
-    pub fn get_x(&self) -> &T {
+    pub const fn x_ref(&self) -> &T {
         &self.x
     }
 
     /// Get reference to y value.
-    pub fn get_y(&self) -> &T {
+    pub const fn y_ref(&self) -> &T {
         &self.y
     }
 

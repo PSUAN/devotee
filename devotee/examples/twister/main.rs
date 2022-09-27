@@ -8,6 +8,7 @@ use devotee::visual::canvas::Canvas;
 use devotee::visual::color;
 use devotee::visual::prelude::*;
 use rodio::source::{SineWave, Source};
+
 use std::f64::consts;
 use std::time::Duration;
 

@@ -8,6 +8,7 @@ use devotee::visual::canvas::Canvas;
 use devotee::visual::color;
 use devotee::visual::prelude::*;
 use devotee::visual::sprite::Sprite;
+
 use std::collections::HashMap;
 use std::f64::consts::{FRAC_PI_2, PI};
 

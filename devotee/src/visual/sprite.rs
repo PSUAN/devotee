@@ -15,13 +15,13 @@ where
     P: Copy,
 {
     /// Create new Sprite with given color for each pixel.
-    pub fn with_color(color: P) -> Self {
+    pub const fn with_color(color: P) -> Self {
         let data = [[color; W]; H];
         Self { data }
     }
 
     /// Create new Sprite with given data.
-    pub fn with_data(data: [[P; W]; H]) -> Self {
+    pub const fn with_data(data: [[P; W]; H]) -> Self {
         Self { data }
     }
 }
@@ -30,6 +30,12 @@ impl<P, const W: usize, const H: usize> Sprite<P, W, H>
 where
     P: Clone,
 {
+    fn map_on_pixel(&mut self, point: Vector<i32>, function: &mut dyn FnMut(i32, i32, P) -> P) {
+        if let Some(pixel) = self.pixel_mut(point) {
+            *pixel = function(point.x(), point.y(), pixel.clone());
+        }
+    }
+
     fn map_on_line(
         &mut self,
         mut from: Vector<i32>,
@@ -106,6 +112,124 @@ where
                     *self.pixel_mut_unsafe(step) = pixel;
                 }
             }
+        }
+    }
+
+    fn map_on_filled_triangle<F: FnMut(i32, i32, P) -> P>(
+        &mut self,
+        vertex: [Vector<i32>; 3],
+        function: &mut F,
+    ) {
+        let mut vertex = vertex;
+        vertex.sort_by(|a, b| a.y().cmp(b.y_ref()));
+        let [a, b, c] = vertex;
+
+        // We are on a horizontal line.
+        if a.y() == c.y() {
+            vertex.sort_by(|a, b| a.x().cmp(b.x_ref()));
+            self.map_horizontal_line(vertex[0].x(), vertex[2].x(), vertex[0].y(), function);
+            return;
+        }
+        let delta_01 = b - a;
+        let delta_02 = c - a;
+        let delta_20 = a - c;
+        let delta_21 = b - c;
+
+        let middle = if b.y() == c.y() { b.y() } else { b.y() - 1 };
+
+        let (mut sa, mut sb) = (0, 0);
+        for y in a.y()..=middle {
+            let left = a.x() + sa / delta_01.y();
+            let right = a.x() + sb / delta_02.y();
+            sa += delta_01.x();
+            sb += delta_02.x();
+            self.map_horizontal_line(left, right, y, function);
+        }
+
+        let middle = middle + 1;
+        let (mut sa, mut sb) = (0, 0);
+        for y in (middle..=c.y()).rev() {
+            let left = c.x() + sa / delta_20.y();
+            let right = c.x() + sb / delta_21.y();
+            sa -= delta_20.x();
+            sb -= delta_21.x();
+            self.map_horizontal_line(left, right, y, function);
+        }
+    }
+
+    fn map_on_filled_circle<F: FnMut(i32, i32, P) -> P>(
+        &mut self,
+        center: Vector<i32>,
+        radius: i32,
+        function: &mut F,
+    ) {
+        self.map_horizontal_line(
+            center.x() - radius,
+            center.x() + radius,
+            center.y(),
+            function,
+        );
+        self.map_on_pixel(center + (0, radius), function);
+        self.map_on_pixel(center - (0, radius), function);
+
+        let mut x = 0;
+        let mut y = radius;
+        let mut decision = 3 - 2 * radius;
+
+        while x < y {
+            x += 1;
+            if decision > 0 {
+                y -= 1;
+                decision += 4 * (x - y) + 10;
+            } else {
+                decision += 4 * x + 6;
+            }
+            self.map_horizontal_line(center.x() - x, center.x() + x, center.y() + y, function);
+            self.map_horizontal_line(center.x() - x, center.x() + x, center.y() - y, function);
+            self.map_horizontal_line(center.x() - y, center.x() + y, center.y() + x, function);
+            self.map_horizontal_line(center.x() - y, center.x() + y, center.y() - x, function);
+        }
+    }
+
+    fn map_on_circle(
+        &mut self,
+        center: Vector<i32>,
+        radius: i32,
+        function: &mut dyn FnMut(i32, i32, P) -> P,
+    ) {
+        self.map_on_pixel(center + (radius, 0), function);
+        self.map_on_pixel(center - (radius, 0), function);
+        self.map_on_pixel(center + (0, radius), function);
+        self.map_on_pixel(center - (0, radius), function);
+
+        let mut x = 0;
+        let mut y = radius;
+        let mut decision = 1 - radius;
+        let mut checker_x = 1;
+        let mut checker_y = -2 * radius;
+
+        let mut mapper = move |x, y| {
+            self.map_on_pixel(center + (x, y), function);
+            self.map_on_pixel(center + (x, -y), function);
+            self.map_on_pixel(center + (-x, y), function);
+            self.map_on_pixel(center + (-x, -y), function);
+
+            self.map_on_pixel(center + (y, x), function);
+            self.map_on_pixel(center + (y, -x), function);
+            self.map_on_pixel(center + (-y, x), function);
+            self.map_on_pixel(center + (-y, -x), function);
+        };
+
+        while x < y {
+            if decision > 0 {
+                y -= 1;
+                checker_y += 2;
+                decision += checker_y;
+            }
+            x += 1;
+            checker_x += 2;
+            decision += checker_x;
+            mapper(x, y);
         }
     }
 
@@ -318,6 +442,45 @@ where
         self.map_horizontal_line(from.x(), to.x(), to.y(), &mut function);
         self.map_vertical_line(from.x(), from.y(), to.y(), &mut function);
         self.map_vertical_line(to.x(), from.y(), to.y(), &mut function);
+    }
+}
+
+impl<P, const W: usize, const H: usize, I, F> Triangle<I, F> for Sprite<P, W, H>
+where
+    P: Copy,
+    I: Into<Vector<i32>>,
+    F: FnMut(i32, i32, P) -> P,
+{
+    fn filled_triangle(&mut self, vertex: [I; 3], function: F) {
+        let vertex = vertex.map(|i| i.into());
+        let mut function = function;
+        self.map_on_filled_triangle(vertex, &mut function);
+    }
+
+    fn triangle(&mut self, vertex: [I; 3], function: F) {
+        let [a, b, c] = vertex.map(|i| i.into());
+        let mut function = function;
+        self.line(a, b, &mut function);
+        self.line(b, c, &mut function);
+        self.line(c, a, &mut function);
+    }
+}
+
+impl<P, const W: usize, const H: usize, I, F> Circle<I, F> for Sprite<P, W, H>
+where
+    P: Copy,
+    I: Into<Vector<i32>>,
+    F: FnMut(i32, i32, P) -> P,
+{
+    fn filled_circle(&mut self, center: I, radius: i32, function: F) {
+        let center = center.into();
+        let mut function = function;
+        self.map_on_filled_circle(center, radius, &mut function);
+    }
+    fn circle(&mut self, center: I, radius: i32, function: F) {
+        let center = center.into();
+        let mut function = function;
+        self.map_on_circle(center, radius, &mut function);
     }
 }
 
