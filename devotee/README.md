@@ -26,4 +26,3 @@ cargo run --example <example_name>
 
 ## License
 `devotee` is distributed under the MIT license.
-

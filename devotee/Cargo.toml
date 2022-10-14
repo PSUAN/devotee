@@ -7,6 +7,11 @@ authors = ["PSUAN collective", "Hara Red <rtc6fg4.fejg2@gmail.com>"]
 description = "Visualization engine"
 repository = "https://github.com/PSUAN/devotee"
 license = "MIT"
+homepage = "https://github.com/PSUAN/devotee"
+documentation = "https://docs.rs/devotee"
+readme = "README.md"
+keywords = ["gamedev", "graphics"]
+categories = ["game-engines"]
 
 [dependencies]
 pixels = "0.9.0"
