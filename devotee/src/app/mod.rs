@@ -147,6 +147,7 @@ where
                         sound_system.clean_up_sinks();
                     }
                 }
+                app.window.request_redraw();
             }
             Event::RedrawRequested(_) => {
                 node.render(&mut app.canvas);
