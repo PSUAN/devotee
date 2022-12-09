@@ -1,4 +1,4 @@
-/// An application configuration, specifies the root node, palette and palette converter.
+/// An application configuration.
 pub trait Config {
     /// The root node to handle App's events.
     type Node;
@@ -6,6 +6,8 @@ pub trait Config {
     type Palette;
     /// The converter to transform pallette values into `[u8; 4]` values.
     type Converter;
+    /// The input handler.
+    type Input;
 
     /// Provide palette converter.
     fn converter() -> Self::Converter;

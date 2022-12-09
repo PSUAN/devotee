@@ -1,21 +1,27 @@
-use super::input::Input;
+use super::config::Config;
 use super::sound_system::SoundSystem;
 use super::window::{Window, WindowCommand};
 use std::time::Duration;
 
 /// Context that stores various update-related data.
-pub struct UpdateContext<'a> {
+pub struct UpdateContext<'a, Cfg>
+where
+    Cfg: Config,
+{
     delta: Duration,
-    input: &'a Input,
+    input: &'a Cfg::Input,
     shall_stop: bool,
     window_commands: Vec<WindowCommand>,
     sound_system: Option<&'a mut SoundSystem>,
 }
 
-impl<'a> UpdateContext<'a> {
+impl<'a, Cfg> UpdateContext<'a, Cfg>
+where
+    Cfg: Config,
+{
     pub(super) fn new(
         delta: Duration,
-        input: &'a Input,
+        input: &'a Cfg::Input,
         sound_system: Option<&'a mut SoundSystem>,
     ) -> Self {
         let shall_stop = false;
@@ -35,7 +41,7 @@ impl<'a> UpdateContext<'a> {
     }
 
     /// Get reference to the `Input` structure.
-    pub fn input(&self) -> &Input {
+    pub fn input(&self) -> &Cfg::Input {
         self.input
     }
 

@@ -1,7 +1,7 @@
 use devotee::app;
 use devotee::app::config;
 use devotee::app::context::UpdateContext;
-use devotee::app::input::VirtualKeyCode;
+use devotee::app::input::{Keyboard, VirtualKeyCode};
 use devotee::app::setup;
 use devotee::node::Node;
 use devotee::util::vector::Vector;
@@ -11,7 +11,7 @@ use devotee::visual::prelude::*;
 use devotee::visual::UnsafePixel;
 
 fn main() {
-    let init_config = setup::Setup::<Config>::new(|_| RootNode::new())
+    let init_config = setup::Setup::<Config>::new(|_| RootNode::new(), Default::default())
         .with_title("invert")
         .with_resolution((128, 128))
         .with_scale(2);
@@ -26,6 +26,7 @@ impl config::Config for Config {
     type Node = RootNode;
     type Palette = Color;
     type Converter = Converter;
+    type Input = Keyboard;
 
     fn converter() -> Self::Converter {
         Converter
@@ -67,8 +68,8 @@ impl RootNode {
     }
 }
 
-impl<'a> Node<&mut UpdateContext<'a>, &mut Canvas<Color>> for RootNode {
-    fn update(&mut self, update: &mut UpdateContext<'_>) {
+impl<'a> Node<&mut UpdateContext<'a, Config>, &mut Canvas<Color>> for RootNode {
+    fn update(&mut self, update: &mut UpdateContext<Config>) {
         if update.input().just_key_pressed(VirtualKeyCode::Escape) {
             update.shutdown();
         }

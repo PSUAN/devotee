@@ -1,7 +1,7 @@
 use devotee::app;
 use devotee::app::config;
 use devotee::app::context::UpdateContext;
-use devotee::app::input::VirtualKeyCode;
+use devotee::app::input::{Keyboard, VirtualKeyCode};
 use devotee::app::setup;
 use devotee::node::Node;
 use devotee::visual::canvas::Canvas;
@@ -13,7 +13,7 @@ use std::collections::HashMap;
 use std::f64::consts::{FRAC_PI_2, PI};
 
 fn main() {
-    let init_config = setup::Setup::<Config>::new(|_| TextNode::new())
+    let init_config = setup::Setup::<Config>::new(|_| TextNode::new(), Default::default())
         .with_title("text")
         .with_resolution((128, 128))
         .with_scale(2);
@@ -28,6 +28,7 @@ impl config::Config for Config {
     type Node = TextNode;
     type Palette = FourBits;
     type Converter = Converter;
+    type Input = Keyboard;
 
     fn converter() -> Self::Converter {
         Converter { transparent: None }
@@ -128,8 +129,8 @@ fn symbol(data: [[u8; 3]; 5]) -> Sprite<u8, 4, 6> {
     Sprite::with_data(data)
 }
 
-impl<'a> Node<&mut UpdateContext<'a>, &mut Canvas<FourBits>> for TextNode {
-    fn update(&mut self, update: &mut UpdateContext<'_>) {
+impl<'a> Node<&mut UpdateContext<'a, Config>, &mut Canvas<FourBits>> for TextNode {
+    fn update(&mut self, update: &mut UpdateContext<Config>) {
         if update.input().just_key_pressed(VirtualKeyCode::Escape) {
             update.shutdown();
         }

@@ -1,6 +1,6 @@
 [package]
 name = "devotee"
-version = "0.1.17"
+version = "0.1.18"
 edition = "2021"
 publish = true
 authors = ["PSUAN collective", "Hara Red <rtc6fg4.fejg2@gmail.com>"]
@@ -14,12 +14,12 @@ keywords = ["gamedev", "graphics"]
 categories = ["game-engines"]
 
 [dependencies]
-pixels = "0.9.0"
+pixels = "0.10.0"
 winit = "0.26.1"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 rodio = { version = "0.15.0", default-features = false }
-wgpu = "0.12.0"
+wgpu = "0.13.1"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 rodio = { version = "0.15.0", default-features = false, features = [
@@ -29,4 +29,4 @@ rodio = { version = "0.15.0", default-features = false, features = [
 instant = "0.1.12"
 pollster = "0.2.5"
 web-sys = "0.3.57"
-wgpu = { version = "0.12.0", features = ["webgl"] }
+wgpu = { version = "0.13.1", features = ["webgl"] }

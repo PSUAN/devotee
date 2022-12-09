@@ -1,7 +1,7 @@
 use devotee::app;
 use devotee::app::config;
 use devotee::app::context::UpdateContext;
-use devotee::app::input::VirtualKeyCode;
+use devotee::app::input::{Keyboard, VirtualKeyCode};
 use devotee::app::setup;
 use devotee::node::Node;
 use devotee::util::vector::Vector;
@@ -25,6 +25,7 @@ impl config::Config for Config {
     type Node = Mandelbrot;
     type Palette = FourBits;
     type Converter = Converter;
+    type Input = Keyboard;
 
     fn converter() -> Self::Converter {
         Converter { transparent: None }
@@ -53,8 +54,8 @@ impl Default for Mandelbrot {
     }
 }
 
-impl<'a> Node<&mut UpdateContext<'a>, &mut Canvas<FourBits>> for Mandelbrot {
-    fn update(&mut self, update: &mut UpdateContext<'_>) {
+impl<'a> Node<&mut UpdateContext<'a, Config>, &mut Canvas<FourBits>> for Mandelbrot {
+    fn update(&mut self, update: &mut UpdateContext<Config>) {
         let delta = update.delta().as_secs_f64();
 
         if update.input().is_key_pressed(VirtualKeyCode::Z)

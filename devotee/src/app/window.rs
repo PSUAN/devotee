@@ -76,6 +76,7 @@ impl Window {
             #[cfg(not(target_arch = "wasm32"))]
             {
                 let builder = builder
+                    .surface_texture_format(wgpu::TextureFormat::Bgra8Unorm)
                     .render_texture_format(wgpu::TextureFormat::Bgra8Unorm)
                     .texture_format(wgpu::TextureFormat::Rgba8Unorm);
                 builder.build().ok()?

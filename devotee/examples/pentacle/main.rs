@@ -1,7 +1,7 @@
 use devotee::app;
 use devotee::app::config;
 use devotee::app::context::UpdateContext;
-use devotee::app::input::VirtualKeyCode;
+use devotee::app::input::{Keyboard, VirtualKeyCode};
 use devotee::app::setup;
 use devotee::node::Node;
 use devotee::util::vector::Vector;
@@ -27,6 +27,7 @@ impl config::Config for Config {
     type Node = TwisterNode;
     type Palette = TwoBits;
     type Converter = Converter;
+    type Input = Keyboard;
 
     fn converter() -> Self::Converter {
         Converter
@@ -46,8 +47,8 @@ struct TwisterNode {
     rotation: f64,
 }
 
-impl<'a> Node<&mut UpdateContext<'a>, &mut Canvas<TwoBits>> for TwisterNode {
-    fn update(&mut self, update: &mut UpdateContext<'_>) {
+impl<'a> Node<&mut UpdateContext<'a, Config>, &mut Canvas<TwoBits>> for TwisterNode {
+    fn update(&mut self, update: &mut UpdateContext<Config>) {
         if update.input().just_key_pressed(VirtualKeyCode::Escape) {
             update.shutdown();
         }

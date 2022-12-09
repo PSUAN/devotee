@@ -1,7 +1,7 @@
 use devotee::app;
 use devotee::app::config;
 use devotee::app::context::UpdateContext;
-use devotee::app::input::VirtualKeyCode;
+use devotee::app::input::{Keyboard, VirtualKeyCode};
 use devotee::app::setup;
 use devotee::node::Node;
 use devotee::util::vector::Vector;
@@ -13,7 +13,7 @@ use devotee::visual::sprite::Sprite;
 use std::f64::consts::PI;
 
 fn main() {
-    let init_config = setup::Setup::<Config>::new(|_| TilemapNode::new())
+    let init_config = setup::Setup::<Config>::new(|_| TilemapNode::new(), Default::default())
         .with_title("tilemap")
         .with_resolution((128, 128))
         .with_scale(2);
@@ -28,6 +28,7 @@ impl config::Config for Config {
     type Node = TilemapNode;
     type Palette = FourBits;
     type Converter = Converter;
+    type Input = Keyboard;
 
     fn converter() -> Self::Converter {
         Converter { transparent: None }
@@ -76,8 +77,8 @@ impl TilemapNode {
     }
 }
 
-impl<'a> Node<&mut UpdateContext<'a>, &mut Canvas<FourBits>> for TilemapNode {
-    fn update(&mut self, update: &mut UpdateContext<'_>) {
+impl<'a> Node<&mut UpdateContext<'a, Config>, &mut Canvas<FourBits>> for TilemapNode {
+    fn update(&mut self, update: &mut UpdateContext<Config>) {
         if update.input().just_key_pressed(VirtualKeyCode::Escape) {
             update.shutdown();
         }

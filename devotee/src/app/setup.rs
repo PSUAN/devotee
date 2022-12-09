@@ -15,10 +15,11 @@ where
     pub(super) fullscreen: bool,
     pub(super) scale: u32,
     pub(super) resolution: Vector<usize>,
-    pub(super) constructor: Constructor<Cfg::Node>,
+    pub(super) constructor: Constructor<Cfg::Node, Cfg>,
     #[cfg(target_arch = "wasm32")]
     pub(super) element_id: Option<&'static str>,
     pub(super) pause_on_focus_lost: bool,
+    pub(super) input: Cfg::Input,
 }
 
 impl<Cfg> Setup<Cfg>
@@ -27,9 +28,9 @@ where
 {
     /// Create new setup with given `Node` constructor.
     /// Defaults to 30 frames per second update.
-    pub fn new<F>(constructor: F) -> Self
+    pub fn new<F>(constructor: F, input: Cfg::Input) -> Self
     where
-        F: 'static + FnOnce(&mut UpdateContext) -> Cfg::Node,
+        F: 'static + FnOnce(&mut UpdateContext<Cfg>) -> Cfg::Node,
     {
         let title = String::new();
         let update_delay = Duration::from_secs_f64(1.0 / 30.0);
@@ -47,6 +48,7 @@ where
             #[cfg(target_arch = "wasm32")]
             element_id: None,
             pause_on_focus_lost: true,
+            input,
         }
     }
 
@@ -102,8 +104,9 @@ impl<Cfg> Default for Setup<Cfg>
 where
     Cfg: Config,
     Cfg::Node: Default,
+    Cfg::Input: Default,
 {
     fn default() -> Self {
-        Self::new(|_| Cfg::Node::default())
+        Self::new(|_| Default::default(), Default::default())
     }
 }
