@@ -129,8 +129,8 @@ fn symbol(data: [[u8; 3]; 5]) -> Sprite<u8, 4, 6> {
     Sprite::with_data(data)
 }
 
-impl<'a> Node<&mut UpdateContext<'a, Config>, &mut Canvas<FourBits>> for TextNode {
-    fn update(&mut self, update: &mut UpdateContext<Config>) {
+impl<'a> Node<&mut UpdateContext<'a, Keyboard>, &mut Canvas<FourBits>> for TextNode {
+    fn update(&mut self, update: &mut UpdateContext<Keyboard>) {
         if update.input().just_key_pressed(VirtualKeyCode::Escape) {
             update.shutdown();
         }
@@ -176,14 +176,11 @@ impl<'a> Node<&mut UpdateContext<'a, Config>, &mut Canvas<FourBits>> for TextNod
 
         render.line((64, 64), (x, y), paint(FourBits::Beige));
 
-        let cos = (cos * 10000.0).round() / 10000.0;
-        let sin = (sin * 10000.0).round() / 10000.0;
-
         render.text(
             (x, y),
             printer(),
             &self.font,
-            &format!("{}\n{}", cos, sin),
+            &format!("{:.3}\n{:.3}", cos, sin),
             |_, _, p, _, _, o| {
                 if o == 0 {
                     p

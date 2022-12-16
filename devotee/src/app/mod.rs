@@ -40,7 +40,7 @@ where
     Cfg: Config,
 {
     event_loop: EventLoop<()>,
-    constructor: Constructor<Cfg::Node, Cfg>,
+    constructor: Constructor<Cfg::Node, Cfg::Input>,
     inner: Inner<Cfg>,
 }
 
@@ -97,7 +97,8 @@ where
 impl<Cfg> App<Cfg>
 where
     Cfg: 'static + Config,
-    Cfg::Node: for<'a, 'b, 'c> Node<&'a mut UpdateContext<'b, Cfg>, &'c mut Canvas<Cfg::Palette>>,
+    Cfg::Node:
+        for<'a, 'b, 'c> Node<&'a mut UpdateContext<'b, Cfg::Input>, &'c mut Canvas<Cfg::Palette>>,
     Cfg::Converter: Converter<Palette = Cfg::Palette>,
     Cfg::Palette: Clone,
     Cfg::Input: Input,

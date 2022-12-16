@@ -54,8 +54,8 @@ impl Default for Mandelbrot {
     }
 }
 
-impl<'a> Node<&mut UpdateContext<'a, Config>, &mut Canvas<FourBits>> for Mandelbrot {
-    fn update(&mut self, update: &mut UpdateContext<Config>) {
+impl<'a> Node<&mut UpdateContext<'a, Keyboard>, &mut Canvas<FourBits>> for Mandelbrot {
+    fn update(&mut self, update: &mut UpdateContext<Keyboard>) {
         let delta = update.delta().as_secs_f64();
 
         if update.input().is_key_pressed(VirtualKeyCode::Z)
