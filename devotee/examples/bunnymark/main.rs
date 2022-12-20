@@ -130,8 +130,8 @@ impl BunnyMark {
     }
 }
 
-impl<'a> Node<&mut UpdateContext<'a, Config>, &mut Canvas<FourBits>> for BunnyMark {
-    fn update(&mut self, update: &mut UpdateContext<Config>) {
+impl<'a> Node<&mut UpdateContext<'a, Keyboard>, &mut Canvas<FourBits>> for BunnyMark {
+    fn update(&mut self, update: &mut UpdateContext<Keyboard>) {
         if update.input().just_key_pressed(VirtualKeyCode::Escape) {
             update.shutdown();
         }

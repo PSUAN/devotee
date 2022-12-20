@@ -15,7 +15,7 @@ where
     pub(super) fullscreen: bool,
     pub(super) scale: u32,
     pub(super) resolution: Vector<usize>,
-    pub(super) constructor: Constructor<Cfg::Node, Cfg>,
+    pub(super) constructor: Constructor<Cfg::Node, Cfg::Input>,
     #[cfg(target_arch = "wasm32")]
     pub(super) element_id: Option<&'static str>,
     pub(super) pause_on_focus_lost: bool,
@@ -30,7 +30,7 @@ where
     /// Defaults to 30 frames per second update.
     pub fn new<F>(constructor: F, input: Cfg::Input) -> Self
     where
-        F: 'static + FnOnce(&mut UpdateContext<Cfg>) -> Cfg::Node,
+        F: 'static + FnOnce(&mut UpdateContext<Cfg::Input>) -> Cfg::Node,
     {
         let title = String::new();
         let update_delay = Duration::from_secs_f64(1.0 / 30.0);
