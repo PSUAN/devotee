@@ -9,6 +9,8 @@ pub mod color;
 /// Image with compile-time known dimensions.
 pub mod sprite;
 
+mod generalization;
+
 /// Drawing traits prelude.
 pub mod prelude {
     pub use super::color::Color;
