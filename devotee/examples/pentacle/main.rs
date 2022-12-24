@@ -52,8 +52,10 @@ impl<'a> Node<&mut UpdateContext<'a, Keyboard>, &mut Canvas<TwoBits>> for Twiste
         if update.input().just_key_pressed(VirtualKeyCode::Escape) {
             update.shutdown();
         }
-        let delta = update.delta().as_secs_f64();
-        self.rotation += delta;
+        if update.input().is_key_pressed(VirtualKeyCode::Z) {
+            let delta = update.delta().as_secs_f64();
+            self.rotation += delta;
+        }
     }
 
     fn render(&self, render: &mut Canvas<TwoBits>) {

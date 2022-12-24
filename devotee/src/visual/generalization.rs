@@ -1,6 +1,37 @@
 use super::{Circle, Draw, Image, Line, Pixel, PixelMod, Rect, Text, Triangle, UnsafePixel};
 use crate::util::{getter::Getter, vector::Vector};
 use std::mem;
+use std::ops::RangeInclusive;
+
+fn line_scan(from: Vector<i32>, to: Vector<i32>, vertical_scan: i32) -> RangeInclusive<i32> {
+    let steep = (to.x() - from.x()).abs() < (to.y() - from.y()).abs();
+    let delta_y = to.y() - from.y();
+    if delta_y == 0 {
+        return from.x()..=to.x();
+    }
+    if steep {
+        // It is one pixel wide
+        let y = vertical_scan;
+        let x = (to.x() - from.x()) * (y - from.y()) / (delta_y) + from.x();
+        x..=x
+    } else {
+        // It is multiple pixels wide
+        let (left, right) = if from.x() < to.x() {
+            (from.x(), to.x())
+        } else {
+            (to.x(), from.x())
+        };
+        let first_y = vertical_scan;
+        let second_y = vertical_scan + delta_y.signum();
+        let first_x = (to.x() - from.x()) * (first_y - from.y()) / delta_y + from.x();
+        let second_x = (to.x() - from.x()) * (second_y - from.y()) / delta_y + from.x();
+        if first_x < second_x {
+            first_x..=right.min(second_x - 1)
+        } else {
+            left.max(second_x + 1)..=first_x
+        }
+    }
+}
 
 pub trait Generalization {
     type Pixel: Clone;
@@ -39,44 +70,17 @@ pub trait Generalization {
             return;
         }
 
-        let steep = (to.y() - from.y()).abs() > (to.x() - from.x()).abs();
-        if steep {
-            from = (from.y(), from.x()).into();
-            to = (to.y(), to.x()).into();
+        if from.y() > to.y() {
+            (from, to) = (to, from);
         }
-
-        if from.x() > to.x() {
-            (to, from) = ((from.x(), from.y()).into(), (to.x(), to.y()).into());
-        }
-
-        let delta_x = to.x() - from.x();
-        let delta_y = (to.y() - from.y()).abs();
-
-        let mut error = delta_x / 2;
-        let positive_y_step = from.y() < to.y();
-
-        let mut current = from;
-
-        while current.x() <= to.x() {
-            let pose = if steep {
-                (current.y(), current.x()).into()
-            } else {
-                current
-            };
-
-            error -= delta_y;
-            if error < 0 {
-                *current.y_mut() += if positive_y_step { 1 } else { -1 };
-                error += delta_x;
-            }
-
-            *current.x_mut() += 1;
-
-            if pose.x() >= 0 && pose.y() >= 0 && pose.x() < self.width() && pose.y() < self.height()
-            {
-                unsafe {
-                    let pixel = function(pose.x(), pose.y(), self.pixel_unsafe(pose).clone());
-                    *self.pixel_mut_unsafe(pose) = pixel;
+        for y in from.y()..=to.y() {
+            for x in line_scan(from, to, y) {
+                if x >= 0 && y >= 0 && x < self.width() && y < self.height() {
+                    unsafe {
+                        let pose = (x, y).into();
+                        let pixel = function(x, y, self.pixel_unsafe(pose).clone());
+                        *self.pixel_mut_unsafe(pose) = pixel;
+                    }
                 }
             }
         }
@@ -154,11 +158,11 @@ pub trait Generalization {
 
     fn map_on_filled_triangle<F: FnMut(i32, i32, Self::Pixel) -> Self::Pixel>(
         &mut self,
-        vertex: [Vector<i32>; 3],
+        vertices: [Vector<i32>; 3],
         function: &mut F,
     ) {
-        let mut vertex = vertex;
-        vertex.sort_by(|a, b| a.y().cmp(b.y_ref()));
+        let mut vertex = vertices;
+        vertex.sort_by(|a, b| a.y_ref().cmp(b.y_ref()));
         let [a, b, c] = vertex;
 
         // We are on a horizontal line.
@@ -167,29 +171,23 @@ pub trait Generalization {
             self.map_horizontal_line(vertex[0].x(), vertex[2].x(), vertex[0].y(), function);
             return;
         }
-        let delta_01 = b - a;
-        let delta_02 = c - a;
-        let delta_20 = a - c;
-        let delta_21 = b - c;
 
         let middle = if b.y() == c.y() { b.y() } else { b.y() - 1 };
 
-        let (mut sa, mut sb) = (0, 0);
         for y in a.y()..=middle {
-            let left = a.x() + sa / delta_01.y();
-            let right = a.x() + sb / delta_02.y();
-            sa += delta_01.x();
-            sb += delta_02.x();
+            let left_range = line_scan(a, b, y);
+            let right_range = line_scan(a, c, y);
+            let left = *left_range.start().min(right_range.start());
+            let right = *left_range.end().max(right_range.end());
             self.map_horizontal_line(left, right, y, function);
         }
 
         let middle = middle + 1;
-        let (mut sa, mut sb) = (0, 0);
-        for y in (middle..=c.y()).rev() {
-            let left = c.x() + sa / delta_20.y();
-            let right = c.x() + sb / delta_21.y();
-            sa -= delta_20.x();
-            sb -= delta_21.x();
+        for y in middle..=c.y() {
+            let left_range = line_scan(a, c, y);
+            let right_range = line_scan(b, c, y);
+            let left = *left_range.start().min(right_range.start());
+            let right = *left_range.end().max(right_range.end());
             self.map_horizontal_line(left, right, y, function);
         }
     }
