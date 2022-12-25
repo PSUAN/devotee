@@ -9,6 +9,8 @@ pub mod color;
 /// Image with compile-time known dimensions.
 pub mod sprite;
 
+mod generalization;
+
 /// Drawing traits prelude.
 pub mod prelude {
     pub use super::color::Color;
@@ -54,10 +56,10 @@ where
     }
 }
 
-/// Helper stamper mapper for image-image mapping.
+/// Helper stamper mapper for image-to-image mapping.
 pub fn stamp<P>() -> impl FnMut(i32, i32, P, i32, i32, P) -> P
 where
-    P: Clone + Color,
+    P: Color,
 {
     move |_, _, pixel, _, _, other| pixel.mix(other)
 }
@@ -69,8 +71,10 @@ pub trait Draw {
 
     /// Width of this drawable.
     fn width(&self) -> i32;
+
     /// Height of this drawable.
     fn height(&self) -> i32;
+
     /// Clear this drawable with given pixel value.
     fn clear(&mut self, clear_color: Self::Pixel);
 }
@@ -79,6 +83,7 @@ pub trait Draw {
 pub trait Pixel<I>: Draw {
     /// Get reference to pixel.
     fn pixel(&self, position: I) -> Option<&Self::Pixel>;
+
     /// Get mutable reference to pixel.
     fn pixel_mut(&mut self, position: I) -> Option<&mut Self::Pixel>;
 }
@@ -122,7 +127,8 @@ pub trait Rect<I, F>: Draw {
 /// Allow triangle-related drawing.
 pub trait Triangle<I, F>: Draw {
     /// Use provided function on each pixel in triangle.
-    fn filled_triangle(&mut self, vertex: [I; 3], function: F);
+    fn filled_triangle(&mut self, vertices: [I; 3], function: F);
+
     /// Use provided function on each pixel of triangle bounds.
     fn triangle(&mut self, vertex: [I; 3], function: F);
 }
@@ -131,6 +137,7 @@ pub trait Triangle<I, F>: Draw {
 pub trait Circle<I, F>: Draw {
     /// Use provided function on each pixel in circle.
     fn filled_circle(&mut self, center: I, radius: i32, function: F);
+
     /// Use provided function on each pixel of circle bounds.
     fn circle(&mut self, center: I, radius: i32, function: F);
 }
