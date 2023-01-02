@@ -13,6 +13,4 @@ pub trait Config {
     fn converter() -> Self::Converter;
     /// Provide default background color for the canvas.
     fn background_color() -> Self::Palette;
-    /// Provide default background color for the window.
-    fn window_background_color() -> [u8; 3];
 }

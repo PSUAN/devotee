@@ -35,10 +35,6 @@ impl config::Config for Config {
     fn background_color() -> Self::Palette {
         Color([0, 0, 0])
     }
-
-    fn window_background_color() -> [u8; 3] {
-        [0, 0, 0]
-    }
 }
 
 struct RootNode {

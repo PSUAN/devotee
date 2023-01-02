@@ -43,10 +43,6 @@ impl config::Config for Config {
     fn background_color() -> Self::Palette {
         FourBits::Black
     }
-
-    fn window_background_color() -> [u8; 3] {
-        [0, 0, 0]
-    }
 }
 
 pub struct Converter;

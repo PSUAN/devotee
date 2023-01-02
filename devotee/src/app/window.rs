@@ -61,12 +61,12 @@ impl Window {
             let window_size = window.inner_size();
             let surface_texture =
                 SurfaceTexture::new(window_size.width, window_size.height, &window);
-            let clear_color = Cfg::window_background_color();
+            let background_color = setup.background_color;
             let builder = PixelsBuilder::new(resolution.x(), resolution.y(), surface_texture)
                 .clear_color(wgpu::Color {
-                    r: clear_color[0] as f64 / 255.0,
-                    g: clear_color[1] as f64 / 255.0,
-                    b: clear_color[2] as f64 / 255.0,
+                    r: background_color[0] as f64 / 255.0,
+                    g: background_color[1] as f64 / 255.0,
+                    b: background_color[2] as f64 / 255.0,
                     a: 1.0,
                 });
             #[cfg(target_arch = "wasm32")]

@@ -34,10 +34,6 @@ impl config::Config for Config {
     fn background_color() -> Self::Palette {
         0.into()
     }
-
-    fn window_background_color() -> [u8; 3] {
-        [0, 0, 0]
-    }
 }
 
 struct Mandelbrot {
