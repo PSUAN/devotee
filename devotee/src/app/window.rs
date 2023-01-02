@@ -102,7 +102,7 @@ impl Window {
         self.window.request_redraw();
     }
 
-    /// Get window resolution
+    /// Get window pixel resolution.
     pub fn resolution(&self) -> Vector<u32> {
         self.resolution
     }

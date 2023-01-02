@@ -3,7 +3,7 @@ use super::window::{Window, WindowCommand};
 use std::time::Duration;
 
 /// Context that stores various update-related data.
-pub struct UpdateContext<In> {
+pub struct Context<In> {
     delta: Duration,
     input: In,
     shall_stop: bool,
@@ -11,7 +11,7 @@ pub struct UpdateContext<In> {
     sound_system: Option<SoundSystem>,
 }
 
-impl<In> UpdateContext<In> {
+impl<In> Context<In> {
     pub(super) fn new(delta: Duration, input: In, sound_system: Option<SoundSystem>) -> Self {
         let shall_stop = false;
         let window_commands = Vec::new();

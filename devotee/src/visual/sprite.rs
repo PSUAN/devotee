@@ -2,7 +2,7 @@ use crate::util::vector::Vector;
 
 use super::generalization::Generalization;
 
-/// Sprite of fixed size.
+/// Sprite of fixed dimensions.
 #[derive(Clone, Copy, Debug)]
 pub struct Sprite<P, const W: usize, const H: usize> {
     data: [[P; W]; H],

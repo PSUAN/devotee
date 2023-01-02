@@ -1,5 +1,5 @@
 use super::config::Config;
-use super::context::UpdateContext;
+use super::context::Context;
 use super::Constructor;
 use crate::util::vector::Vector;
 use std::time::Duration;
@@ -31,7 +31,7 @@ where
     /// Defaults to 30 frames per second update.
     pub fn new<F>(constructor: F, input: Cfg::Input) -> Self
     where
-        F: 'static + FnOnce(&mut UpdateContext<Cfg::Input>) -> Cfg::Node,
+        F: 'static + FnOnce(&mut Context<Cfg::Input>) -> Cfg::Node,
     {
         let title = String::new();
         let update_delay = Duration::from_secs_f64(1.0 / 30.0);
@@ -94,7 +94,7 @@ where
         Self { element_id, ..self }
     }
 
-    /// Set whether to apply pause on focus lost.
+    /// Set whether to apply pause on focus being lost.
     pub fn with_pause_on_focus_lost(self, pause_on_focus_lost: bool) -> Self {
         Self {
             pause_on_focus_lost,

@@ -1,6 +1,6 @@
 use devotee::app;
 use devotee::app::config;
-use devotee::app::context::UpdateContext;
+use devotee::app::context::Context;
 use devotee::app::input::{Keyboard, VirtualKeyCode};
 use devotee::app::setup;
 use devotee::node::Node;
@@ -125,8 +125,8 @@ fn symbol(data: [[u8; 3]; 5]) -> Sprite<u8, 4, 6> {
     Sprite::with_data(data)
 }
 
-impl Node<&mut UpdateContext<Keyboard>, &mut Canvas<FourBits>> for TextNode {
-    fn update(&mut self, update: &mut UpdateContext<Keyboard>) {
+impl Node<&mut Context<Keyboard>, &mut Canvas<FourBits>> for TextNode {
+    fn update(&mut self, update: &mut Context<Keyboard>) {
         if update.input().just_key_pressed(VirtualKeyCode::Escape) {
             update.shutdown();
         }

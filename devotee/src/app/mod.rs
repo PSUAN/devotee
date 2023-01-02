@@ -2,7 +2,7 @@ use crate::node::Node;
 use crate::visual::canvas::Canvas;
 use crate::visual::color::Converter;
 use config::Config;
-use context::UpdateContext;
+use context::Context;
 #[cfg(target_arch = "wasm32")]
 use instant::Instant;
 use pixels::Pixels;
@@ -18,7 +18,7 @@ use self::input::Input;
 
 /// General application config.
 pub mod config;
-/// Context provided by the application.
+/// Context provided by the application during the `update`.
 pub mod context;
 /// User input handler.
 pub mod input;
@@ -30,8 +30,8 @@ pub mod sound_system;
 pub mod window;
 
 /// Node constructor.
-/// Takes mutable reference to `UpdateContext` and provides new node.
-pub type Constructor<T, U> = Box<dyn FnOnce(&mut UpdateContext<U>) -> T>;
+/// Takes mutable reference to `Context` and provides constructed node.
+pub type Constructor<T, U> = Box<dyn FnOnce(&mut Context<U>) -> T>;
 
 /// App is the root of the `devotee` project.
 /// It handles `winit`'s event loop and render.
@@ -63,7 +63,7 @@ where
     Cfg::Palette: Copy,
     Cfg::Converter: Converter<Palette = Cfg::Palette>,
 {
-    /// Create an app with given setup.
+    /// Create an app with given `setup`.
     pub fn with_setup(setup: Setup<Cfg>) -> Option<Self> {
         let event_loop = EventLoop::new();
         let window = window::Window::with_setup(&event_loop, &setup)?;
@@ -97,8 +97,7 @@ where
 impl<Cfg> App<Cfg>
 where
     Cfg: 'static + Config,
-    Cfg::Node:
-        for<'a, 'b, 'c> Node<&'a mut UpdateContext<Cfg::Input>, &'c mut Canvas<Cfg::Palette>>,
+    Cfg::Node: for<'a, 'b, 'c> Node<&'a mut Context<Cfg::Input>, &'c mut Canvas<Cfg::Palette>>,
     Cfg::Converter: Converter<Palette = Cfg::Palette>,
     Cfg::Palette: Clone,
     Cfg::Input: Input,
@@ -117,7 +116,7 @@ where
     /// Start the application event loop.
     pub fn run(self) {
         let mut app = self;
-        let mut update = UpdateContext::new(
+        let mut update = Context::new(
             app.inner.update_delay,
             app.input,
             app.inner.sound_system.take(),
@@ -149,7 +148,7 @@ where
                     *control_flow = ControlFlow::WaitUntil(requested_resume + app.update_delay);
                     if !paused {
                         // SAFETY: We are certain that we did not forget to put input back.
-                        let mut update = UpdateContext::new(
+                        let mut update = Context::new(
                             app.update_delay,
                             input.take().unwrap(),
                             app.sound_system.take(),

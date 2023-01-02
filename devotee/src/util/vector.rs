@@ -18,34 +18,34 @@ impl<T> Vector<T>
 where
     T: Clone,
 {
-    /// Get x value.
+    /// Get the x value.
     pub fn x(&self) -> T {
         self.x.clone()
     }
 
-    /// Get y value.
+    /// Get the y value.
     pub fn y(&self) -> T {
         self.y.clone()
     }
 }
 
 impl<T> Vector<T> {
-    /// Get reference to x value.
+    /// Get reference to the x value.
     pub const fn x_ref(&self) -> &T {
         &self.x
     }
 
-    /// Get reference to y value.
+    /// Get reference to the y value.
     pub const fn y_ref(&self) -> &T {
         &self.y
     }
 
-    /// Get mutable reference to x value.
+    /// Get mutable reference to the x value.
     pub fn x_mut(&mut self) -> &mut T {
         &mut self.x
     }
 
-    /// Get mutable reference to y value.
+    /// Get mutable reference to the y value.
     pub fn y_mut(&mut self) -> &mut T {
         &mut self.y
     }
