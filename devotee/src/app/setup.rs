@@ -1,5 +1,5 @@
 use super::config::Config;
-use super::context::UpdateContext;
+use super::context::Context;
 use super::Constructor;
 use crate::util::vector::Vector;
 use std::time::Duration;
@@ -20,6 +20,7 @@ where
     pub(super) element_id: Option<&'static str>,
     pub(super) pause_on_focus_lost: bool,
     pub(super) input: Cfg::Input,
+    pub(super) background_color: [u8; 3],
 }
 
 impl<Cfg> Setup<Cfg>
@@ -30,7 +31,7 @@ where
     /// Defaults to 30 frames per second update.
     pub fn new<F>(constructor: F, input: Cfg::Input) -> Self
     where
-        F: 'static + FnOnce(&mut UpdateContext<Cfg::Input>) -> Cfg::Node,
+        F: 'static + FnOnce(&mut Context<Cfg::Input>) -> Cfg::Node,
     {
         let title = String::new();
         let update_delay = Duration::from_secs_f64(1.0 / 30.0);
@@ -38,6 +39,7 @@ where
         let scale = 1;
         let resolution = Vector::new(320, 240);
         let constructor = Box::new(constructor);
+        let background_color = [0, 0, 0];
         Self {
             title,
             update_delay,
@@ -49,6 +51,7 @@ where
             element_id: None,
             pause_on_focus_lost: true,
             input,
+            background_color,
         }
     }
 
@@ -91,10 +94,18 @@ where
         Self { element_id, ..self }
     }
 
-    /// Set whether to apply pause on focus lost.
+    /// Set whether to apply pause on focus being lost.
     pub fn with_pause_on_focus_lost(self, pause_on_focus_lost: bool) -> Self {
         Self {
             pause_on_focus_lost,
+            ..self
+        }
+    }
+
+    /// Set background color for the window.
+    pub fn with_background_color(self, background_color: [u8; 3]) -> Self {
+        Self {
+            background_color,
             ..self
         }
     }

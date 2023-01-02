@@ -2,7 +2,7 @@ use crate::node::Node;
 use crate::visual::canvas::Canvas;
 use crate::visual::color::Converter;
 use config::Config;
-use context::UpdateContext;
+use context::Context;
 #[cfg(target_arch = "wasm32")]
 use instant::Instant;
 use pixels::Pixels;
@@ -18,7 +18,7 @@ use self::input::Input;
 
 /// General application config.
 pub mod config;
-/// Context provided by the application.
+/// Context provided by the application during the `update`.
 pub mod context;
 /// User input handler.
 pub mod input;
@@ -30,8 +30,8 @@ pub mod sound_system;
 pub mod window;
 
 /// Node constructor.
-/// Takes mutable reference to `UpdateContext` and provides new node.
-pub type Constructor<T, U> = Box<dyn FnOnce(&mut UpdateContext<U>) -> T>;
+/// Takes mutable reference to `Context` and provides constructed node.
+pub type Constructor<T, U> = Box<dyn FnOnce(&mut Context<U>) -> T>;
 
 /// App is the root of the `devotee` project.
 /// It handles `winit`'s event loop and render.
@@ -42,6 +42,7 @@ where
     event_loop: EventLoop<()>,
     constructor: Constructor<Cfg::Node, Cfg::Input>,
     inner: Inner<Cfg>,
+    input: Cfg::Input,
 }
 
 struct Inner<Cfg>
@@ -50,7 +51,6 @@ where
 {
     window: window::Window,
     update_delay: Duration,
-    input: Cfg::Input,
     canvas: Canvas<Cfg::Palette>,
     converter: Cfg::Converter,
     sound_system: Option<SoundSystem>,
@@ -63,7 +63,7 @@ where
     Cfg::Palette: Copy,
     Cfg::Converter: Converter<Palette = Cfg::Palette>,
 {
-    /// Create an app with given setup.
+    /// Create an app with given `setup`.
     pub fn with_setup(setup: Setup<Cfg>) -> Option<Self> {
         let event_loop = EventLoop::new();
         let window = window::Window::with_setup(&event_loop, &setup)?;
@@ -84,12 +84,12 @@ where
             inner: Inner {
                 window,
                 update_delay,
-                input,
                 canvas,
                 converter,
                 sound_system,
                 pause_on_focus_lost,
             },
+            input,
         })
     }
 }
@@ -97,8 +97,7 @@ where
 impl<Cfg> App<Cfg>
 where
     Cfg: 'static + Config,
-    Cfg::Node:
-        for<'a, 'b, 'c> Node<&'a mut UpdateContext<'b, Cfg::Input>, &'c mut Canvas<Cfg::Palette>>,
+    Cfg::Node: for<'a, 'b, 'c> Node<&'a mut Context<Cfg::Input>, &'c mut Canvas<Cfg::Palette>>,
     Cfg::Converter: Converter<Palette = Cfg::Palette>,
     Cfg::Palette: Clone,
     Cfg::Input: Input,
@@ -117,77 +116,96 @@ where
     /// Start the application event loop.
     pub fn run(self) {
         let mut app = self;
-        let mut update = UpdateContext::new(
+        let mut update = Context::new(
             app.inner.update_delay,
-            &app.inner.input,
-            app.inner.sound_system.as_mut(),
+            app.input,
+            app.inner.sound_system.take(),
         );
 
         let mut node = (app.constructor)(&mut update);
         if update.shall_stop() {
             return;
         }
+        let (sound_system, input, commands) = update.decompose();
 
         let event_loop = app.event_loop;
         let mut app = app.inner;
+        app.sound_system = sound_system;
         let mut paused = false;
+        let mut input = Some(input);
 
-        event_loop.run(move |event, _, control_flow| match event {
-            Event::NewEvents(StartCause::Init) => {
-                *control_flow = ControlFlow::WaitUntil(Instant::now() + app.update_delay);
-            }
-            Event::NewEvents(StartCause::ResumeTimeReached {
-                requested_resume, ..
-            }) => {
-                *control_flow = ControlFlow::WaitUntil(requested_resume + app.update_delay);
-                if !paused {
-                    let mut update =
-                        UpdateContext::new(app.update_delay, &app.input, app.sound_system.as_mut());
+        app.window.apply(commands);
 
-                    node.update(&mut update);
-                    if update.shall_stop() {
-                        *control_flow = ControlFlow::Exit;
-                    }
-                    app.window.apply(update.extract_window_commands());
-                    app.input.next_frame();
-                    if let Some(sound_system) = &mut app.sound_system {
-                        sound_system.clean_up_sinks();
-                    }
+        event_loop.run(move |event, _, control_flow| {
+            // SAFETY: We strongly believe that we still have input in ouw possession.
+            match event {
+                Event::NewEvents(StartCause::Init) => {
+                    *control_flow = ControlFlow::WaitUntil(Instant::now() + app.update_delay);
                 }
-                app.window.request_redraw();
-            }
-            Event::RedrawRequested(_) => {
-                node.render(&mut app.canvas);
-                Self::convert(app.window.pixels_mut(), &app.canvas, &app.converter);
-                if app.window.render().is_err() {
-                    *control_flow = ControlFlow::Exit;
-                }
-                app.window.request_redraw();
-            }
-            Event::WindowEvent { event, .. } => {
-                if let Some(event) = app.input.consume_window_event(event) {
-                    match event {
-                        WindowEvent::CloseRequested => {
+                Event::NewEvents(StartCause::ResumeTimeReached {
+                    requested_resume, ..
+                }) => {
+                    *control_flow = ControlFlow::WaitUntil(requested_resume + app.update_delay);
+                    if !paused {
+                        // SAFETY: We are certain that we did not forget to put input back.
+                        let mut update = Context::new(
+                            app.update_delay,
+                            input.take().unwrap(),
+                            app.sound_system.take(),
+                        );
+
+                        node.update(&mut update);
+                        if update.shall_stop() {
                             *control_flow = ControlFlow::Exit;
                         }
-                        WindowEvent::Resized(size) => {
-                            app.window
-                                .pixels_mut()
-                                .resize_surface(size.width, size.height);
+                        let (sound_system, mut returned_input, window_commands) =
+                            update.decompose();
+                        app.window.apply(window_commands);
+                        app.sound_system = sound_system;
+
+                        returned_input.next_frame();
+                        if let Some(sound_system) = &mut app.sound_system {
+                            sound_system.clean_up_sinks();
                         }
-                        WindowEvent::Focused(focused) if app.pause_on_focus_lost => {
-                            paused = !focused;
-                            if paused {
-                                app.sound_system.as_ref().map(SoundSystem::pause);
-                            } else {
-                                app.sound_system.as_ref().map(SoundSystem::resume);
+
+                        input = Some(returned_input);
+                    }
+                    app.window.request_redraw();
+                }
+                Event::RedrawRequested(_) => {
+                    node.render(&mut app.canvas);
+                    Self::convert(app.window.pixels_mut(), &app.canvas, &app.converter);
+                    if app.window.render().is_err() {
+                        *control_flow = ControlFlow::Exit;
+                    }
+                    app.window.request_redraw();
+                }
+                Event::WindowEvent { event, .. } => {
+                    // SAFETY: we believe that we did not forget to put input back.
+                    if let Some(event) = input.as_mut().unwrap().consume_window_event(event) {
+                        match event {
+                            WindowEvent::CloseRequested => {
+                                *control_flow = ControlFlow::Exit;
                             }
+                            WindowEvent::Resized(size) => {
+                                app.window
+                                    .pixels_mut()
+                                    .resize_surface(size.width, size.height);
+                            }
+                            WindowEvent::Focused(focused) if app.pause_on_focus_lost => {
+                                paused = !focused;
+                                if paused {
+                                    app.sound_system.as_ref().map(SoundSystem::pause);
+                                } else {
+                                    app.sound_system.as_ref().map(SoundSystem::resume);
+                                }
+                            }
+                            _ => {}
                         }
-                        _ => {}
                     }
                 }
+                _ => {}
             }
-            _ => {}
         });
     }
 }

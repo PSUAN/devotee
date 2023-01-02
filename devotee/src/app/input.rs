@@ -8,10 +8,8 @@ pub trait Input {
     /// Handle frame change.
     fn next_frame(&mut self);
     /// Register `winit` event.
-    fn consume_window_event<'a, 'b>(
-        &'a mut self,
-        event: WindowEvent<'b>,
-    ) -> Option<WindowEvent<'b>>;
+    /// Return `None` if the event is consumed.
+    fn consume_window_event<'a>(&mut self, event: WindowEvent<'a>) -> Option<WindowEvent<'a>>;
 }
 
 /// The simple keyboard input handler.
@@ -27,9 +25,14 @@ impl Keyboard {
         self.currently_pressed.contains(&key)
     }
 
-    /// Check if the specified key was pressed just before this update.
+    /// Check if the specified key was just pressed before this update call.
     pub fn just_key_pressed(&self, key: VirtualKeyCode) -> bool {
         self.currently_pressed.contains(&key) & !self.previously_pressed.contains(&key)
+    }
+
+    /// Check if the specified key was just released before this update call.
+    pub fn just_key_released(&self, key: VirtualKeyCode) -> bool {
+        !self.currently_pressed.contains(&key) & self.previously_pressed.contains(&key)
     }
 
     fn step(&mut self) {
@@ -59,10 +62,7 @@ impl Input for Keyboard {
         self.step();
     }
 
-    fn consume_window_event<'a, 'b>(
-        &'a mut self,
-        event: WindowEvent<'b>,
-    ) -> Option<WindowEvent<'b>> {
+    fn consume_window_event<'a>(&mut self, event: WindowEvent<'a>) -> Option<WindowEvent<'a>> {
         if let WindowEvent::KeyboardInput { input, .. } = event {
             self.register_key_event(input);
             None

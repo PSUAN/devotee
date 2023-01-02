@@ -1,6 +1,6 @@
 use devotee::app;
 use devotee::app::config;
-use devotee::app::context::UpdateContext;
+use devotee::app::context::Context;
 use devotee::app::input::{Keyboard, VirtualKeyCode};
 use devotee::app::setup;
 use devotee::node::Node;
@@ -34,10 +34,6 @@ impl config::Config for Config {
     fn background_color() -> Self::Palette {
         0.into()
     }
-
-    fn window_background_color() -> [u8; 3] {
-        [0, 0, 0]
-    }
 }
 
 struct Mandelbrot {
@@ -54,8 +50,8 @@ impl Default for Mandelbrot {
     }
 }
 
-impl<'a> Node<&mut UpdateContext<'a, Keyboard>, &mut Canvas<FourBits>> for Mandelbrot {
-    fn update(&mut self, update: &mut UpdateContext<Keyboard>) {
+impl Node<&mut Context<Keyboard>, &mut Canvas<FourBits>> for Mandelbrot {
+    fn update(&mut self, update: &mut Context<Keyboard>) {
         let delta = update.delta().as_secs_f64();
 
         if update.input().is_key_pressed(VirtualKeyCode::Z)

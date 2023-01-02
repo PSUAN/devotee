@@ -11,7 +11,7 @@ pub mod sprite;
 
 mod generalization;
 
-/// Drawing traits prelude.
+/// Collection of drawing traits and functions compiles in a single prelude.
 pub mod prelude {
     pub use super::color::Color;
     pub use super::{draw, paint, printer, stamp};
@@ -22,6 +22,7 @@ pub mod prelude {
 pub type Mapper<P> = dyn FnMut(i32, i32, P) -> P;
 
 /// Helper paint function for pixel value override.
+/// It ignores the value of original pixel and replaces it with `value`.
 pub fn paint<P>(value: P) -> impl FnMut(i32, i32, P) -> P
 where
     P: Clone,
@@ -30,6 +31,7 @@ where
 }
 
 /// Helper draw function for pixel value combining.
+/// It mixes original pixel value and provided `value`.
 pub fn draw<P>(value: P) -> impl FnMut(i32, i32, P) -> P
 where
     P: Clone + Color,
@@ -38,6 +40,7 @@ where
 }
 
 /// Helper printer mapper for the `Text` trait.
+/// It breaks lines on newline symbol (`'\n'`) and ignores any special characters.
 pub fn printer<U>() -> impl FnMut(char, &U) -> Vector<i32>
 where
     U: Draw,
@@ -57,6 +60,7 @@ where
 }
 
 /// Helper stamper mapper for image-to-image mapping.
+/// It just mixes original pixels and pixels of stamped image.
 pub fn stamp<P>() -> impl FnMut(i32, i32, P, i32, i32, P) -> P
 where
     P: Color,

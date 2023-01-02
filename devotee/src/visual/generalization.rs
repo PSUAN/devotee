@@ -209,16 +209,19 @@ pub trait Generalization {
 
         let mut x = 0;
         let mut y = radius;
-        let mut decision = 3 - 2 * radius;
+        let mut decision = 1 - radius;
+        let mut checker_x = 1;
+        let mut checker_y = -2 * radius;
 
         while x < y {
-            x += 1;
             if decision > 0 {
                 y -= 1;
-                decision += 4 * (x - y) + 10;
-            } else {
-                decision += 4 * x + 6;
+                checker_y += 2;
+                decision += checker_y;
             }
+            x += 1;
+            checker_x += 2;
+            decision += checker_x;
             self.map_horizontal_line(center.x() - x, center.x() + x, center.y() + y, function);
             self.map_horizontal_line(center.x() - x, center.x() + x, center.y() - y, function);
             self.map_horizontal_line(center.x() - y, center.x() + y, center.y() + x, function);

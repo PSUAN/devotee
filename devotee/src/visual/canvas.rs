@@ -3,6 +3,7 @@ use crate::util::vector::Vector;
 use std::slice::Iter;
 
 /// Canvas based on box slice of pixel data.
+/// The canvas size is not known at compile time.
 #[derive(Clone, Debug)]
 pub struct Canvas<P> {
     data: Box<[P]>,

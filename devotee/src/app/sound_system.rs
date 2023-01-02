@@ -8,9 +8,9 @@ pub use rodio;
 /// `rodio`'s `Sink` wrapped in reference counter.
 pub type Sound = Rc<Sink>;
 
-/// `rodio`-bases sound system of `devotee`,
+/// `rodio`-based sound system,
 pub struct SoundSystem {
-    // We are storing `OutputStream` instance to save it from dropping and stopping sound.
+    // We are storing `OutputStream` instance to save it from being dropped and thus stopping sound.
     #[allow(dead_code)]
     output_stream: OutputStream,
     handle: OutputStreamHandle,
@@ -18,9 +18,7 @@ pub struct SoundSystem {
 }
 
 impl SoundSystem {
-    /// Try creating new `SoundSystem`.
-    /// Fails if `rodio`'s default `OutputStream` failed to initialize.
-    pub fn try_new() -> Option<Self> {
+    pub(crate) fn try_new() -> Option<Self> {
         let (output_stream, handle) = OutputStream::try_default().ok()?;
         let sinks = Vec::new();
         Some(Self {
@@ -35,6 +33,8 @@ impl SoundSystem {
     }
 
     /// Play given sound.
+    /// Returns `None` in fail case.
+    /// The returned sink may be used to stop sound.
     pub fn play(&mut self, source: Box<dyn Source<Item = f32> + Send>) -> Option<Rc<Sink>> {
         if let Some(sink) = self.sink() {
             sink.append(source);
