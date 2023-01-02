@@ -3,20 +3,16 @@ use super::window::{Window, WindowCommand};
 use std::time::Duration;
 
 /// Context that stores various update-related data.
-pub struct UpdateContext<'a, In> {
+pub struct UpdateContext<In> {
     delta: Duration,
-    input: &'a In,
+    input: In,
     shall_stop: bool,
     window_commands: Vec<WindowCommand>,
-    sound_system: Option<&'a mut SoundSystem>,
+    sound_system: Option<SoundSystem>,
 }
 
-impl<'a, In> UpdateContext<'a, In> {
-    pub(super) fn new(
-        delta: Duration,
-        input: &'a In,
-        sound_system: Option<&'a mut SoundSystem>,
-    ) -> Self {
+impl<In> UpdateContext<In> {
+    pub(super) fn new(delta: Duration, input: In, sound_system: Option<SoundSystem>) -> Self {
         let shall_stop = false;
         let window_commands = Vec::new();
         Self {
@@ -35,7 +31,7 @@ impl<'a, In> UpdateContext<'a, In> {
 
     /// Get reference to the `Input` structure.
     pub fn input(&self) -> &In {
-        self.input
+        &self.input
     }
 
     /// Tell the `App` to stop execution.
@@ -54,10 +50,10 @@ impl<'a, In> UpdateContext<'a, In> {
 
     /// Get optional mutable reference to the `SoundSystem`.
     pub fn sound_system(&mut self) -> Option<&mut SoundSystem> {
-        self.sound_system.as_deref_mut()
+        self.sound_system.as_mut()
     }
 
-    pub(super) fn extract_window_commands(self) -> Vec<WindowCommand> {
-        self.window_commands
+    pub(super) fn decompose(self) -> (Option<SoundSystem>, In, Vec<WindowCommand>) {
+        (self.sound_system, self.input, self.window_commands)
     }
 }

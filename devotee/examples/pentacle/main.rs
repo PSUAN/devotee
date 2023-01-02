@@ -43,7 +43,7 @@ struct TwisterNode {
     rotation: f64,
 }
 
-impl<'a> Node<&mut UpdateContext<'a, Keyboard>, &mut Canvas<TwoBits>> for TwisterNode {
+impl Node<&mut UpdateContext<Keyboard>, &mut Canvas<TwoBits>> for TwisterNode {
     fn update(&mut self, update: &mut UpdateContext<Keyboard>) {
         if update.input().just_key_pressed(VirtualKeyCode::Escape) {
             update.shutdown();

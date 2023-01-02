@@ -50,7 +50,7 @@ impl Default for Mandelbrot {
     }
 }
 
-impl<'a> Node<&mut UpdateContext<'a, Keyboard>, &mut Canvas<FourBits>> for Mandelbrot {
+impl Node<&mut UpdateContext<Keyboard>, &mut Canvas<FourBits>> for Mandelbrot {
     fn update(&mut self, update: &mut UpdateContext<Keyboard>) {
         let delta = update.delta().as_secs_f64();
 

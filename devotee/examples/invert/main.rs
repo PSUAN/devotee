@@ -64,7 +64,7 @@ impl RootNode {
     }
 }
 
-impl<'a> Node<&mut UpdateContext<'a, Keyboard>, &mut Canvas<Color>> for RootNode {
+impl Node<&mut UpdateContext<Keyboard>, &mut Canvas<Color>> for RootNode {
     fn update(&mut self, update: &mut UpdateContext<Keyboard>) {
         if update.input().just_key_pressed(VirtualKeyCode::Escape) {
             update.shutdown();

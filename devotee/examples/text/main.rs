@@ -125,7 +125,7 @@ fn symbol(data: [[u8; 3]; 5]) -> Sprite<u8, 4, 6> {
     Sprite::with_data(data)
 }
 
-impl<'a> Node<&mut UpdateContext<'a, Keyboard>, &mut Canvas<FourBits>> for TextNode {
+impl Node<&mut UpdateContext<Keyboard>, &mut Canvas<FourBits>> for TextNode {
     fn update(&mut self, update: &mut UpdateContext<Keyboard>) {
         if update.input().just_key_pressed(VirtualKeyCode::Escape) {
             update.shutdown();
