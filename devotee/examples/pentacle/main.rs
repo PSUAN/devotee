@@ -13,7 +13,7 @@ use std::f64::consts;
 
 fn main() {
     let init_config = setup::Setup::<Config>::default()
-        .with_title("twister")
+        .with_title("pentacle")
         .with_resolution((128, 128))
         .with_scale(2);
     let app = app::App::with_setup(init_config).unwrap();
@@ -24,7 +24,7 @@ fn main() {
 struct Config;
 
 impl config::Config for Config {
-    type Node = TwisterNode;
+    type Node = PentacleNode;
     type Palette = TwoBits;
     type Converter = Converter;
     type Input = Keyboard;
@@ -39,11 +39,11 @@ impl config::Config for Config {
 }
 
 #[derive(Default)]
-struct TwisterNode {
+struct PentacleNode {
     rotation: f64,
 }
 
-impl Node<&mut Context<Keyboard>, &mut Canvas<TwoBits>> for TwisterNode {
+impl Node<&mut Context<Keyboard>, &mut Canvas<TwoBits>> for PentacleNode {
     fn update(&mut self, update: &mut Context<Keyboard>) {
         if update.input().just_key_pressed(VirtualKeyCode::Escape) {
             update.shutdown();
