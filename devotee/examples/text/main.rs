@@ -1,7 +1,7 @@
 use devotee::app;
 use devotee::app::config;
 use devotee::app::context::Context;
-use devotee::app::input::{Keyboard, VirtualKeyCode};
+use devotee::app::input::key_mouse::{KeyMouse, VirtualKeyCode};
 use devotee::app::setup;
 use devotee::node::Node;
 use devotee::visual::canvas::Canvas;
@@ -28,7 +28,7 @@ impl config::Config for Config {
     type Node = TextNode;
     type Palette = FourBits;
     type Converter = Converter;
-    type Input = Keyboard;
+    type Input = KeyMouse;
 
     fn converter() -> Self::Converter {
         Converter { transparent: None }
@@ -125,12 +125,12 @@ fn symbol(data: [[u8; 3]; 5]) -> Sprite<u8, 4, 6> {
     Sprite::with_data(data)
 }
 
-impl Node<&mut Context<Keyboard>, &mut Canvas<FourBits>> for TextNode {
-    fn update(&mut self, update: &mut Context<Keyboard>) {
-        if update.input().just_key_pressed(VirtualKeyCode::Escape) {
+impl Node<&mut Context<KeyMouse>, &mut Canvas<FourBits>> for TextNode {
+    fn update(&mut self, update: &mut Context<KeyMouse>) {
+        if update.input().keys().just_pressed(VirtualKeyCode::Escape) {
             update.shutdown();
         }
-        if update.input().just_key_pressed(VirtualKeyCode::Z) && !self.moving {
+        if update.input().keys().just_pressed(VirtualKeyCode::Z) && !self.moving {
             self.moving = true;
             self.counter = 0.0;
         }

@@ -43,6 +43,7 @@ impl Window {
                 .with_title(&setup.title);
             builder.build(event_loop).ok()?
         };
+        window.set_cursor_visible(false);
         #[cfg(target_arch = "wasm32")]
         {
             let document = web_sys::window()?.document()?;
@@ -88,6 +89,10 @@ impl Window {
             pixels,
             resolution,
         })
+    }
+
+    pub(super) fn pixels(&self) -> &Pixels {
+        &self.pixels
     }
 
     pub(super) fn pixels_mut(&mut self) -> &mut Pixels {
