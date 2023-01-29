@@ -1,14 +1,16 @@
-use std::f64::consts::FRAC_PI_3;
-
 use devotee::app;
 use devotee::app::config;
 use devotee::app::context::Context;
-use devotee::app::input::{Keyboard, VirtualKeyCode};
+use devotee::app::input::key_mouse::{KeyMouse, VirtualKeyCode};
 use devotee::app::setup;
 use devotee::node::Node;
+use devotee::util::vector::Vector;
 use devotee::visual::canvas::Canvas;
 use devotee::visual::color;
 use devotee::visual::prelude::*;
+
+const BOX_BOUNDARIES: (i32, i32) = (16, 128 - 16);
+const INTERNAL_RADIUS: i32 = 8;
 
 fn main() {
     let init_config = setup::Setup::<Config>::default()
@@ -26,7 +28,7 @@ impl config::Config for Config {
     type Node = RootNode;
     type Palette = Color;
     type Converter = Converter;
-    type Input = Keyboard;
+    type Input = KeyMouse;
 
     fn converter() -> Self::Converter {
         Converter
@@ -39,26 +41,40 @@ impl config::Config for Config {
 
 #[derive(Default)]
 struct RootNode {
-    counter: f64,
+    position: Vector<i32>,
 }
 
-impl Node<&mut Context<Keyboard>, &mut Canvas<Color>> for RootNode {
-    fn update(&mut self, update: &mut Context<Keyboard>) {
-        if update.input().just_key_pressed(VirtualKeyCode::Escape) {
+impl Node<&mut Context<KeyMouse>, &mut Canvas<Color>> for RootNode {
+    fn update(&mut self, update: &mut Context<KeyMouse>) {
+        if update.input().keys().just_pressed(VirtualKeyCode::Escape) {
             update.shutdown();
         }
-        self.counter += update.delta().as_secs_f64();
+
+        if let Some(pos) = update.input().mouse().position() {
+            *self.position.x_mut() = pos.x().clamp(
+                BOX_BOUNDARIES.0 + INTERNAL_RADIUS,
+                BOX_BOUNDARIES.1 - INTERNAL_RADIUS - 1,
+            );
+            *self.position.y_mut() = pos.y().clamp(
+                BOX_BOUNDARIES.0 + INTERNAL_RADIUS,
+                BOX_BOUNDARIES.1 - INTERNAL_RADIUS - 1,
+            );
+        }
     }
 
     fn render(&self, render: &mut Canvas<Color>) {
-        let red = (self.counter.sin() * 128.0) as u8 + 127;
-        let green = ((self.counter + FRAC_PI_3).sin() * 128.0) as u8 + 127;
-        let blue = ((self.counter + 2.0 * FRAC_PI_3).sin() * 128.0) as u8 + 127;
+        render.clear(Color([0x00, 0x00, 0x80]));
 
-        render.clear(Color([red, green, blue]));
-
-        render.circle((64, 64), 32, paint(Color([255, 255, 255])));
-        render.filled_circle((64, 64), 8, paint(Color([255, 255, 255])));
+        render.rect(
+            (BOX_BOUNDARIES.0, BOX_BOUNDARIES.0),
+            (BOX_BOUNDARIES.1, BOX_BOUNDARIES.1),
+            paint(Color([0xff, 0xff, 0xff])),
+        );
+        render.filled_circle(
+            self.position,
+            INTERNAL_RADIUS,
+            paint(Color([0x80, 0x80, 0x80])),
+        );
     }
 }
 

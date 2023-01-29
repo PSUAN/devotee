@@ -182,7 +182,11 @@ where
                 }
                 Event::WindowEvent { event, .. } => {
                     // SAFETY: we believe that we did not forget to put input back.
-                    if let Some(event) = input.as_mut().unwrap().consume_window_event(event) {
+                    if let Some(event) = input
+                        .as_mut()
+                        .unwrap()
+                        .consume_window_event(event, app.window.pixels())
+                    {
                         match event {
                             WindowEvent::CloseRequested => {
                                 *control_flow = ControlFlow::Exit;

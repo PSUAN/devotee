@@ -152,9 +152,9 @@ pub trait Image<I, U, F>: UnsafePixel<I> {
     fn image(&mut self, at: I, image: &U, function: F);
 }
 
-/// Apply multiple images provided spatial and color mapper functions.
+/// Apply multiple images using provided placement mapper and color mapper functions.
 pub trait Tilemap<I, U, F, M>: Image<I, U, F> {
-    /// Use provided spatial mapper, tiles and color mapper function.
+    /// Use provided placement mapper, tiles and color mapper function.
     fn tilemap(
         &mut self,
         at: I,

@@ -1,7 +1,7 @@
 use devotee::app;
 use devotee::app::config;
 use devotee::app::context::Context;
-use devotee::app::input::{Keyboard, VirtualKeyCode};
+use devotee::app::input::key_mouse::{KeyMouse, VirtualKeyCode};
 use devotee::app::setup;
 use devotee::node::Node;
 use devotee::util::vector::Vector;
@@ -26,7 +26,7 @@ impl config::Config for Config {
     type Node = RootNode;
     type Palette = Color;
     type Converter = Converter;
-    type Input = Keyboard;
+    type Input = KeyMouse;
 
     fn converter() -> Self::Converter {
         Converter
@@ -64,22 +64,22 @@ impl RootNode {
     }
 }
 
-impl Node<&mut Context<Keyboard>, &mut Canvas<Color>> for RootNode {
-    fn update(&mut self, update: &mut Context<Keyboard>) {
-        if update.input().just_key_pressed(VirtualKeyCode::Escape) {
+impl Node<&mut Context<KeyMouse>, &mut Canvas<Color>> for RootNode {
+    fn update(&mut self, update: &mut Context<KeyMouse>) {
+        if update.input().keys().just_pressed(VirtualKeyCode::Escape) {
             update.shutdown();
         }
         let delta = 16.0 * update.delta().as_secs_f64();
-        if update.input().is_key_pressed(VirtualKeyCode::Left) {
+        if update.input().keys().is_pressed(VirtualKeyCode::Left) {
             *self.position.x_mut() -= delta;
         }
-        if update.input().is_key_pressed(VirtualKeyCode::Right) {
+        if update.input().keys().is_pressed(VirtualKeyCode::Right) {
             *self.position.x_mut() += delta;
         }
-        if update.input().is_key_pressed(VirtualKeyCode::Up) {
+        if update.input().keys().is_pressed(VirtualKeyCode::Up) {
             *self.position.y_mut() -= delta;
         }
-        if update.input().is_key_pressed(VirtualKeyCode::Down) {
+        if update.input().keys().is_pressed(VirtualKeyCode::Down) {
             *self.position.y_mut() += delta;
         }
     }

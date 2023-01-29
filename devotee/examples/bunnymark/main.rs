@@ -1,7 +1,7 @@
 use devotee::app;
 use devotee::app::config;
 use devotee::app::context::Context;
-use devotee::app::input::{Keyboard, VirtualKeyCode};
+use devotee::app::input::key_mouse::{KeyMouse, VirtualKeyCode};
 use devotee::app::setup;
 use devotee::node::Node;
 use devotee::util::vector::Vector;
@@ -34,7 +34,7 @@ impl config::Config for Config {
     type Node = BunnyMark;
     type Palette = FourBits;
     type Converter = Converter;
-    type Input = Keyboard;
+    type Input = KeyMouse;
 
     fn converter() -> Self::Converter {
         Converter
@@ -126,18 +126,18 @@ impl BunnyMark {
     }
 }
 
-impl Node<&mut Context<Keyboard>, &mut Canvas<FourBits>> for BunnyMark {
-    fn update(&mut self, update: &mut Context<Keyboard>) {
-        if update.input().just_key_pressed(VirtualKeyCode::Escape) {
+impl Node<&mut Context<KeyMouse>, &mut Canvas<FourBits>> for BunnyMark {
+    fn update(&mut self, update: &mut Context<KeyMouse>) {
+        if update.input().keys().just_pressed(VirtualKeyCode::Escape) {
             update.shutdown();
         }
-        if update.input().just_key_pressed(VirtualKeyCode::Z) {
+        if update.input().keys().just_pressed(VirtualKeyCode::Z) {
             self.add_bunnies();
         }
-        if update.input().is_key_pressed(VirtualKeyCode::X) {
+        if update.input().keys().is_pressed(VirtualKeyCode::X) {
             self.add_bunnies();
         }
-        if update.input().just_key_pressed(VirtualKeyCode::C) {
+        if update.input().keys().just_pressed(VirtualKeyCode::C) {
             self.remove_bunnies();
         }
 

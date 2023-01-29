@@ -1,7 +1,7 @@
 use devotee::app;
 use devotee::app::config;
 use devotee::app::context::Context;
-use devotee::app::input::{Keyboard, VirtualKeyCode};
+use devotee::app::input::key_mouse::{KeyMouse, VirtualKeyCode};
 use devotee::app::setup;
 use devotee::node::Node;
 use devotee::util::vector::Vector;
@@ -25,7 +25,7 @@ impl config::Config for Config {
     type Node = Mandelbrot;
     type Palette = FourBits;
     type Converter = Converter;
-    type Input = Keyboard;
+    type Input = KeyMouse;
 
     fn converter() -> Self::Converter {
         Converter { transparent: None }
@@ -50,38 +50,38 @@ impl Default for Mandelbrot {
     }
 }
 
-impl Node<&mut Context<Keyboard>, &mut Canvas<FourBits>> for Mandelbrot {
-    fn update(&mut self, update: &mut Context<Keyboard>) {
+impl Node<&mut Context<KeyMouse>, &mut Canvas<FourBits>> for Mandelbrot {
+    fn update(&mut self, update: &mut Context<KeyMouse>) {
         let delta = update.delta().as_secs_f64();
 
-        if update.input().is_key_pressed(VirtualKeyCode::Z)
-            || update.input().is_key_pressed(VirtualKeyCode::C)
+        if update.input().keys().is_pressed(VirtualKeyCode::Z)
+            || update.input().keys().is_pressed(VirtualKeyCode::C)
         {
             self.scale -= delta;
         }
-        if update.input().is_key_pressed(VirtualKeyCode::X) {
+        if update.input().keys().is_pressed(VirtualKeyCode::X) {
             self.scale += delta;
         }
 
         let scale = 2.0_f64.powf(self.scale);
-        if update.input().is_key_pressed(VirtualKeyCode::Left) {
+        if update.input().keys().is_pressed(VirtualKeyCode::Left) {
             *self.center.x_mut() += delta / scale;
         }
-        if update.input().is_key_pressed(VirtualKeyCode::Right) {
+        if update.input().keys().is_pressed(VirtualKeyCode::Right) {
             *self.center.x_mut() -= delta / scale;
         }
-        if update.input().is_key_pressed(VirtualKeyCode::Up) {
+        if update.input().keys().is_pressed(VirtualKeyCode::Up) {
             *self.center.y_mut() += delta / scale;
         }
-        if update.input().is_key_pressed(VirtualKeyCode::Down) {
+        if update.input().keys().is_pressed(VirtualKeyCode::Down) {
             *self.center.y_mut() -= delta / scale;
         }
 
-        if update.input().just_key_pressed(VirtualKeyCode::Escape) {
+        if update.input().keys().just_pressed(VirtualKeyCode::Escape) {
             update.shutdown();
         }
-        if update.input().just_key_pressed(VirtualKeyCode::Return)
-            && update.input().is_key_pressed(VirtualKeyCode::LAlt)
+        if update.input().keys().just_pressed(VirtualKeyCode::Return)
+            && update.input().keys().is_pressed(VirtualKeyCode::LAlt)
         {
             update.add_window_command(|window| window.set_fullscreen(!window.is_fullscreen()));
         }
