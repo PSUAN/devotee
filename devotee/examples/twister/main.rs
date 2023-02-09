@@ -1,3 +1,6 @@
+use std::f64::consts;
+use std::time::Duration;
+
 use devotee::app;
 use devotee::app::config;
 use devotee::app::context::Context;
@@ -8,9 +11,6 @@ use devotee::visual::canvas::Canvas;
 use devotee::visual::color;
 use devotee::visual::prelude::*;
 use rodio::source::{SineWave, Source};
-
-use std::f64::consts;
-use std::time::Duration;
 
 fn main() {
     let init_config = setup::Setup::<Config>::default()

@@ -1,7 +1,8 @@
-use super::{Circle, Draw, Image, Line, Pixel, PixelMod, Rect, Text, Triangle, UnsafePixel};
-use crate::util::{getter::Getter, vector::Vector};
 use std::mem;
 use std::ops::RangeInclusive;
+
+use super::{Circle, Draw, Image, Line, Pixel, PixelMod, Rect, Text, Triangle, UnsafePixel};
+use crate::util::{getter::Getter, vector::Vector};
 
 fn line_scan(from: Vector<i32>, to: Vector<i32>, vertical_scan: i32) -> RangeInclusive<i32> {
     let steep = (to.x() - from.x()).abs() < (to.y() - from.y()).abs();

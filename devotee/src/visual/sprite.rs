@@ -1,6 +1,5 @@
-use crate::util::vector::Vector;
-
 use super::generalization::Generalization;
+use crate::util::vector::Vector;
 
 /// Sprite of fixed dimensions.
 #[derive(Clone, Copy, Debug)]

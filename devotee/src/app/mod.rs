@@ -1,20 +1,21 @@
-use crate::node::Node;
-use crate::visual::canvas::Canvas;
-use crate::visual::color::Converter;
-use config::Config;
-use context::Context;
-#[cfg(target_arch = "wasm32")]
-use instant::Instant;
-use pixels::Pixels;
-use setup::Setup;
-use sound_system::SoundSystem;
 use std::time::Duration;
 #[cfg(not(target_arch = "wasm32"))]
 use std::time::Instant;
+
+#[cfg(target_arch = "wasm32")]
+use instant::Instant;
+use pixels::Pixels;
 use winit::event::{Event, StartCause, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop};
 
+use self::config::Config;
+use self::context::Context;
 use self::input::Input;
+use self::setup::Setup;
+use self::sound_system::SoundSystem;
+use crate::node::Node;
+use crate::visual::canvas::Canvas;
+use crate::visual::color::Converter;
 
 /// General application config.
 pub mod config;

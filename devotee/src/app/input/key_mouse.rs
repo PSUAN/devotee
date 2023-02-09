@@ -1,12 +1,13 @@
-use pixels::Pixels;
 use std::collections::HashSet;
+
+use pixels::Pixels;
 use winit::dpi::PhysicalPosition;
-pub use winit::event::VirtualKeyCode;
 use winit::event::{ElementState, KeyboardInput, MouseButton, WindowEvent};
 
+use super::Input;
 use crate::util::vector::Vector;
 
-use super::Input;
+pub use winit::event::VirtualKeyCode;
 
 /// The naive keyboard and mouse input handler.
 #[derive(Clone, Default)]

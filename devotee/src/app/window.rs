@@ -1,12 +1,13 @@
-use super::{Config, Setup};
-use crate::util::vector::Vector;
-use crate::visual::color::Converter;
 use pixels::{wgpu, Error, Pixels, PixelsBuilder, SurfaceTexture};
 use winit::dpi::PhysicalSize;
 use winit::event_loop::EventLoop;
 #[cfg(target_arch = "wasm32")]
 use winit::platform::web::WindowExtWebSys;
 use winit::window::{Fullscreen, Window as WinitWindow, WindowBuilder};
+
+use super::{Config, Setup};
+use crate::util::vector::Vector;
+use crate::visual::color::Converter;
 
 pub(super) type WindowCommand = Box<dyn FnOnce(&mut Window)>;
 

@@ -1,3 +1,5 @@
+use std::f64::consts;
+
 use devotee::app;
 use devotee::app::config;
 use devotee::app::context::Context;
@@ -8,8 +10,6 @@ use devotee::util::vector::Vector;
 use devotee::visual::canvas::Canvas;
 use devotee::visual::color;
 use devotee::visual::prelude::*;
-
-use std::f64::consts;
 
 fn main() {
     let init_config = setup::Setup::<Config>::default()

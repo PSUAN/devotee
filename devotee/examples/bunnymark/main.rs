@@ -1,3 +1,5 @@
+use std::time::{Duration, Instant};
+
 use devotee::app;
 use devotee::app::config;
 use devotee::app::context::Context;
@@ -9,8 +11,6 @@ use devotee::visual::canvas::Canvas;
 use devotee::visual::color;
 use devotee::visual::prelude::*;
 use devotee::visual::sprite::Sprite;
-
-use std::time::{Duration, Instant};
 
 const BUNNY_WIDTH: usize = 8;
 const BUNNY_HEIGHT: usize = 16;

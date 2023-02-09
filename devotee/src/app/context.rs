@@ -1,6 +1,7 @@
+use std::time::Duration;
+
 use super::sound_system::SoundSystem;
 use super::window::{Window, WindowCommand};
-use std::time::Duration;
 
 /// Context that stores various update-related data.
 pub struct Context<In> {

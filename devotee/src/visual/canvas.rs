@@ -1,6 +1,7 @@
+use std::slice::Iter;
+
 use super::generalization::Generalization;
 use crate::util::vector::Vector;
-use std::slice::Iter;
 
 /// Canvas based on box slice of pixel data.
 /// The canvas size is not known at compile time.

@@ -1,8 +1,9 @@
+use std::time::Duration;
+
 use super::config::Config;
 use super::context::Context;
 use super::Constructor;
 use crate::util::vector::Vector;
-use std::time::Duration;
 
 /// Application setup structure.
 /// Describes root node, title, resolution, etc.

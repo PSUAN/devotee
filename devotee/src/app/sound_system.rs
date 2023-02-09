@@ -1,7 +1,8 @@
-use rodio::source::Source;
-use rodio::{OutputStream, OutputStreamHandle, Sink};
 use std::mem;
 use std::rc::Rc;
+
+use rodio::source::Source;
+use rodio::{OutputStream, OutputStreamHandle, Sink};
 
 pub use rodio;
 

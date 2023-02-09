@@ -1,6 +1,6 @@
+use self::color::Color;
 use crate::util::getter::Getter;
 use crate::util::vector::Vector;
-use color::Color;
 
 /// Image with dimensions unknown at compile-time.
 pub mod canvas;
