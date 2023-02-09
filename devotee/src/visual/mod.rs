@@ -15,7 +15,7 @@ mod generalization;
 pub mod prelude {
     pub use super::color::Color;
     pub use super::{draw, paint, printer, stamp};
-    pub use super::{Circle, Draw, Image, Line, Pixel, PixelMod, Rect, Text, Tilemap, Triangle};
+    pub use super::{Circle, Draw, Image, Line, Pixel, PixelMod, Rect, Text, Triangle};
 }
 
 /// Mapper function accepts `x` and `y` coordinates and pixel value.
@@ -150,19 +150,6 @@ pub trait Circle<I, F>: Draw {
 pub trait Image<I, U, F>: UnsafePixel<I> {
     /// Use provided function and given image on this drawable.
     fn image(&mut self, at: I, image: &U, function: F);
-}
-
-/// Apply multiple images using provided placement mapper and color mapper functions.
-pub trait Tilemap<I, U, F, M>: Image<I, U, F> {
-    /// Use provided placement mapper, tiles and color mapper function.
-    fn tilemap(
-        &mut self,
-        at: I,
-        mapper: M,
-        tiles: &dyn Getter<Index = usize, Item = U>,
-        tile_data: &mut dyn Iterator<Item = usize>,
-        function: F,
-    );
 }
 
 /// Draw text using mapper, font and the text itself.
