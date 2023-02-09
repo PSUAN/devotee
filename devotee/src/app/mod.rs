@@ -137,7 +137,7 @@ where
         app.window.apply(commands);
 
         event_loop.run(move |event, _, control_flow| {
-            // SAFETY: We strongly believe that we still have input in ouw possession.
+            // SAFETY: We strongly believe that we still have input in our possession.
             match event {
                 Event::NewEvents(StartCause::Init) => {
                     *control_flow = ControlFlow::WaitUntil(Instant::now() + app.update_delay);

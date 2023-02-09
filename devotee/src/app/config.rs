@@ -4,7 +4,7 @@ pub trait Config {
     type Node;
     /// The palette used to render on the main canvas.
     type Palette;
-    /// The converter to transform pallette values into `[u8; 4]` values.
+    /// The converter to transform palette values into `[u8; 4]` values.
     type Converter;
     /// The input handler.
     type Input;
