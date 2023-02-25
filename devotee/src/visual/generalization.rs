@@ -1,14 +1,22 @@
 use std::mem;
 use std::ops::RangeInclusive;
 
-use super::{Circle, Draw, Image, Line, Pixel, PixelMod, Rect, Text, Triangle, UnsafePixel};
+use super::{
+    Circle, Draw, Image, Line, Pixel, PixelMod, Polygon, Rect, Text, Triangle, UnsafePixel,
+};
 use crate::util::{getter::Getter, vector::Vector};
 
-fn line_scan(from: Vector<i32>, to: Vector<i32>, vertical_scan: i32) -> RangeInclusive<i32> {
+fn line_scan(from: &Vector<i32>, to: &Vector<i32>, vertical_scan: i32) -> RangeInclusive<i32> {
+    let (from, to) = if from.y() > to.y() {
+        (from, to)
+    } else {
+        (to, from)
+    };
+
     let steep = (to.x() - from.x()).abs() < (to.y() - from.y()).abs();
     let delta_y = to.y() - from.y();
     if delta_y == 0 {
-        return from.x()..=to.x();
+        return from.x().min(to.x())..=from.x().max(to.x());
     }
     if steep {
         // It is one pixel wide
@@ -75,7 +83,7 @@ pub trait Generalization {
             (from, to) = (to, from);
         }
         for y in from.y()..=to.y() {
-            for x in line_scan(from, to, y) {
+            for x in line_scan(&from, &to, y) {
                 if x >= 0 && y >= 0 && x < self.width() && y < self.height() {
                     unsafe {
                         let pose = (x, y).into();
@@ -176,8 +184,8 @@ pub trait Generalization {
         let middle = if b.y() == c.y() { b.y() } else { b.y() - 1 };
 
         for y in a.y()..=middle {
-            let left_range = line_scan(a, b, y);
-            let right_range = line_scan(a, c, y);
+            let left_range = line_scan(&a, &b, y);
+            let right_range = line_scan(&a, &c, y);
             let left = *left_range.start().min(right_range.start());
             let right = *left_range.end().max(right_range.end());
             self.map_horizontal_line(left, right, y, function);
@@ -185,11 +193,70 @@ pub trait Generalization {
 
         let middle = middle + 1;
         for y in middle..=c.y() {
-            let left_range = line_scan(a, c, y);
-            let right_range = line_scan(b, c, y);
+            let left_range = line_scan(&a, &c, y);
+            let right_range = line_scan(&b, &c, y);
             let left = *left_range.start().min(right_range.start());
             let right = *left_range.end().max(right_range.end());
             self.map_horizontal_line(left, right, y, function);
+        }
+    }
+
+    fn map_on_filled_sane_polygon<F: FnMut(i32, i32, Self::Pixel) -> Self::Pixel>(
+        &mut self,
+        vertices: &[Vector<i32>],
+        function: &mut F,
+    ) {
+        // We do believe that there are at least 3 points in `vertices`.
+        let ((left, top), (right, bottom)) = vertices[1..].iter().fold(
+            (vertices[0].split(), vertices[0].split()),
+            |((left, top), (right, bottom)), value| {
+                let left = left.min(value.x());
+                let right = right.max(value.x());
+                let top = top.min(value.y());
+                let bottom = bottom.max(value.y());
+                ((left, top), (right, bottom))
+            },
+        );
+
+        let mut segments: Vec<_> = vertices
+            .windows(2)
+            .map(|v| (v[0], v[1], false, false))
+            .collect();
+        segments.push((*vertices.last().unwrap(), vertices[0], false, false));
+
+        for y in top..bottom + 1 {
+            segments
+                .iter_mut()
+                .for_each(|(_, _, intersected, was_intersected)| {
+                    *intersected = false;
+                    *was_intersected = false;
+                });
+
+            let mut counter = 0;
+            for x in left..right + 1 {
+                let mut should_paint = false;
+                for (a, b, intersected, was_intersected) in segments.iter_mut() {
+                    let in_vertical_range = (y >= a.y() && y < b.y()) || (y >= b.y() && y < a.y());
+                    if in_vertical_range {
+                        let scan = line_scan(a, b, y);
+                        if x >= *scan.start() && x <= *scan.end() {
+                            should_paint = true;
+                            *intersected = true;
+                            if !*was_intersected {
+                                counter += 1;
+                            }
+                        } else {
+                            *intersected = false;
+                        }
+                        *was_intersected = *intersected;
+                    }
+
+                    should_paint = should_paint || (counter % 2) == 1;
+                    if should_paint {
+                        self.map_on_pixel((x, y).into(), function);
+                    }
+                }
+            }
         }
     }
 
@@ -405,18 +472,56 @@ where
     I: Into<Vector<i32>>,
     F: FnMut(i32, i32, P) -> P,
 {
-    fn filled_triangle(&mut self, vertex: [I; 3], function: F) {
-        let vertex = vertex.map(|i| i.into());
+    fn filled_triangle(&mut self, vertices: [I; 3], function: F) {
+        let vertex = vertices.map(Into::into);
         let mut function = function;
         self.map_on_filled_triangle(vertex, &mut function);
     }
 
-    fn triangle(&mut self, vertex: [I; 3], function: F) {
-        let [a, b, c] = vertex.map(|i| i.into());
+    fn triangle(&mut self, vertices: [I; 3], function: F) {
+        let [a, b, c] = vertices.map(Into::into);
         let mut function = function;
         self.line(a, b, &mut function);
         self.line(b, c, &mut function);
         self.line(c, a, &mut function);
+    }
+}
+
+impl<T, P, I, F> Polygon<I, F> for T
+where
+    T: Generalization<Pixel = P>,
+    P: Clone,
+    I: Clone + Into<Vector<i32>>,
+    F: FnMut(i32, i32, P) -> P,
+{
+    fn filled_polygon(&mut self, vertices: &[I], function: F) {
+        let mut function = function;
+        let vertices: Vec<Vector<i32>> = vertices.iter().cloned().map(Into::into).collect();
+        match vertices.len() {
+            0 => (),
+            1 => self.mod_pixel(vertices[0], function),
+            2 => self.line(vertices[0], vertices[1], function),
+            _ => self.map_on_filled_sane_polygon(&vertices, &mut function),
+        }
+    }
+
+    fn polygon(&mut self, vertices: &[I], function: F) {
+        let mut function = function;
+        for window in vertices.windows(2) {
+            self.map_on_line(
+                window[0].clone().into(),
+                window[1].clone().into(),
+                &mut function,
+            );
+        }
+        if vertices.len() > 2 {
+            self.map_on_line(
+                vertices[0].clone().into(),
+                // SAFETY: we have checked that `vertices` contain at least 3 elements.
+                vertices.last().unwrap().clone().into(),
+                &mut function,
+            );
+        }
     }
 }
 

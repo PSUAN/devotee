@@ -15,7 +15,7 @@ mod generalization;
 pub mod prelude {
     pub use super::color::Color;
     pub use super::{draw, paint, printer, stamp};
-    pub use super::{Circle, Draw, Image, Line, Pixel, PixelMod, Rect, Text, Triangle};
+    pub use super::{Circle, Draw, Image, Line, Pixel, PixelMod, Polygon, Rect, Text, Triangle};
 }
 
 /// Mapper function accepts `x` and `y` coordinates and pixel value.
@@ -113,13 +113,13 @@ pub trait UnsafePixel<I>: Draw {
     unsafe fn pixel_mut(&mut self, position: I) -> &mut Self::Pixel;
 }
 
-/// Allow line drawing.
+/// Provide line drawing.
 pub trait Line<I, F>: Draw {
     /// Use provided function on each pixel in a line in inclusive range.
     fn line(&mut self, from: I, to: I, function: F);
 }
 
-/// Allow rectangle-related drawing.
+/// Provide rectangle-related drawing.
 pub trait Rect<I, F>: Draw {
     /// Use provided function on each pixel in a rectangle.
     fn filled_rect(&mut self, from: I, to: I, function: F);
@@ -128,16 +128,24 @@ pub trait Rect<I, F>: Draw {
     fn rect(&mut self, from: I, to: I, function: F);
 }
 
-/// Allow triangle-related drawing.
+/// Provide triangle-related drawing.
 pub trait Triangle<I, F>: Draw {
     /// Use provided function on each pixel in triangle.
     fn filled_triangle(&mut self, vertices: [I; 3], function: F);
 
     /// Use provided function on each pixel of triangle bounds.
-    fn triangle(&mut self, vertex: [I; 3], function: F);
+    fn triangle(&mut self, vertices: [I; 3], function: F);
 }
 
-/// Allow circle-related drawing.
+/// Provide polygon-related drawing.
+pub trait Polygon<I, F>: Draw {
+    /// Use provided function on each pixel in polygon.
+    fn filled_polygon(&mut self, vertices: &[I], function: F);
+    /// Use provided function on each pixel of polygon bounds.
+    fn polygon(&mut self, vertices: &[I], function: F);
+}
+
+/// Provide circle-related drawing.
 pub trait Circle<I, F>: Draw {
     /// Use provided function on each pixel in circle.
     fn filled_circle(&mut self, center: I, radius: i32, function: F);

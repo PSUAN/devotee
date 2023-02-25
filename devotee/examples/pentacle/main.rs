@@ -41,6 +41,7 @@ impl config::Config for Config {
 #[derive(Default)]
 struct PentacleNode {
     rotation: f64,
+    counter: f64,
 }
 
 impl Node<&mut Context<Config>, &mut Canvas<TwoBits>> for PentacleNode {
@@ -48,10 +49,11 @@ impl Node<&mut Context<Config>, &mut Canvas<TwoBits>> for PentacleNode {
         if update.input().keys().just_pressed(VirtualKeyCode::Escape) {
             update.shutdown();
         }
+        let delta = update.delta().as_secs_f64();
         if update.input().keys().is_pressed(VirtualKeyCode::Z) {
-            let delta = update.delta().as_secs_f64();
             self.rotation += delta;
         }
+        self.counter += delta;
     }
 
     fn render(&self, render: &mut Canvas<TwoBits>) {
@@ -60,37 +62,24 @@ impl Node<&mut Context<Config>, &mut Canvas<TwoBits>> for PentacleNode {
         let radius = 48.0 + 8.0 * self.rotation.sin();
         let center = Vector::new(64, 64);
 
-        let mapper = |(x, y): (f64, f64)| (x.round() as i32 + 64, y.round() as i32 + 64);
-
         render.circle((64, 64), radius as i32, paint(TwoBits::White));
         render.filled_circle((64, 64), 32, paint(TwoBits::Gray));
 
-        for i in 0..5 {
-            let a = 0.2 * self.rotation + 2.0 / 5.0 * i as f64 * consts::PI;
-            let b = a + consts::PI * 4.0 / 5.0;
+        let vertices: Vec<_> = (0..5)
+            .map(|i| {
+                let a = 0.25 * self.rotation + 2.0 / 5.0 * i as f64 * consts::TAU;
 
-            let first = (radius * a.cos(), radius * a.sin());
-            let second = (radius * b.cos(), radius * b.sin());
-            let center = (0.0, 0.0);
-            let vertex = [first, second, center].map(mapper);
-            render.filled_triangle(vertex, paint(TwoBits::Gray));
-        }
-        let radius = 48.0 - 8.0 * self.rotation.sin();
-        for i in 0..5 {
-            let a = -1.0 / 3.0 * self.rotation + 2.0 / 5.0 * i as f64 * consts::PI;
-            let b = a + consts::PI * 4.0 / 5.0;
+                center
+                    + (
+                        (radius * a.cos()).round() as i32,
+                        (radius * a.sin()).round() as i32,
+                    )
+            })
+            .collect();
+        render.filled_polygon(&vertices, paint(TwoBits::White));
 
-            let first = center
-                + (
-                    (radius * a.cos()).round() as i32,
-                    (radius * a.sin()).round() as i32,
-                );
-            let second = center
-                + (
-                    (radius * b.cos()).round() as i32,
-                    (radius * b.sin()).round() as i32,
-                );
-            render.line(first, second, paint(TwoBits::Red));
+        if self.counter.round() as i32 % 2 == 1 {
+            render.polygon(&vertices, paint(TwoBits::Red));
         }
     }
 }

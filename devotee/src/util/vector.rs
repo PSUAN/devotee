@@ -12,6 +12,11 @@ impl<T> Vector<T> {
     pub const fn new(x: T, y: T) -> Self {
         Self { x, y }
     }
+
+    /// Split this vector into its components.
+    pub fn split(self) -> (T, T) {
+        (self.x, self.y)
+    }
 }
 
 impl<T> Vector<T>
