@@ -1,8 +1,5 @@
 use std::time::Duration;
-#[cfg(not(target_arch = "wasm32"))]
-use std::time::Instant;
 
-#[cfg(target_arch = "wasm32")]
 use instant::Instant;
 use pixels::Pixels;
 use winit::event::{Event, StartCause, WindowEvent};

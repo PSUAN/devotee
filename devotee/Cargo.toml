@@ -16,9 +16,10 @@ categories = ["game-engines"]
 [dependencies]
 pixels = "0.10.0"
 winit = "0.26.1"
+instant = "0.1.12"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-rodio = { version = "0.15.0", default-features = false }
+rodio = { version = "0.15.0", default-features = false, features = ["wav"] }
 wgpu = "0.13.1"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
@@ -26,7 +27,6 @@ rodio = { version = "0.15.0", default-features = false, features = [
     "wav",
     "wasm-bindgen",
 ] }
-instant = "0.1.12"
 pollster = "0.2.5"
 web-sys = "0.3.57"
 wgpu = { version = "0.13.1", features = ["webgl"] }
