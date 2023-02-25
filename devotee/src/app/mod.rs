@@ -38,7 +38,7 @@ where
     Cfg: Config,
 {
     event_loop: EventLoop<()>,
-    constructor: Constructor<Cfg::Node, Cfg::Input>,
+    constructor: Constructor<Cfg::Node, Cfg>,
     inner: Inner<Cfg>,
     input: Cfg::Input,
 }
@@ -95,7 +95,7 @@ where
 impl<Cfg> App<Cfg>
 where
     Cfg: 'static + Config,
-    Cfg::Node: for<'a, 'b, 'c> Node<&'a mut Context<Cfg::Input>, &'c mut Canvas<Cfg::Palette>>,
+    Cfg::Node: for<'a, 'b> Node<&'a mut Context<Cfg>, &'b mut Canvas<Cfg::Palette>>,
     Cfg::Converter: Converter<Palette = Cfg::Palette>,
     Cfg::Palette: Clone,
     Cfg::Input: Input,
@@ -135,7 +135,6 @@ where
         app.window.apply(commands);
 
         event_loop.run(move |event, _, control_flow| {
-            // SAFETY: We strongly believe that we still have input in our possession.
             match event {
                 Event::NewEvents(StartCause::Init) => {
                     *control_flow = ControlFlow::WaitUntil(Instant::now() + app.update_delay);

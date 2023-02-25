@@ -43,8 +43,8 @@ struct PentacleNode {
     rotation: f64,
 }
 
-impl Node<&mut Context<KeyMouse>, &mut Canvas<TwoBits>> for PentacleNode {
-    fn update(&mut self, update: &mut Context<KeyMouse>) {
+impl Node<&mut Context<Config>, &mut Canvas<TwoBits>> for PentacleNode {
+    fn update(&mut self, update: &mut Context<Config>) {
         if update.input().keys().just_pressed(VirtualKeyCode::Escape) {
             update.shutdown();
         }

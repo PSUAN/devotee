@@ -1,19 +1,30 @@
 use std::time::Duration;
 
+use super::config::Config;
 use super::sound_system::SoundSystem;
 use super::window::{Window, WindowCommand};
 
 /// Context that stores various update-related data.
-pub struct Context<In> {
+pub struct Context<Cfg>
+where
+    Cfg: Config,
+{
     delta: Duration,
-    input: In,
+    input: Cfg::Input,
     shall_stop: bool,
     window_commands: Vec<WindowCommand>,
     sound_system: Option<SoundSystem>,
 }
 
-impl<In> Context<In> {
-    pub(super) fn new(delta: Duration, input: In, sound_system: Option<SoundSystem>) -> Self {
+impl<Cfg> Context<Cfg>
+where
+    Cfg: Config,
+{
+    pub(super) fn new(
+        delta: Duration,
+        input: Cfg::Input,
+        sound_system: Option<SoundSystem>,
+    ) -> Self {
         let shall_stop = false;
         let window_commands = Vec::new();
         Self {
@@ -31,7 +42,7 @@ impl<In> Context<In> {
     }
 
     /// Get reference to the `Input` structure.
-    pub fn input(&self) -> &In {
+    pub fn input(&self) -> &Cfg::Input {
         &self.input
     }
 
@@ -54,7 +65,7 @@ impl<In> Context<In> {
         self.sound_system.as_mut()
     }
 
-    pub(super) fn decompose(self) -> (Option<SoundSystem>, In, Vec<WindowCommand>) {
+    pub(super) fn decompose(self) -> (Option<SoundSystem>, Cfg::Input, Vec<WindowCommand>) {
         (self.sound_system, self.input, self.window_commands)
     }
 }
