@@ -13,10 +13,13 @@ const BOX_BOUNDARIES: (i32, i32) = (16, 128 - 16);
 const INTERNAL_RADIUS: i32 = 8;
 
 fn main() {
-    let init_config = setup::Setup::<Config>::default()
-        .with_title("minimal")
-        .with_resolution((128, 128))
-        .with_scale(2);
+    let init_config = setup::Setup::<Config>::new(
+        Canvas::with_resolution(Default::default(), 128, 128),
+        Default::default(),
+        |_| Default::default(),
+    )
+    .with_title("minimal")
+    .with_scale(2);
     let app = app::App::with_setup(init_config).unwrap();
 
     app.run();
@@ -26,15 +29,15 @@ struct Config;
 
 impl config::Config for Config {
     type Node = RootNode;
-    type Palette = Color;
     type Converter = Converter;
     type Input = KeyMouse;
+    type RenderTarget = Canvas<Color>;
 
     fn converter() -> Self::Converter {
         Converter
     }
 
-    fn background_color() -> Self::Palette {
+    fn background_color() -> Color {
         Color([0, 0, 0])
     }
 }

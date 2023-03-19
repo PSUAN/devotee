@@ -7,16 +7,19 @@ use devotee::app::context::Context;
 use devotee::app::input::key_mouse::{KeyMouse, VirtualKeyCode};
 use devotee::app::setup;
 use devotee::node::Node;
-use devotee::visual::canvas::Canvas;
 use devotee::visual::color;
 use devotee::visual::prelude::*;
+use devotee::visual::sprite::Sprite;
 use rodio::source::{SineWave, Source};
 
 fn main() {
-    let init_config = setup::Setup::<Config>::default()
-        .with_title("twister")
-        .with_resolution((128, 128))
-        .with_scale(2);
+    let init_config = setup::Setup::<Config>::new(
+        Sprite::with_color(FourBits::Black),
+        Default::default(),
+        |_| Default::default(),
+    )
+    .with_title("twister")
+    .with_scale(2);
     let app = app::App::with_setup(init_config).unwrap();
 
     app.run();
@@ -26,15 +29,15 @@ struct Config;
 
 impl config::Config for Config {
     type Node = TwisterNode;
-    type Palette = FourBits;
     type Converter = Converter;
     type Input = KeyMouse;
+    type RenderTarget = Sprite<FourBits, 128, 128>;
 
     fn converter() -> Self::Converter {
         Converter { transparent: None }
     }
 
-    fn background_color() -> Self::Palette {
+    fn background_color() -> FourBits {
         FourBits::Black
     }
 }
@@ -45,7 +48,7 @@ struct TwisterNode {
     twist: f64,
 }
 
-impl Node<&mut Context<Config>, &mut Canvas<FourBits>> for TwisterNode {
+impl Node<&mut Context<Config>, &mut Sprite<FourBits, 128, 128>> for TwisterNode {
     fn update(&mut self, update: &mut Context<Config>) {
         if update.input().keys().just_pressed(VirtualKeyCode::Escape) {
             update.shutdown();
@@ -70,7 +73,7 @@ impl Node<&mut Context<Config>, &mut Canvas<FourBits>> for TwisterNode {
         self.twist += delta;
     }
 
-    fn render(&self, render: &mut Canvas<FourBits>) {
+    fn render(&self, render: &mut Sprite<FourBits, 128, 128>) {
         render.clear(0.into());
         let resolution_x = render.width() as i32;
         let resolution_y = render.height() as i32;

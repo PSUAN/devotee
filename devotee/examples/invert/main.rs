@@ -11,10 +11,13 @@ use devotee::visual::prelude::*;
 use devotee::visual::UnsafePixel;
 
 fn main() {
-    let init_config = setup::Setup::<Config>::new(|_| RootNode::new(), Default::default())
-        .with_title("invert")
-        .with_resolution((128, 128))
-        .with_scale(2);
+    let init_config = setup::Setup::<Config>::new(
+        Canvas::with_resolution(Color([0, 0, 0]), 128, 128),
+        Default::default(),
+        |_| RootNode::new(),
+    )
+    .with_title("invert")
+    .with_scale(2);
     let app = app::App::with_setup(init_config).unwrap();
 
     app.run();
@@ -24,15 +27,15 @@ struct Config;
 
 impl config::Config for Config {
     type Node = RootNode;
-    type Palette = Color;
     type Converter = Converter;
     type Input = KeyMouse;
+    type RenderTarget = Canvas<Color>;
 
     fn converter() -> Self::Converter {
         Converter
     }
 
-    fn background_color() -> Self::Palette {
+    fn background_color() -> Color {
         Color([0, 0, 0])
     }
 }
@@ -89,7 +92,7 @@ impl Node<&mut Context<Config>, &mut Canvas<Color>> for RootNode {
         for x in 8..(render.width() - 8) {
             for y in 8..(render.height() - 8) {
                 unsafe {
-                    *UnsafePixel::pixel_mut(render, (x, y)) =
+                    *UnsafePixel::pixel_mut_unsafe(render, (x, y)) =
                         Color([2 * x as u8, 2 * y as u8, 0x00]);
                 }
             }

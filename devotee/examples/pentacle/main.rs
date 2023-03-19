@@ -7,15 +7,18 @@ use devotee::app::input::key_mouse::{KeyMouse, VirtualKeyCode};
 use devotee::app::setup;
 use devotee::node::Node;
 use devotee::util::vector::Vector;
-use devotee::visual::canvas::Canvas;
 use devotee::visual::color;
 use devotee::visual::prelude::*;
+use devotee::visual::sprite::Sprite;
 
 fn main() {
-    let init_config = setup::Setup::<Config>::default()
-        .with_title("pentacle")
-        .with_resolution((128, 128))
-        .with_scale(2);
+    let init_config = setup::Setup::<Config>::new(
+        Sprite::with_color(TwoBits::Black),
+        Default::default(),
+        |_| Default::default(),
+    )
+    .with_title("pentacle")
+    .with_scale(2);
     let app = app::App::with_setup(init_config).unwrap();
 
     app.run();
@@ -25,15 +28,15 @@ struct Config;
 
 impl config::Config for Config {
     type Node = PentacleNode;
-    type Palette = TwoBits;
     type Converter = Converter;
     type Input = KeyMouse;
+    type RenderTarget = Sprite<TwoBits, 128, 128>;
 
     fn converter() -> Self::Converter {
         Converter
     }
 
-    fn background_color() -> Self::Palette {
+    fn background_color() -> TwoBits {
         TwoBits::Black
     }
 }
@@ -44,7 +47,7 @@ struct PentacleNode {
     counter: f64,
 }
 
-impl Node<&mut Context<Config>, &mut Canvas<TwoBits>> for PentacleNode {
+impl Node<&mut Context<Config>, &mut Sprite<TwoBits, 128, 128>> for PentacleNode {
     fn update(&mut self, update: &mut Context<Config>) {
         if update.input().keys().just_pressed(VirtualKeyCode::Escape) {
             update.shutdown();
@@ -56,7 +59,7 @@ impl Node<&mut Context<Config>, &mut Canvas<TwoBits>> for PentacleNode {
         self.counter += delta;
     }
 
-    fn render(&self, render: &mut Canvas<TwoBits>) {
+    fn render(&self, render: &mut Sprite<TwoBits, 128, 128>) {
         render.clear(TwoBits::Black);
 
         let radius = 48.0 + 8.0 * self.rotation.sin();
