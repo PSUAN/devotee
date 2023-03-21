@@ -7,16 +7,18 @@ use devotee::app::context::Context;
 use devotee::app::input::key_mouse::{KeyMouse, VirtualKeyCode};
 use devotee::app::setup;
 use devotee::node::Node;
-use devotee::visual::canvas::Canvas;
 use devotee::visual::color;
 use devotee::visual::prelude::*;
 use devotee::visual::sprite::Sprite;
 
 fn main() {
-    let init_config = setup::Setup::<Config>::new(|_| TextNode::new(), Default::default())
-        .with_title("text")
-        .with_resolution((128, 128))
-        .with_scale(2);
+    let init_config = setup::Setup::<Config>::new(
+        Sprite::with_color(FourBits::Black),
+        Default::default(),
+        |_| TextNode::new(),
+    )
+    .with_title("text")
+    .with_scale(2);
     let app = app::App::with_setup(init_config).unwrap();
 
     app.run();
@@ -26,15 +28,15 @@ struct Config;
 
 impl config::Config for Config {
     type Node = TextNode;
-    type Palette = FourBits;
     type Converter = Converter;
     type Input = KeyMouse;
+    type RenderTarget = Sprite<FourBits, 128, 128>;
 
     fn converter() -> Self::Converter {
         Converter { transparent: None }
     }
 
-    fn background_color() -> Self::Palette {
+    fn background_color() -> FourBits {
         FourBits::Black
     }
 }
@@ -125,7 +127,7 @@ fn symbol(data: [[u8; 3]; 5]) -> Sprite<u8, 4, 6> {
     Sprite::with_data(data)
 }
 
-impl Node<&mut Context<Config>, &mut Canvas<FourBits>> for TextNode {
+impl Node<&mut Context<Config>, &mut Sprite<FourBits, 128, 128>> for TextNode {
     fn update(&mut self, update: &mut Context<Config>) {
         if update.input().keys().just_pressed(VirtualKeyCode::Escape) {
             update.shutdown();
@@ -150,7 +152,7 @@ impl Node<&mut Context<Config>, &mut Canvas<FourBits>> for TextNode {
         }
     }
 
-    fn render(&self, render: &mut Canvas<FourBits>) {
+    fn render(&self, render: &mut Sprite<FourBits, 128, 128>) {
         let color = FourBits::White;
 
         render.clear(0.into());

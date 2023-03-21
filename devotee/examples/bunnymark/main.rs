@@ -1,13 +1,12 @@
 use std::time::{Duration, Instant};
 
 use devotee::app;
-use devotee::app::config;
+use devotee::app::config::Config;
 use devotee::app::context::Context;
 use devotee::app::input::key_mouse::{KeyMouse, VirtualKeyCode};
 use devotee::app::setup;
 use devotee::node::Node;
 use devotee::util::vector::Vector;
-use devotee::visual::canvas::Canvas;
 use devotee::visual::color;
 use devotee::visual::prelude::*;
 use devotee::visual::sprite::Sprite;
@@ -19,28 +18,29 @@ const HEIGHT: usize = 128;
 const ACCELERATION: f64 = 8.0;
 
 fn main() {
-    let init_config = setup::Setup::<Config>::default()
-        .with_title("bunnymark")
-        .with_resolution((WIDTH, HEIGHT))
-        .with_update_delay(Duration::from_secs_f64(1.0 / 60.0));
+    let init_config = setup::Setup::<Cfg>::new(Default::default(), Default::default(), |_| {
+        Default::default()
+    })
+    .with_title("bunnymark")
+    .with_update_delay(Duration::from_secs_f64(1.0 / 60.0));
     let app = app::App::with_setup(init_config).unwrap();
 
     app.run();
 }
 
-struct Config;
+struct Cfg;
 
-impl config::Config for Config {
+impl Config for Cfg {
     type Node = BunnyMark;
-    type Palette = FourBits;
     type Converter = Converter;
     type Input = KeyMouse;
+    type RenderTarget = Sprite<FourBits, 128, 128>;
 
     fn converter() -> Self::Converter {
         Converter
     }
 
-    fn background_color() -> Self::Palette {
+    fn background_color() -> FourBits {
         FourBits::Black
     }
 }
@@ -76,7 +76,7 @@ impl color::Converter for Converter {
 
 struct BunnyMark {
     bunnies: Vec<Bunny>,
-    texture: Sprite<<Config as config::Config>::Palette, BUNNY_WIDTH, BUNNY_HEIGHT>,
+    texture: Sprite<FourBits, BUNNY_WIDTH, BUNNY_HEIGHT>,
     counter: i32,
     previous: Instant,
 }
@@ -126,8 +126,8 @@ impl BunnyMark {
     }
 }
 
-impl Node<&mut Context<Config>, &mut Canvas<FourBits>> for BunnyMark {
-    fn update(&mut self, update: &mut Context<Config>) {
+impl Node<&mut Context<Cfg>, &mut <Cfg as Config>::RenderTarget> for BunnyMark {
+    fn update(&mut self, update: &mut Context<Cfg>) {
         if update.input().keys().just_pressed(VirtualKeyCode::Escape) {
             update.shutdown();
         }
@@ -164,7 +164,7 @@ impl Node<&mut Context<Config>, &mut Canvas<FourBits>> for BunnyMark {
         }
     }
 
-    fn render(&self, render: &mut Canvas<FourBits>) {
+    fn render(&self, render: &mut <Cfg as Config>::RenderTarget) {
         render.clear(FourBits::Black);
         for bunny in self.bunnies.iter() {
             render.image(
@@ -207,8 +207,9 @@ impl Bunny {
     }
 }
 
-#[derive(Copy, Clone, PartialEq, Eq)]
+#[derive(Copy, Clone, Default, PartialEq, Eq)]
 pub enum FourBits {
+    #[default]
     Black,
     DarkBlue,
     Eggplant,

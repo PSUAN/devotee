@@ -363,7 +363,7 @@ pub trait Generalization {
                 let step = (x, y).into();
                 let pose = at + step;
                 unsafe {
-                    let color = UnsafePixel::pixel(image, step);
+                    let color = UnsafePixel::pixel_unsafe(image, step);
                     let pixel = function(
                         pose.x(),
                         pose.y(),
@@ -550,11 +550,11 @@ where
     P: Clone,
     I: Into<Vector<i32>>,
 {
-    unsafe fn pixel(&self, position: I) -> &Self::Pixel {
+    unsafe fn pixel_unsafe(&self, position: I) -> &Self::Pixel {
         self.pixel_unsafe(position.into())
     }
 
-    unsafe fn pixel_mut(&mut self, position: I) -> &mut Self::Pixel {
+    unsafe fn pixel_mut_unsafe(&mut self, position: I) -> &mut Self::Pixel {
         self.pixel_mut_unsafe(position.into())
     }
 }

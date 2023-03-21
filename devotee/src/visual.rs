@@ -94,7 +94,7 @@ pub trait Pixel<I>: Draw {
 
 /// Provide pixel manipulation access.
 pub trait PixelMod<I, F>: Draw {
-    /// Use provided function on pixel at given position.
+    /// Use provided function on a pixel at given position.
     fn mod_pixel(&mut self, position: I, function: F);
 }
 
@@ -104,13 +104,13 @@ pub trait UnsafePixel<I>: Draw {
     ///
     /// # Safety
     /// - `position` must be in the `[0, (width, height))` range.
-    unsafe fn pixel(&self, position: I) -> &Self::Pixel;
+    unsafe fn pixel_unsafe(&self, position: I) -> &Self::Pixel;
 
     /// Get mutable reference to pixel.
     ///
     /// # Safety
     /// - `position` must be in the `[0, (width, height))` range.
-    unsafe fn pixel_mut(&mut self, position: I) -> &mut Self::Pixel;
+    unsafe fn pixel_mut_unsafe(&mut self, position: I) -> &mut Self::Pixel;
 }
 
 /// Provide line drawing.

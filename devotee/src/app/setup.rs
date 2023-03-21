@@ -3,7 +3,6 @@ use std::time::Duration;
 use super::config::Config;
 use super::context::Context;
 use super::Constructor;
-use crate::util::vector::Vector;
 
 /// Application setup structure.
 /// Describes root node, title, resolution, etc.
@@ -15,7 +14,7 @@ where
     pub(super) update_delay: Duration,
     pub(super) fullscreen: bool,
     pub(super) scale: u32,
-    pub(super) resolution: Vector<usize>,
+    pub(super) render_target: Cfg::RenderTarget,
     pub(super) constructor: Constructor<Cfg::Node, Cfg>,
     #[cfg(target_arch = "wasm32")]
     pub(super) element_id: Option<&'static str>,
@@ -28,9 +27,9 @@ impl<Cfg> Setup<Cfg>
 where
     Cfg: Config,
 {
-    /// Create new setup with given `Node` constructor.
+    /// Create new setup with given the `RenderTarget`, `Input` and `Node` constructor.
     /// Defaults to 30 frames per second update.
-    pub fn new<F>(constructor: F, input: Cfg::Input) -> Self
+    pub fn new<F>(render_target: Cfg::RenderTarget, input: Cfg::Input, constructor: F) -> Self
     where
         F: 'static + FnOnce(&mut Context<Cfg>) -> Cfg::Node,
     {
@@ -38,7 +37,6 @@ where
         let update_delay = Duration::from_secs_f64(1.0 / 30.0);
         let fullscreen = false;
         let scale = 1;
-        let resolution = Vector::new(320, 240);
         let constructor = Box::new(constructor);
         let background_color = [0, 0, 0];
         Self {
@@ -46,7 +44,7 @@ where
             update_delay,
             fullscreen,
             scale,
-            resolution,
+            render_target,
             constructor,
             #[cfg(target_arch = "wasm32")]
             element_id: None,
@@ -82,12 +80,6 @@ where
         }
     }
 
-    /// Set resolution.
-    pub fn with_resolution<T: Into<Vector<usize>>>(self, resolution: T) -> Self {
-        let resolution = resolution.into();
-        Self { resolution, ..self }
-    }
-
     #[cfg(target_arch = "wasm32")]
     /// Set target element id for canvas holding on wasm32 target.
     pub fn with_element_id(self, element_id: &'static str) -> Self {
@@ -109,16 +101,5 @@ where
             background_color,
             ..self
         }
-    }
-}
-
-impl<Cfg> Default for Setup<Cfg>
-where
-    Cfg: Config,
-    Cfg::Node: Default,
-    Cfg::Input: Default,
-{
-    fn default() -> Self {
-        Self::new(|_| Default::default(), Default::default())
     }
 }

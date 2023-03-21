@@ -10,10 +10,13 @@ use devotee::visual::color;
 use devotee::visual::prelude::*;
 
 fn main() {
-    let init_config = setup::Setup::<Config>::default()
-        .with_title("mandelbrot")
-        .with_resolution((128, 128))
-        .with_scale(4);
+    let init_config = setup::Setup::<Config>::new(
+        Canvas::with_resolution(FourBits::Black, 128, 128),
+        Default::default(),
+        |_| Default::default(),
+    )
+    .with_title("mandelbrot")
+    .with_scale(4);
     let app = app::App::with_setup(init_config).unwrap();
 
     app.run();
@@ -23,15 +26,15 @@ struct Config;
 
 impl config::Config for Config {
     type Node = Mandelbrot;
-    type Palette = FourBits;
     type Converter = Converter;
     type Input = KeyMouse;
+    type RenderTarget = Canvas<FourBits>;
 
     fn converter() -> Self::Converter {
         Converter { transparent: None }
     }
 
-    fn background_color() -> Self::Palette {
+    fn background_color() -> FourBits {
         0.into()
     }
 }

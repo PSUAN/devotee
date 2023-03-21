@@ -75,3 +75,48 @@ where
         self.data = [[color; W]; H];
     }
 }
+
+impl<P, const W: usize, const H: usize> Default for Sprite<P, W, H>
+where
+    P: Default + Copy,
+{
+    fn default() -> Self {
+        Self::with_color(Default::default())
+    }
+}
+
+impl<'a, P, const W: usize, const H: usize> IntoIterator for &'a Sprite<P, W, H>
+where
+    P: Copy,
+{
+    type Item = &'a P;
+
+    type IntoIter = SpriteIter<'a, P, W, H>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        SpriteIter {
+            sprite: self,
+            index: 0,
+        }
+    }
+}
+
+/// An Iterator over pixels in a sprite, left to right, top to bottom.
+pub struct SpriteIter<'a, P, const W: usize, const H: usize> {
+    sprite: &'a Sprite<P, W, H>,
+    index: usize,
+}
+
+impl<'a, P, const W: usize, const H: usize> Iterator for SpriteIter<'a, P, W, H> {
+    type Item = &'a P;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let current = self.index;
+        if current < W * H {
+            self.index += 1;
+            Some(&self.sprite.data[current / W][current % W])
+        } else {
+            None
+        }
+    }
+}

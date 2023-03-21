@@ -25,10 +25,6 @@ where
             height,
         }
     }
-
-    pub(crate) fn iter(&self) -> Iter<'_, P> {
-        self.data.iter()
-    }
 }
 
 impl<P> Generalization for Canvas<P>
@@ -87,5 +83,15 @@ where
 
     fn clear(&mut self, color: P) {
         self.data = vec![color; self.width * self.height].into_boxed_slice();
+    }
+}
+
+impl<'a, P> IntoIterator for &'a Canvas<P> {
+    type Item = &'a P;
+
+    type IntoIter = Iter<'a, P>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.data.iter()
     }
 }

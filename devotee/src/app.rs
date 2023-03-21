@@ -11,8 +11,8 @@ use self::input::Input;
 use self::setup::Setup;
 use self::sound_system::SoundSystem;
 use crate::node::Node;
-use crate::visual::canvas::Canvas;
 use crate::visual::color::Converter;
+use crate::visual::Draw;
 
 /// General application config.
 pub mod config;
@@ -49,7 +49,7 @@ where
 {
     window: window::Window,
     update_delay: Duration,
-    canvas: Canvas<Cfg::Palette>,
+    render_target: Cfg::RenderTarget,
     converter: Cfg::Converter,
     sound_system: Option<SoundSystem>,
     pause_on_focus_lost: bool,
@@ -58,8 +58,8 @@ where
 impl<Cfg> App<Cfg>
 where
     Cfg: Config,
-    Cfg::Palette: Copy,
-    Cfg::Converter: Converter<Palette = Cfg::Palette>,
+    Cfg::Converter: Converter<Palette = <Cfg::RenderTarget as Draw>::Pixel>,
+    Cfg::RenderTarget: Draw,
 {
     /// Create an app with given `setup`.
     pub fn with_setup(setup: Setup<Cfg>) -> Option<Self> {
@@ -67,11 +67,7 @@ where
         let window = window::Window::with_setup(&event_loop, &setup)?;
         let update_delay = setup.update_delay;
         let input = setup.input;
-        let canvas = Canvas::with_resolution(
-            Cfg::background_color(),
-            setup.resolution.x(),
-            setup.resolution.y(),
-        );
+        let render_target = setup.render_target;
         let converter = Cfg::converter();
         let sound_system = SoundSystem::try_new();
         let constructor = setup.constructor;
@@ -82,7 +78,7 @@ where
             inner: Inner {
                 window,
                 update_delay,
-                canvas,
+                render_target,
                 converter,
                 sound_system,
                 pause_on_focus_lost,
@@ -95,16 +91,20 @@ where
 impl<Cfg> App<Cfg>
 where
     Cfg: 'static + Config,
-    Cfg::Node: for<'a, 'b> Node<&'a mut Context<Cfg>, &'b mut Canvas<Cfg::Palette>>,
-    Cfg::Converter: Converter<Palette = Cfg::Palette>,
-    Cfg::Palette: Clone,
+    Cfg::Node: for<'b, 'c> Node<&'b mut Context<Cfg>, &'c mut Cfg::RenderTarget>,
+    Cfg::Converter: Converter<Palette = <Cfg::RenderTarget as Draw>::Pixel>,
     Cfg::Input: Input,
+    for<'a> &'a Cfg::RenderTarget: IntoIterator<Item = &'a <Cfg::RenderTarget as Draw>::Pixel>,
 {
-    fn convert(pixels: &mut Pixels, canvas: &Canvas<Cfg::Palette>, converter: &Cfg::Converter) {
+    fn draw_on_pixels(
+        pixels: &mut Pixels,
+        render_target: &Cfg::RenderTarget,
+        converter: &Cfg::Converter,
+    ) {
         for (pixel, palette) in pixels
             .get_frame_mut()
             .chunks_exact_mut(4)
-            .zip(canvas.iter())
+            .zip(render_target.into_iter())
         {
             let color = converter.convert(palette);
             pixel.copy_from_slice(&color);
@@ -170,8 +170,12 @@ where
                     app.window.request_redraw();
                 }
                 Event::RedrawRequested(_) => {
-                    node.render(&mut app.canvas);
-                    Self::convert(app.window.pixels_mut(), &app.canvas, &app.converter);
+                    node.render(&mut app.render_target);
+                    Self::draw_on_pixels(
+                        app.window.pixels_mut(),
+                        &app.render_target,
+                        &app.converter,
+                    );
                     if app.window.render().is_err() {
                         *control_flow = ControlFlow::Exit;
                     }
@@ -189,9 +193,14 @@ where
                                 *control_flow = ControlFlow::Exit;
                             }
                             WindowEvent::Resized(size) => {
-                                app.window
+                                if app
+                                    .window
                                     .pixels_mut()
-                                    .resize_surface(size.width, size.height);
+                                    .resize_surface(size.width, size.height)
+                                    .is_err()
+                                {
+                                    *control_flow = ControlFlow::Exit;
+                                }
                             }
                             WindowEvent::Focused(focused) if app.pause_on_focus_lost => {
                                 paused = !focused;
