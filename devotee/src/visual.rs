@@ -14,7 +14,7 @@ mod generalization;
 /// Collection of drawing traits and functions compiles in a single prelude.
 pub mod prelude {
     pub use super::color::Color;
-    pub use super::{draw, paint, printer, stamp};
+    pub use super::{draw, mix, paint, printer};
     pub use super::{Circle, Draw, Image, Line, Pixel, PixelMod, Polygon, Rect, Text, Triangle};
 }
 
@@ -59,13 +59,19 @@ where
     }
 }
 
-/// Helper stamper mapper for image-to-image mapping.
+/// Helper mixer mapper for image-to-image mapping.
 /// It just mixes original pixels and pixels of stamped image.
-pub fn stamp<P>() -> impl FnMut(i32, i32, P, i32, i32, P) -> P
+pub fn mix<P>() -> impl FnMut(i32, i32, P, i32, i32, P) -> P
 where
     P: Color,
 {
     move |_, _, pixel, _, _, other| pixel.mix(other)
+}
+
+/// Helper stamper mapper for image-to-image mapping.
+/// It stamps pixels of the drawn image ignoring values of the original.
+pub fn stamp<P>() -> impl FnMut(i32, i32, P, i32, i32, P) -> P {
+    move |_, _, _original, _, _, other| other
 }
 
 /// General drawing trait.

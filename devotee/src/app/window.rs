@@ -133,8 +133,8 @@ impl Window {
         self.window.fullscreen().is_some()
     }
 
-    pub(super) fn apply(&mut self, commands: Vec<WindowCommand>) {
-        for command in commands {
+    pub(super) fn apply(&mut self, commands: &mut Vec<WindowCommand>) {
+        for command in commands.drain(..) {
             command(self)
         }
     }

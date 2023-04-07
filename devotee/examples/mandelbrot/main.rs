@@ -92,8 +92,8 @@ impl Node<&mut Context<Config>, &mut Canvas<FourBits>> for Mandelbrot {
 
     fn render(&self, render: &mut Canvas<FourBits>) {
         let scale = 2.0_f64.powf(self.scale);
-        let width = render.width() as i32;
-        let height = render.height() as i32;
+        let width = render.width();
+        let height = render.height();
         for x in 0..width {
             for y in 0..height {
                 let x0 = (x - width / 2) as f64 / width as f64 / scale - self.center.x();
