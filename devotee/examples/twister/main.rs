@@ -64,7 +64,7 @@ impl Node<&mut Context<Config>, &mut Sprite<FourBits, 128, 128>> for TwisterNode
             self.rotation = 0.0;
             self.twist = 0.0;
 
-            update.sound_system().map(|s| {
+            update.sound_system_mut().map(|s| {
                 s.play(Box::new(
                     SineWave::new(500.0).take_duration(Duration::from_secs_f64(0.05)),
                 ))
@@ -75,8 +75,8 @@ impl Node<&mut Context<Config>, &mut Sprite<FourBits, 128, 128>> for TwisterNode
 
     fn render(&self, render: &mut Sprite<FourBits, 128, 128>) {
         render.clear(0.into());
-        let resolution_x = render.width() as i32;
-        let resolution_y = render.height() as i32;
+        let resolution_x = render.width();
+        let resolution_y = render.height();
         let rotation = 2.0 * self.rotation;
         let center = resolution_y as f64 / 2.0;
 

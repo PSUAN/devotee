@@ -5,7 +5,7 @@ use super::context::Context;
 use super::Constructor;
 
 /// Application setup structure.
-/// Describes root node, title, resolution, etc.
+/// Describes root node, title, pause behavior, etc.
 pub struct Setup<Cfg>
 where
     Cfg: Config,

@@ -2,12 +2,12 @@ use std::collections::HashSet;
 
 use pixels::Pixels;
 use winit::dpi::PhysicalPosition;
-use winit::event::{ElementState, KeyboardInput, MouseButton, WindowEvent};
+use winit::event::{ElementState, KeyboardInput, WindowEvent};
 
 use super::Input;
 use crate::util::vector::Vector;
 
-pub use winit::event::VirtualKeyCode;
+pub use winit::event::{MouseButton, VirtualKeyCode};
 
 /// The naive keyboard and mouse input handler.
 #[derive(Clone, Default)]
@@ -109,6 +109,10 @@ impl Mouse {
         };
     }
 
+    fn step(&mut self) {
+        self.previously_pressed = self.currently_pressed.clone();
+    }
+
     fn register_cursor_left(&mut self) {
         self.position = None;
     }
@@ -124,6 +128,7 @@ impl Mouse {
 impl Input for KeyMouse {
     fn next_frame(&mut self) {
         self.keyboard.step();
+        self.mouse.step();
     }
 
     fn consume_window_event<'a>(

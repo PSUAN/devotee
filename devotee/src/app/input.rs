@@ -1,5 +1,5 @@
-use pixels::Pixels;
-use winit::event::WindowEvent;
+pub use pixels::Pixels;
+pub use winit::event::WindowEvent;
 
 /// Keyboard and mouse input module.
 pub mod key_mouse;

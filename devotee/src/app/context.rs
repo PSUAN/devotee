@@ -9,33 +9,18 @@ pub struct Context<Cfg>
 where
     Cfg: Config,
 {
-    delta: Duration,
-    input: Cfg::Input,
-    shall_stop: bool,
-    window_commands: Vec<WindowCommand>,
-    sound_system: Option<SoundSystem>,
+    pub(super) delta: Duration,
+    pub(super) input: Cfg::Input,
+    pub(super) shall_stop: bool,
+    pub(super) window_commands: Vec<WindowCommand>,
+    pub(super) sound_system: Option<SoundSystem>,
+    pub(super) converter: Cfg::Converter,
 }
 
 impl<Cfg> Context<Cfg>
 where
     Cfg: Config,
 {
-    pub(super) fn new(
-        delta: Duration,
-        input: Cfg::Input,
-        sound_system: Option<SoundSystem>,
-    ) -> Self {
-        let shall_stop = false;
-        let window_commands = Vec::new();
-        Self {
-            delta,
-            input,
-            shall_stop,
-            window_commands,
-            sound_system,
-        }
-    }
-
     /// Get `Duration` of simulation step.
     pub fn delta(&self) -> Duration {
         self.delta
@@ -60,12 +45,23 @@ where
         self.window_commands.push(Box::new(command))
     }
 
+    /// Get optional reference to the `SoundSystem`.
+    pub fn sound_system(&mut self) -> Option<&SoundSystem> {
+        self.sound_system.as_ref()
+    }
+
     /// Get optional mutable reference to the `SoundSystem`.
-    pub fn sound_system(&mut self) -> Option<&mut SoundSystem> {
+    pub fn sound_system_mut(&mut self) -> Option<&mut SoundSystem> {
         self.sound_system.as_mut()
     }
 
-    pub(super) fn decompose(self) -> (Option<SoundSystem>, Cfg::Input, Vec<WindowCommand>) {
-        (self.sound_system, self.input, self.window_commands)
+    /// Get reference to the palette converter.
+    pub fn converter(&self) -> &Cfg::Converter {
+        &self.converter
+    }
+
+    /// Get mutable reference to the palette converter.
+    pub fn converter_mut(&mut self) -> &mut Cfg::Converter {
+        &mut self.converter
     }
 }
