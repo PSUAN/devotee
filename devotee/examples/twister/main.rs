@@ -5,8 +5,8 @@ use devotee::app;
 use devotee::app::config;
 use devotee::app::context::Context;
 use devotee::app::input::key_mouse::{KeyMouse, VirtualKeyCode};
+use devotee::app::root::Root;
 use devotee::app::setup;
-use devotee::node::Node;
 use devotee::visual::color;
 use devotee::visual::prelude::*;
 use devotee::visual::sprite::Sprite;
@@ -28,7 +28,7 @@ fn main() {
 struct Config;
 
 impl config::Config for Config {
-    type Node = TwisterNode;
+    type Root = Twister;
     type Converter = Converter;
     type Input = KeyMouse;
     type RenderTarget = Sprite<FourBits, 128, 128>;
@@ -43,12 +43,12 @@ impl config::Config for Config {
 }
 
 #[derive(Default)]
-struct TwisterNode {
+struct Twister {
     rotation: f64,
     twist: f64,
 }
 
-impl Node<&mut Context<Config>, &mut Sprite<FourBits, 128, 128>> for TwisterNode {
+impl Root<Config> for Twister {
     fn update(&mut self, update: &mut Context<Config>) {
         if update.input().keys().just_pressed(VirtualKeyCode::Escape) {
             update.shutdown();

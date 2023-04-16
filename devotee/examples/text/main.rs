@@ -5,8 +5,8 @@ use devotee::app;
 use devotee::app::config;
 use devotee::app::context::Context;
 use devotee::app::input::key_mouse::{KeyMouse, VirtualKeyCode};
+use devotee::app::root::Root;
 use devotee::app::setup;
-use devotee::node::Node;
 use devotee::visual::color;
 use devotee::visual::prelude::*;
 use devotee::visual::sprite::Sprite;
@@ -15,7 +15,7 @@ fn main() {
     let init_config = setup::Setup::<Config>::new(
         Sprite::with_color(FourBits::Black),
         Default::default(),
-        |_| TextNode::new(),
+        |_| TextApp::new(),
     )
     .with_title("text")
     .with_scale(2);
@@ -27,7 +27,7 @@ fn main() {
 struct Config;
 
 impl config::Config for Config {
-    type Node = TextNode;
+    type Root = TextApp;
     type Converter = Converter;
     type Input = KeyMouse;
     type RenderTarget = Sprite<FourBits, 128, 128>;
@@ -41,7 +41,7 @@ impl config::Config for Config {
     }
 }
 
-struct TextNode {
+struct TextApp {
     counter: f64,
     moving: bool,
     ease: (f64, f64),
@@ -49,7 +49,7 @@ struct TextNode {
     angle: f64,
 }
 
-impl TextNode {
+impl TextApp {
     fn new() -> Self {
         let counter = 0.0;
         // FIXME: replace with array::zip of chars and symbols arrays when
@@ -127,7 +127,7 @@ fn symbol(data: [[u8; 3]; 5]) -> Sprite<u8, 4, 6> {
     Sprite::with_data(data)
 }
 
-impl Node<&mut Context<Config>, &mut Sprite<FourBits, 128, 128>> for TextNode {
+impl Root<Config> for TextApp {
     fn update(&mut self, update: &mut Context<Config>) {
         if update.input().keys().just_pressed(VirtualKeyCode::Escape) {
             update.shutdown();

@@ -2,8 +2,8 @@ use devotee::app;
 use devotee::app::config;
 use devotee::app::context::Context;
 use devotee::app::input::key_mouse::{KeyMouse, VirtualKeyCode};
+use devotee::app::root::Root;
 use devotee::app::setup;
-use devotee::node::Node;
 use devotee::util::vector::Vector;
 use devotee::visual::canvas::Canvas;
 use devotee::visual::color;
@@ -14,7 +14,7 @@ fn main() {
     let init_config = setup::Setup::<Config>::new(
         Canvas::with_resolution(Color([0, 0, 0]), 128, 128),
         Default::default(),
-        |_| RootNode::new(),
+        |_| Invert::new(),
     )
     .with_title("invert")
     .with_scale(2);
@@ -26,7 +26,7 @@ fn main() {
 struct Config;
 
 impl config::Config for Config {
-    type Node = RootNode;
+    type Root = Invert;
     type Converter = Converter;
     type Input = KeyMouse;
     type RenderTarget = Canvas<Color>;
@@ -40,12 +40,12 @@ impl config::Config for Config {
     }
 }
 
-struct RootNode {
+struct Invert {
     position: Vector<f64>,
     canvas: Canvas<bool>,
 }
 
-impl RootNode {
+impl Invert {
     fn new() -> Self {
         let position = Vector::new(12.0, 12.0);
         let mut canvas = Canvas::with_resolution(false, 32, 32);
@@ -67,7 +67,7 @@ impl RootNode {
     }
 }
 
-impl Node<&mut Context<Config>, &mut Canvas<Color>> for RootNode {
+impl Root<Config> for Invert {
     fn update(&mut self, update: &mut Context<Config>) {
         if update.input().keys().just_pressed(VirtualKeyCode::Escape) {
             update.shutdown();

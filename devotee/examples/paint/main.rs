@@ -3,8 +3,8 @@ use std::time::Duration;
 
 use devotee::app::context::Context;
 use devotee::app::input::key_mouse::{KeyMouse, MouseButton, VirtualKeyCode};
+use devotee::app::root::Root;
 use devotee::app::{self, config, setup};
-use devotee::node::Node;
 use devotee::util::vector::Vector;
 use devotee::visual::sprite::Sprite;
 use devotee::visual::{color, stamp, Draw, Image, Pixel};
@@ -26,7 +26,7 @@ fn main() {
 struct Config;
 
 impl config::Config for Config {
-    type Node = PaintNode;
+    type Root = Paint;
 
     type Converter = Converter;
 
@@ -44,13 +44,13 @@ impl config::Config for Config {
 }
 
 #[derive(Default)]
-struct PaintNode {
+struct Paint {
     droplets: Vec<Droplet>,
     canvas: Sprite<Palette, 64, 64>,
     cursor: Option<Vector<i32>>,
 }
 
-impl Node<&mut Context<Config>, &mut Sprite<Palette, 64, 64>> for PaintNode {
+impl Root<Config> for Paint {
     fn update(&mut self, update: &mut Context<Config>) {
         if update.input().keys().just_pressed(VirtualKeyCode::Escape) {
             update.shutdown()

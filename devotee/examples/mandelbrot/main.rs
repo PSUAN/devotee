@@ -2,8 +2,8 @@ use devotee::app;
 use devotee::app::config;
 use devotee::app::context::Context;
 use devotee::app::input::key_mouse::{KeyMouse, VirtualKeyCode};
+use devotee::app::root::Root;
 use devotee::app::setup;
-use devotee::node::Node;
 use devotee::util::vector::Vector;
 use devotee::visual::canvas::Canvas;
 use devotee::visual::color;
@@ -25,7 +25,7 @@ fn main() {
 struct Config;
 
 impl config::Config for Config {
-    type Node = Mandelbrot;
+    type Root = Mandelbrot;
     type Converter = Converter;
     type Input = KeyMouse;
     type RenderTarget = Canvas<FourBits>;
@@ -53,7 +53,7 @@ impl Default for Mandelbrot {
     }
 }
 
-impl Node<&mut Context<Config>, &mut Canvas<FourBits>> for Mandelbrot {
+impl Root<Config> for Mandelbrot {
     fn update(&mut self, update: &mut Context<Config>) {
         let delta = update.delta().as_secs_f64();
 

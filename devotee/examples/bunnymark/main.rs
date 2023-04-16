@@ -1,11 +1,11 @@
 use std::time::{Duration, Instant};
 
 use devotee::app;
-use devotee::app::config::Config;
+use devotee::app::config;
 use devotee::app::context::Context;
 use devotee::app::input::key_mouse::{KeyMouse, VirtualKeyCode};
+use devotee::app::root::Root;
 use devotee::app::setup;
-use devotee::node::Node;
 use devotee::util::vector::Vector;
 use devotee::visual::color;
 use devotee::visual::prelude::*;
@@ -18,7 +18,7 @@ const HEIGHT: usize = 128;
 const ACCELERATION: f64 = 8.0;
 
 fn main() {
-    let init_config = setup::Setup::<Cfg>::new(Default::default(), Default::default(), |_| {
+    let init_config = setup::Setup::<Config>::new(Default::default(), Default::default(), |_| {
         Default::default()
     })
     .with_title("bunnymark")
@@ -28,10 +28,10 @@ fn main() {
     app.run();
 }
 
-struct Cfg;
+struct Config;
 
-impl Config for Cfg {
-    type Node = BunnyMark;
+impl config::Config for Config {
+    type Root = BunnyMark;
     type Converter = Converter;
     type Input = KeyMouse;
     type RenderTarget = Sprite<FourBits, 128, 128>;
@@ -126,8 +126,8 @@ impl BunnyMark {
     }
 }
 
-impl Node<&mut Context<Cfg>, &mut <Cfg as Config>::RenderTarget> for BunnyMark {
-    fn update(&mut self, update: &mut Context<Cfg>) {
+impl Root<Config> for BunnyMark {
+    fn update(&mut self, update: &mut Context<Config>) {
         if update.input().keys().just_pressed(VirtualKeyCode::Escape) {
             update.shutdown();
         }
@@ -164,7 +164,7 @@ impl Node<&mut Context<Cfg>, &mut <Cfg as Config>::RenderTarget> for BunnyMark {
         }
     }
 
-    fn render(&self, render: &mut <Cfg as Config>::RenderTarget) {
+    fn render(&self, render: &mut Sprite<FourBits, 128, 128>) {
         render.clear(FourBits::Black);
         for bunny in self.bunnies.iter() {
             render.image(

@@ -8,9 +8,9 @@ use winit::event_loop::{ControlFlow, EventLoop};
 use self::config::Config;
 use self::context::Context;
 use self::input::Input;
+use self::root::Root;
 use self::setup::Setup;
 use self::sound_system::SoundSystem;
-use crate::node::Node;
 use crate::visual::color::Converter;
 use crate::visual::Draw;
 
@@ -20,6 +20,8 @@ pub mod config;
 pub mod context;
 /// User input handler.
 pub mod input;
+/// The root node of the devotee app.
+pub mod root;
 /// Application launch setup.
 pub mod setup;
 /// `rodio`-based sound system.
@@ -38,7 +40,7 @@ where
     Cfg: Config,
 {
     event_loop: EventLoop<()>,
-    constructor: Constructor<Cfg::Node, Cfg>,
+    constructor: Constructor<Cfg::Root, Cfg>,
     converter: Cfg::Converter,
     sound_system: Option<SoundSystem>,
     inner: Inner<Cfg>,
@@ -91,7 +93,7 @@ where
 impl<Cfg> App<Cfg>
 where
     Cfg: 'static + Config,
-    Cfg::Node: for<'b, 'c> Node<&'b mut Context<Cfg>, &'c mut Cfg::RenderTarget>,
+    Cfg::Root: Root<Cfg>,
     Cfg::Converter: Converter<Palette = <Cfg::RenderTarget as Draw>::Pixel>,
     Cfg::Input: Input,
     for<'a> &'a Cfg::RenderTarget: IntoIterator<Item = &'a <Cfg::RenderTarget as Draw>::Pixel>,

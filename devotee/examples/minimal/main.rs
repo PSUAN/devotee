@@ -2,8 +2,8 @@ use devotee::app;
 use devotee::app::config;
 use devotee::app::context::Context;
 use devotee::app::input::key_mouse::{KeyMouse, VirtualKeyCode};
+use devotee::app::root::Root;
 use devotee::app::setup;
-use devotee::node::Node;
 use devotee::util::vector::Vector;
 use devotee::visual::canvas::Canvas;
 use devotee::visual::color;
@@ -28,7 +28,7 @@ fn main() {
 struct Config;
 
 impl config::Config for Config {
-    type Node = RootNode;
+    type Root = Minial;
     type Converter = Converter;
     type Input = KeyMouse;
     type RenderTarget = Canvas<Color>;
@@ -43,11 +43,11 @@ impl config::Config for Config {
 }
 
 #[derive(Default)]
-struct RootNode {
+struct Minial {
     position: Vector<i32>,
 }
 
-impl Node<&mut Context<Config>, &mut Canvas<Color>> for RootNode {
+impl Root<Config> for Minial {
     fn update(&mut self, update: &mut Context<Config>) {
         if update.input().keys().just_pressed(VirtualKeyCode::Escape) {
             update.shutdown();

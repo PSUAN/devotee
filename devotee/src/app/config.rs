@@ -2,8 +2,8 @@ use crate::visual::Draw;
 
 /// An application configuration.
 pub trait Config {
-    /// The root node to handle App's events.
-    type Node;
+    /// The root to handle App's events.
+    type Root;
     /// The converter to transform palette values into `[u8; 4]` values.
     type Converter;
     /// The input handler.

@@ -4,8 +4,8 @@ use devotee::app;
 use devotee::app::config;
 use devotee::app::context::Context;
 use devotee::app::input::key_mouse::{KeyMouse, VirtualKeyCode};
+use devotee::app::root::Root;
 use devotee::app::setup;
-use devotee::node::Node;
 use devotee::util::vector::Vector;
 use devotee::visual::color;
 use devotee::visual::prelude::*;
@@ -27,7 +27,7 @@ fn main() {
 struct Config;
 
 impl config::Config for Config {
-    type Node = PentacleNode;
+    type Root = Pentacle;
     type Converter = Converter;
     type Input = KeyMouse;
     type RenderTarget = Sprite<TwoBits, 128, 128>;
@@ -42,12 +42,12 @@ impl config::Config for Config {
 }
 
 #[derive(Default)]
-struct PentacleNode {
+struct Pentacle {
     rotation: f64,
     counter: f64,
 }
 
-impl Node<&mut Context<Config>, &mut Sprite<TwoBits, 128, 128>> for PentacleNode {
+impl Root<Config> for Pentacle {
     fn update(&mut self, update: &mut Context<Config>) {
         if update.input().keys().just_pressed(VirtualKeyCode::Escape) {
             update.shutdown();
