@@ -1,7 +1,10 @@
+use std::collections::HashSet;
+
 use devotee::app;
 use devotee::app::config;
 use devotee::app::context::Context;
-use devotee::app::input::key_mouse::{KeyMouse, VirtualKeyCode};
+use devotee::app::input::event;
+use devotee::app::input::Input;
 use devotee::app::root::Root;
 use devotee::app::setup;
 use devotee::util::vector::Vector;
@@ -27,7 +30,7 @@ struct Config;
 impl config::Config for Config {
     type Root = Mandelbrot;
     type Converter = Converter;
-    type Input = KeyMouse;
+    type Input = CustomInput;
     type RenderTarget = Canvas<FourBits>;
 
     fn converter() -> Self::Converter {
@@ -57,36 +60,29 @@ impl Root<Config> for Mandelbrot {
     fn update(&mut self, update: &mut Context<Config>) {
         let delta = update.delta().as_secs_f64();
 
-        if update.input().keys().is_pressed(VirtualKeyCode::Z)
-            || update.input().keys().is_pressed(VirtualKeyCode::C)
-        {
+        if update.input().is_pressed(Button::In) {
             self.scale -= delta;
         }
-        if update.input().keys().is_pressed(VirtualKeyCode::X) {
+        if update.input().is_pressed(Button::Out) {
             self.scale += delta;
         }
 
         let scale = 2.0_f64.powf(self.scale);
-        if update.input().keys().is_pressed(VirtualKeyCode::Left) {
+        if update.input().is_pressed(Button::Left) {
             *self.center.x_mut() += delta / scale;
         }
-        if update.input().keys().is_pressed(VirtualKeyCode::Right) {
+        if update.input().is_pressed(Button::Right) {
             *self.center.x_mut() -= delta / scale;
         }
-        if update.input().keys().is_pressed(VirtualKeyCode::Up) {
+        if update.input().is_pressed(Button::Up) {
             *self.center.y_mut() += delta / scale;
         }
-        if update.input().keys().is_pressed(VirtualKeyCode::Down) {
+        if update.input().is_pressed(Button::Down) {
             *self.center.y_mut() -= delta / scale;
         }
 
-        if update.input().keys().just_pressed(VirtualKeyCode::Escape) {
+        if update.input().just_pressed(Button::Quit) {
             update.shutdown();
-        }
-        if update.input().keys().just_pressed(VirtualKeyCode::Return)
-            && update.input().keys().is_pressed(VirtualKeyCode::LAlt)
-        {
-            update.add_window_command(|window| window.set_fullscreen(!window.is_fullscreen()));
         }
     }
 
@@ -195,6 +191,79 @@ impl color::Converter for Converter {
                 FourBits::Pink => [0xff, 0x77, 0xa8, 0xff],
                 FourBits::Beige => [0xff, 0xcc, 0xaa, 0xff],
             }
+        }
+    }
+}
+
+#[derive(Default)]
+struct CustomInput {
+    is_pressed: HashSet<Button>,
+    was_pressed: HashSet<Button>,
+}
+
+#[derive(Clone, Copy, Hash, PartialEq, Eq)]
+enum Button {
+    Quit,
+    Left,
+    Right,
+    Up,
+    Down,
+    In,
+    Out,
+}
+
+impl TryFrom<Option<event::VirtualKeyCode>> for Button {
+    type Error = ();
+
+    fn try_from(value: Option<event::VirtualKeyCode>) -> Result<Self, Self::Error> {
+        match value.ok_or(())? {
+            event::VirtualKeyCode::Escape => Ok(Button::Quit),
+            event::VirtualKeyCode::Left => Ok(Button::Left),
+            event::VirtualKeyCode::Right => Ok(Button::Right),
+            event::VirtualKeyCode::Up => Ok(Button::Up),
+            event::VirtualKeyCode::Down => Ok(Button::Down),
+            event::VirtualKeyCode::Z => Ok(Button::In),
+            event::VirtualKeyCode::X => Ok(Button::Out),
+            _ => Err(()),
+        }
+    }
+}
+
+impl CustomInput {
+    pub fn is_pressed(&self, button: Button) -> bool {
+        self.is_pressed.contains(&button)
+    }
+
+    pub fn just_pressed(&self, button: Button) -> bool {
+        self.is_pressed.contains(&button) && !self.was_pressed.contains(&button)
+    }
+}
+
+impl Input for CustomInput {
+    fn next_frame(&mut self) {
+        self.was_pressed = self.is_pressed.clone();
+    }
+
+    fn consume_window_event<'a>(
+        &mut self,
+        event: winit::event::WindowEvent<'a>,
+        _pixels: &pixels::Pixels,
+    ) -> Option<winit::event::WindowEvent<'a>> {
+        match event {
+            winit::event::WindowEvent::KeyboardInput { input, .. } => {
+                if let Ok(button) = input.virtual_keycode.try_into() {
+                    match input.state {
+                        event::ElementState::Pressed => {
+                            self.is_pressed.insert(button);
+                        }
+                        event::ElementState::Released => {
+                            self.is_pressed.remove(&button);
+                        }
+                    }
+                }
+                None
+            }
+            event => Some(event),
         }
     }
 }

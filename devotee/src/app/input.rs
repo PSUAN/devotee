@@ -1,5 +1,5 @@
 pub use pixels::Pixels;
-pub use winit::event::WindowEvent;
+pub use winit::event;
 
 /// Keyboard and mouse input module.
 pub mod key_mouse;
@@ -13,7 +13,7 @@ pub trait Input {
     /// Return `None` if the event is consumed.
     fn consume_window_event<'a>(
         &mut self,
-        event: WindowEvent<'a>,
+        event: event::WindowEvent<'a>,
         pixels: &Pixels,
-    ) -> Option<WindowEvent<'a>>;
+    ) -> Option<event::WindowEvent<'a>>;
 }
