@@ -8,7 +8,7 @@ use winit::window::{Fullscreen, Window as WinitWindow, WindowBuilder};
 use super::{Config, Setup};
 use crate::util::vector::Vector;
 use crate::visual::color::Converter;
-use crate::visual::Draw;
+use crate::visual::Image;
 
 pub(super) type WindowCommand = Box<dyn FnOnce(&mut Window)>;
 
@@ -23,8 +23,8 @@ impl Window {
     pub(super) fn with_setup<Cfg>(event_loop: &EventLoop<()>, setup: &Setup<Cfg>) -> Option<Self>
     where
         Cfg: Config,
-        Cfg::RenderTarget: Draw,
-        Cfg::Converter: Converter<Palette = <Cfg::RenderTarget as Draw>::Pixel>,
+        Cfg::RenderTarget: Image,
+        Cfg::Converter: Converter<Palette = <Cfg::RenderTarget as Image>::Pixel>,
     {
         let resolution = Vector::new(
             setup.render_target.width() as u32,

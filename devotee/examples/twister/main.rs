@@ -74,19 +74,20 @@ impl Root<Config> for Twister {
     }
 
     fn render(&self, render: &mut Sprite<FourBits, 128, 128>) {
+        let mut render = render.painter();
         render.clear(0.into());
         let resolution_x = render.width();
         let resolution_y = render.height();
         let rotation = 2.0 * self.rotation;
         let center = resolution_y as f64 / 2.0;
 
-        render.filled_rect(
+        render.rect_f(
             (resolution_x / 6, resolution_y / 6),
             (5 * resolution_x / 6, 5 * resolution_y / 6),
             draw(14.into()),
         );
 
-        render.filled_rect(
+        render.rect_f(
             (resolution_x / 4, resolution_y / 4),
             (3 * resolution_x / 4, 3 * resolution_y / 4),
             draw(15.into()),

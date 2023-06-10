@@ -12,7 +12,7 @@ use self::root::Root;
 use self::setup::Setup;
 use self::sound_system::SoundSystem;
 use crate::visual::color::Converter;
-use crate::visual::Draw;
+use crate::visual::Image;
 
 /// General application config.
 pub mod config;
@@ -60,8 +60,8 @@ where
 impl<Cfg> App<Cfg>
 where
     Cfg: Config,
-    Cfg::Converter: Converter<Palette = <Cfg::RenderTarget as Draw>::Pixel>,
-    Cfg::RenderTarget: Draw,
+    Cfg::Converter: Converter<Palette = <Cfg::RenderTarget as Image>::Pixel>,
+    Cfg::RenderTarget: Image,
 {
     /// Create an app with given `setup`.
     pub fn with_setup(setup: Setup<Cfg>) -> Option<Self> {
@@ -94,9 +94,9 @@ impl<Cfg> App<Cfg>
 where
     Cfg: 'static + Config,
     Cfg::Root: Root<Cfg>,
-    Cfg::Converter: Converter<Palette = <Cfg::RenderTarget as Draw>::Pixel>,
+    Cfg::Converter: Converter<Palette = <Cfg::RenderTarget as Image>::Pixel>,
     Cfg::Input: Input,
-    for<'a> &'a Cfg::RenderTarget: IntoIterator<Item = &'a <Cfg::RenderTarget as Draw>::Pixel>,
+    for<'a> &'a Cfg::RenderTarget: IntoIterator<Item = &'a <Cfg::RenderTarget as Image>::Pixel>,
 {
     fn draw_on_pixels(
         pixels: &mut Pixels,

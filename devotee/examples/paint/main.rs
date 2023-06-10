@@ -6,8 +6,9 @@ use devotee::app::input::key_mouse::{KeyMouse, MouseButton, VirtualKeyCode};
 use devotee::app::root::Root;
 use devotee::app::{self, config, setup};
 use devotee::util::vector::Vector;
+use devotee::visual::color;
+use devotee::visual::prelude::*;
 use devotee::visual::sprite::Sprite;
-use devotee::visual::{color, stamp, Draw, Image, Pixel};
 
 fn main() {
     let init_config = setup::Setup::<Config>::new(
@@ -38,7 +39,7 @@ impl config::Config for Config {
         Converter { hue: 0.0 }
     }
 
-    fn background_color() -> <Self::RenderTarget as devotee::visual::Draw>::Pixel {
+    fn background_color() -> <Self::RenderTarget as Image>::Pixel {
         Palette { value: 0.0 }
     }
 }
@@ -91,6 +92,8 @@ impl Root<Config> for Paint {
     }
 
     fn render(&self, render: &mut Sprite<Palette, 64, 64>) {
+        let mut render = render.painter();
+
         render.clear(Palette { value: 0.25 });
 
         render.image((0, 0), &self.canvas, stamp());

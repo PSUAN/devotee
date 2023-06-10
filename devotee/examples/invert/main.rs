@@ -8,7 +8,6 @@ use devotee::util::vector::Vector;
 use devotee::visual::canvas::Canvas;
 use devotee::visual::color;
 use devotee::visual::prelude::*;
-use devotee::visual::UnsafePixel;
 
 fn main() {
     let init_config = setup::Setup::<Config>::new(
@@ -50,15 +49,16 @@ impl Invert {
         let position = Vector::new(12.0, 12.0);
         let mut canvas = Canvas::with_resolution(false, 32, 32);
 
-        canvas.line((0, 0), (31, 0), paint(true));
-        canvas.line((0, 0), (0, 31), paint(true));
-        canvas.line((0, 31), (31, 31), paint(true));
-        canvas.line((31, 0), (31, 31), paint(true));
-        canvas.line((0, 0), (31, 31), paint(true));
-        canvas.line((31, 0), (0, 31), paint(true));
+        let mut painter = canvas.painter();
+        painter.line((0, 0), (31, 0), paint(true));
+        painter.line((0, 0), (0, 31), paint(true));
+        painter.line((0, 31), (31, 31), paint(true));
+        painter.line((31, 0), (31, 31), paint(true));
+        painter.line((0, 0), (31, 31), paint(true));
+        painter.line((31, 0), (0, 31), paint(true));
 
         let mut counter = 0;
-        canvas.filled_rect((4, 4), (32 - 4, 32 - 4), move |_, _, _| {
+        painter.rect_f((4, 4), (32 - 4, 32 - 4), move |_, _, _| {
             counter += 1;
             counter % 5 == 0 || counter % 7 == 0
         });
@@ -88,18 +88,21 @@ impl Root<Config> for Invert {
     }
 
     fn render(&self, render: &mut Canvas<Color>) {
-        render.clear(Color([0, 0, 0]));
+        let mut painter = render.painter();
+        painter.clear(Color([0, 0, 0]));
+        drop(painter);
         for x in 8..(render.width() - 8) {
             for y in 8..(render.height() - 8) {
                 unsafe {
-                    *UnsafePixel::pixel_mut_unsafe(render, (x, y)) =
+                    *Image::pixel_mut_unsafe(render, (x, y).into()) =
                         Color([2 * x as u8, 2 * y as u8, 0x00]);
                 }
             }
         }
 
+        let mut painter = render.painter();
         let (x, y) = (self.position.x() as i32, self.position.y() as i32);
-        render.image((x, y), &self.canvas, |_, _, value, _, _, invert| {
+        painter.image((x, y), &self.canvas, |_, _, value, _, _, invert| {
             if invert {
                 Color([0xff - value.0[0], 0xff - value.0[1], 0xff - value.0[2]])
             } else {

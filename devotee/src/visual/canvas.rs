@@ -1,6 +1,6 @@
 use std::slice::Iter;
 
-use super::generalization::Generalization;
+use super::{Image, PaintTarget, Painter};
 use crate::util::vector::Vector;
 
 /// Canvas based on box slice of pixel data.
@@ -27,7 +27,16 @@ where
     }
 }
 
-impl<P> Generalization for Canvas<P>
+impl<P> PaintTarget<P> for Canvas<P>
+where
+    P: Copy,
+{
+    fn painter(&mut self) -> Painter<P> {
+        Painter { target: self }
+    }
+}
+
+impl<P> Image for Canvas<P>
 where
     P: Clone,
 {

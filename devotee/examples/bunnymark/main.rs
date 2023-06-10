@@ -85,14 +85,15 @@ impl Default for BunnyMark {
     fn default() -> Self {
         let bunnies = Vec::new();
         let mut texture = Sprite::with_color(0.into());
-        texture.filled_rect((1, 0), (2, 15), paint(FourBits::White));
-        texture.filled_rect((5, 0), (6, 15), paint(FourBits::White));
-        texture.filled_rect((0, 5), (8, 10), paint(FourBits::White));
-        texture.filled_rect((2, 10), (5, 14), paint(FourBits::White));
-        texture.mod_pixel((2, 7), paint(FourBits::Pink));
-        texture.mod_pixel((5, 7), paint(FourBits::Pink));
-        texture.line((7, 5), (7, 10), paint(FourBits::Gray));
-        texture.line((6, 9), (6, 15), paint(FourBits::Gray));
+        let mut painter = texture.painter();
+        painter.rect_f((1, 0), (2, 15), paint(FourBits::White));
+        painter.rect_f((5, 0), (6, 15), paint(FourBits::White));
+        painter.rect_f((0, 5), (8, 10), paint(FourBits::White));
+        painter.rect_f((2, 10), (5, 14), paint(FourBits::White));
+        painter.mod_pixel((2, 7), paint(FourBits::Pink));
+        painter.mod_pixel((5, 7), paint(FourBits::Pink));
+        painter.line((7, 5), (7, 10), paint(FourBits::Gray));
+        painter.line((6, 9), (6, 15), paint(FourBits::Gray));
         let counter = 0;
         let previous = Instant::now();
         let mut result = Self {
@@ -165,6 +166,7 @@ impl Root<Config> for BunnyMark {
     }
 
     fn render(&self, render: &mut Sprite<FourBits, 128, 128>) {
+        let mut render = render.painter();
         render.clear(FourBits::Black);
         for bunny in self.bunnies.iter() {
             render.image(

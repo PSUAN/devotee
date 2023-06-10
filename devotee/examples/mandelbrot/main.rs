@@ -101,7 +101,7 @@ impl Root<Config> for Mandelbrot {
                     (px, py) = (px * px - py * py + x0, 2.0 * px * py + y0);
                     iteration += 1;
                 }
-                if let Some(p) = render.pixel_mut((x, y)) {
+                if let Some(p) = render.pixel_mut((x, y).into()) {
                     *p = (iteration % 16).into();
                 }
             }

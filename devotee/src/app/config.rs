@@ -1,4 +1,4 @@
-use crate::visual::Draw;
+use crate::visual::Image;
 
 /// An application configuration.
 pub trait Config {
@@ -9,10 +9,10 @@ pub trait Config {
     /// The input handler.
     type Input;
     /// Render target to render to.
-    type RenderTarget: Draw;
+    type RenderTarget: Image;
 
     /// Provide palette converter.
     fn converter() -> Self::Converter;
     /// Provide default background color for the window.
-    fn background_color() -> <Self::RenderTarget as Draw>::Pixel;
+    fn background_color() -> <Self::RenderTarget as Image>::Pixel;
 }

@@ -1,4 +1,4 @@
-use super::generalization::Generalization;
+use super::{Image, PaintTarget, Painter};
 use crate::util::vector::Vector;
 
 /// Sprite of fixed dimensions.
@@ -23,7 +23,16 @@ where
     }
 }
 
-impl<P, const W: usize, const H: usize> Generalization for Sprite<P, W, H>
+impl<P, const W: usize, const H: usize> PaintTarget<P> for Sprite<P, W, H>
+where
+    P: Copy,
+{
+    fn painter(&mut self) -> Painter<P> {
+        Painter { target: self }
+    }
+}
+
+impl<P, const W: usize, const H: usize> Image for Sprite<P, W, H>
 where
     P: Copy,
 {

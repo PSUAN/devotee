@@ -155,6 +155,8 @@ impl Root<Config> for TextApp {
     fn render(&self, render: &mut Sprite<FourBits, 128, 128>) {
         let color = FourBits::White;
 
+        let mut render = render.painter();
+
         render.clear(0.into());
         render.line((64 - 16, 64), (64 + 16, 64), paint(FourBits::Red));
         render.line((64, 64 - 16), (64, 64 + 16), paint(FourBits::Green));

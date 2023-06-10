@@ -60,13 +60,15 @@ impl Root<Config> for Pentacle {
     }
 
     fn render(&self, render: &mut Sprite<TwoBits, 128, 128>) {
+        let mut render = render.painter();
+
         render.clear(TwoBits::Black);
 
         let radius = 48.0 + 8.0 * self.rotation.sin();
         let center = Vector::new(64, 64);
 
         render.circle((64, 64), radius as i32, paint(TwoBits::White));
-        render.filled_circle((64, 64), 32, paint(TwoBits::Gray));
+        render.circle_f((64, 64), 32, paint(TwoBits::Gray));
 
         let vertices: Vec<_> = (0..5)
             .map(|i| {
@@ -79,7 +81,7 @@ impl Root<Config> for Pentacle {
                     )
             })
             .collect();
-        render.filled_polygon(&vertices, paint(TwoBits::White));
+        render.polygon_f(&vertices, paint(TwoBits::White));
 
         if self.counter.round() as i32 % 2 == 1 {
             render.polygon(&vertices, paint(TwoBits::Red));

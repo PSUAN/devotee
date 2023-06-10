@@ -66,6 +66,8 @@ impl Root<Config> for Minial {
     }
 
     fn render(&self, render: &mut Canvas<Color>) {
+        let mut render = render.painter();
+
         render.clear(Color([0x00, 0x00, 0x80]));
 
         render.rect(
@@ -73,7 +75,7 @@ impl Root<Config> for Minial {
             (BOX_BOUNDARIES.1, BOX_BOUNDARIES.1),
             paint(Color([0xff, 0xff, 0xff])),
         );
-        render.filled_circle(
+        render.circle_f(
             self.position,
             INTERNAL_RADIUS,
             paint(Color([0x80, 0x80, 0x80])),
