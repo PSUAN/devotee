@@ -1,7 +1,7 @@
+use std::num::NonZeroU32;
 use std::time::Duration;
 
 use instant::Instant;
-use pixels::Pixels;
 use winit::event::{Event, StartCause, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop};
 
@@ -98,21 +98,6 @@ where
     Cfg::Input: Input,
     for<'a> &'a Cfg::RenderTarget: IntoIterator<Item = &'a <Cfg::RenderTarget as Image>::Pixel>,
 {
-    fn draw_on_pixels(
-        pixels: &mut Pixels,
-        render_target: &Cfg::RenderTarget,
-        converter: &Cfg::Converter,
-    ) {
-        for (pixel, palette) in pixels
-            .frame_mut()
-            .chunks_exact_mut(4)
-            .zip(render_target.into_iter())
-        {
-            let color = converter.convert(palette);
-            pixel.copy_from_slice(&color);
-        }
-    }
-
     /// Start the application event loop.
     pub fn run(self) {
         let app = self;
@@ -161,33 +146,28 @@ where
             }
             Event::RedrawRequested(_) => {
                 node.render(&mut app.render_target);
-                Self::draw_on_pixels(
-                    app.window.pixels_mut(),
-                    &app.render_target,
-                    &context.converter,
-                );
-                if app.window.render().is_err() {
+                if app
+                    .window
+                    .draw_image(&app.render_target, &context.converter)
+                    .is_err()
+                {
                     *control_flow = ControlFlow::Exit;
                 }
                 app.window.request_redraw();
             }
             Event::WindowEvent { event, .. } => {
-                if let Some(event) = context
-                    .input
-                    .consume_window_event(event, app.window.pixels())
-                {
+                if let Some(event) = context.input.consume_window_event(event, &app.window) {
                     match event {
                         WindowEvent::CloseRequested => {
                             *control_flow = ControlFlow::Exit;
                         }
                         WindowEvent::Resized(size) => {
-                            if app
-                                .window
-                                .pixels_mut()
-                                .resize_surface(size.width, size.height)
-                                .is_err()
+                            if let (Some(width), Some(height)) =
+                                (NonZeroU32::new(size.width), NonZeroU32::new(size.height))
                             {
-                                *control_flow = ControlFlow::Exit;
+                                if app.window.resize_surface(width, height).is_err() {
+                                    *control_flow = ControlFlow::Exit;
+                                }
                             }
                         }
                         WindowEvent::Focused(focused) if app.pause_on_focus_lost => {

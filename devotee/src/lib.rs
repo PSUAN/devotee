@@ -1,6 +1,6 @@
 #![deny(missing_docs)]
 
-//! `devotee` is small visualization engine based on [pixels](https://crates.io/crates/pixels), [winit](https://crates.io/crates/winit) and [rodio](https://crates.io/crates/rodio).
+//! `devotee` is small visualization engine based on [softbuffer](https://crates.io/crates/softbuffer), [winit](https://crates.io/crates/winit) and [rodio](https://crates.io/crates/rodio).
 //! It aims to provide minimalist visualization platform.
 //!
 //! To use `devotee` specify `Config`, create `Setup`, initialize `App` and `run` it.

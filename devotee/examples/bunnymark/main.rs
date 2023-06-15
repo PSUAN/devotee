@@ -50,25 +50,25 @@ pub struct Converter;
 impl color::Converter for Converter {
     type Palette = FourBits;
     #[inline]
-    fn convert(&self, color: &Self::Palette) -> [u8; 4] {
+    fn convert(&self, color: &Self::Palette) -> u32 {
         {
             match color {
-                FourBits::Black => [0x00, 0x00, 0x00, 0xff],
-                FourBits::DarkBlue => [0x1d, 0x2b, 0x53, 0xff],
-                FourBits::Eggplant => [0x7e, 0x25, 0x53, 0xff],
-                FourBits::DarkGreen => [0x00, 0x87, 0x51, 0xff],
-                FourBits::Brown => [0xab, 0x52, 0x36, 0xff],
-                FourBits::DirtyGray => [0x5f, 0x57, 0x4f, 0xff],
-                FourBits::Gray => [0xc2, 0xc3, 0xc7, 0xff],
-                FourBits::White => [0xff, 0xf1, 0xe8, 0xff],
-                FourBits::Red => [0xff, 0x00, 0x4d, 0xff],
-                FourBits::Orange => [0xff, 0xa3, 0x00, 0xff],
-                FourBits::Yellow => [0xff, 0xec, 0x27, 0xff],
-                FourBits::Green => [0x00, 0xe4, 0x36, 0xff],
-                FourBits::LightBlue => [0x29, 0xad, 0xff, 0xff],
-                FourBits::Purple => [0x83, 0x76, 0x9c, 0xff],
-                FourBits::Pink => [0xff, 0x77, 0xa8, 0xff],
-                FourBits::Beige => [0xff, 0xcc, 0xaa, 0xff],
+                FourBits::Black => 0x00000000,
+                FourBits::DarkBlue => 0x001d2b53,
+                FourBits::Eggplant => 0x007e2553,
+                FourBits::DarkGreen => 0x00008751,
+                FourBits::Brown => 0x00ab5236,
+                FourBits::DirtyGray => 0x005f574f,
+                FourBits::Gray => 0x00c2c3c7,
+                FourBits::White => 0x00fff1e8,
+                FourBits::Red => 0x00ff004d,
+                FourBits::Orange => 0x00ffa300,
+                FourBits::Yellow => 0x00ffec27,
+                FourBits::Green => 0x0000e436,
+                FourBits::LightBlue => 0x0029adff,
+                FourBits::Purple => 0x0083769c,
+                FourBits::Pink => 0x00ff77a8,
+                FourBits::Beige => 0x00ffccaa,
             }
         }
     }

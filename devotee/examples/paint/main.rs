@@ -18,7 +18,8 @@ fn main() {
     )
     .with_update_delay(Duration::from_secs_f64(1.0 / 60.0))
     .with_title("mouse")
-    .with_fullscreen(true);
+    .with_fullscreen(false)
+    .with_scale(4);
     let app = app::App::with_setup(init_config).unwrap();
 
     app.run();
@@ -33,7 +34,7 @@ impl config::Config for Config {
 
     type Input = KeyMouse;
 
-    type RenderTarget = Sprite<Palette, 64, 64>;
+    type RenderTarget = Sprite<Palette, 128, 64>;
 
     fn converter() -> Self::Converter {
         Converter { hue: 0.0 }
@@ -47,7 +48,7 @@ impl config::Config for Config {
 #[derive(Default)]
 struct Paint {
     droplets: Vec<Droplet>,
-    canvas: Sprite<Palette, 64, 64>,
+    canvas: Sprite<Palette, 128, 64>,
     cursor: Option<Vector<i32>>,
 }
 
@@ -91,7 +92,7 @@ impl Root<Config> for Paint {
         self.droplets.retain(|droplet| droplet.wetness_left > 0.0);
     }
 
-    fn render(&self, render: &mut Sprite<Palette, 64, 64>) {
+    fn render(&self, render: &mut Sprite<Palette, 128, 64>) {
         let mut render = render.painter();
 
         render.clear(Palette { value: 0.25 });
@@ -124,17 +125,14 @@ struct Converter {
 impl color::Converter for Converter {
     type Palette = Palette;
 
-    fn convert(&self, color: &Self::Palette) -> [u8; 4] {
+    fn convert(&self, color: &Self::Palette) -> u32 {
         let amplitude = color.value.clamp(0.0, 1.0);
         let red = 0.5 * self.hue.cos() + 0.5;
         let green = 0.5 * (self.hue + 2.0 * consts::FRAC_PI_3).cos() + 0.5;
         let blue = 0.5 * (self.hue - 2.0 * consts::FRAC_PI_3).cos() + 0.5;
 
-        [
-            (red * amplitude * 255.0) as u8,
-            (green * amplitude * 255.0) as u8,
-            (blue * amplitude * 255.0) as u8,
-            0xff,
-        ]
+        (((red * amplitude * 255.0) as u32) << 16)
+            | (((green * amplitude * 255.0) as u32) << 8)
+            | (blue * amplitude * 255.0) as u32
     }
 }

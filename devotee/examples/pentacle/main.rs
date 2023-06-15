@@ -115,13 +115,13 @@ struct Converter;
 impl color::Converter for Converter {
     type Palette = TwoBits;
     #[inline]
-    fn convert(&self, color: &Self::Palette) -> [u8; 4] {
+    fn convert(&self, color: &Self::Palette) -> u32 {
         {
             match color {
-                TwoBits::Black => [0x00, 0x00, 0x00, 0xff],
-                TwoBits::Gray => [0x80, 0x80, 0x80, 0xff],
-                TwoBits::White => [0xff, 0xff, 0xff, 0xff],
-                TwoBits::Red => [0xff, 0x40, 0x40, 0xff],
+                TwoBits::Black => 0x00000000,
+                TwoBits::Gray => 0x00808080,
+                TwoBits::White => 0x00ffffff,
+                TwoBits::Red => 0x00ff4040,
             }
         }
     }

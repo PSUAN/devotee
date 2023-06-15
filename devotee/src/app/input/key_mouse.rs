@@ -1,10 +1,10 @@
 use std::collections::HashSet;
 
-use pixels::Pixels;
 use winit::dpi::PhysicalPosition;
 use winit::event::{ElementState, KeyboardInput, WindowEvent};
 
 use super::Input;
+use crate::app::window::Window;
 use crate::util::vector::Vector;
 
 pub use winit::event::{MouseButton, VirtualKeyCode};
@@ -117,10 +117,10 @@ impl Mouse {
         self.position = None;
     }
 
-    fn register_cursor_moved(&mut self, position: PhysicalPosition<f64>, pixels: &Pixels) {
-        self.position = Some(match pixels.window_pos_to_pixel(position.into()) {
-            Ok(in_bounds) => (in_bounds.0 as i32, in_bounds.1 as i32).into(),
-            Err(out_of_bounds) => (out_of_bounds.0 as i32, out_of_bounds.1 as i32).into(),
+    fn register_cursor_moved(&mut self, position: PhysicalPosition<f64>, window: &Window) {
+        self.position = Some(match window.window_pos_to_inner(position.into()) {
+            Ok(in_bounds) => in_bounds,
+            Err(out_of_bounds) => out_of_bounds,
         });
     }
 }
@@ -134,7 +134,7 @@ impl Input for KeyMouse {
     fn consume_window_event<'a>(
         &mut self,
         event: WindowEvent<'a>,
-        pixels: &Pixels,
+        window: &Window,
     ) -> Option<WindowEvent<'a>> {
         match event {
             WindowEvent::KeyboardInput { input, .. } => {
@@ -146,7 +146,7 @@ impl Input for KeyMouse {
                 None
             }
             WindowEvent::CursorMoved { position, .. } => {
-                self.mouse.register_cursor_moved(position, pixels);
+                self.mouse.register_cursor_moved(position, window);
                 None
             }
             WindowEvent::MouseInput { state, button, .. } => {

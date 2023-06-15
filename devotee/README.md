@@ -3,7 +3,7 @@ A bit personal visualization engine.
 
 `devotee` is directly based on:
 - [winit](https://crates.io/crates/winit) - Rust windowing library;
-- [pixels](https://crates.io/crates/pixels) - `wgpu`-based pixel renderer;
+- [softbuffer](https://crates.io/crates/softbuffer) - 2D buffer display library;
 - [rodio](https://crates.io/crates/rodio) - `cpal`-based audio playback library;
 
 ## Goals

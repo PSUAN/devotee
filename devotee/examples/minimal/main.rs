@@ -90,7 +90,7 @@ struct Converter;
 
 impl color::Converter for Converter {
     type Palette = Color;
-    fn convert(&self, color: &Self::Palette) -> [u8; 4] {
-        [color.0[0], color.0[1], color.0[2], 0xff]
+    fn convert(&self, color: &Self::Palette) -> u32 {
+        ((color.0[0] as u32) << 16) | ((color.0[1] as u32) << 8) | color.0[2] as u32
     }
 }
