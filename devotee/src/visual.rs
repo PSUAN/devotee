@@ -138,21 +138,6 @@ pub trait Image {
     fn clear(&mut self, color: Self::Pixel);
 }
 
-// /// Provide unsafe access to specific pixel values.
-// pub trait UnsafePixel: Image {
-//     /// Get reference to pixel.
-//     ///
-//     /// # Safety
-//     /// - `position` must be in the `[0, (width, height))` range.
-//     unsafe fn pixel_unsafe(&self, position: Vector<i32>) -> &Self::Pixel;
-
-//     /// Get mutable reference to pixel.
-//     ///
-//     /// # Safety
-//     /// - `position` must be in the `[0, (width, height))` range.
-//     unsafe fn pixel_mut_unsafe(&mut self, position: Vector<i32>) -> &mut Self::Pixel;
-// }
-
 /// Something that can be painted on.
 pub trait PaintTarget<P> {
     /// Get painter for painting.
