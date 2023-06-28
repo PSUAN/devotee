@@ -317,25 +317,25 @@ where
 
         let mut segments: Vec<_> = vertices
             .windows(2)
-            .map(|v| (v[0], v[1], false, false))
+            .map(|v| (v[0], v[1], false, false, 0..=0))
             .collect();
-        segments.push((*vertices.last().unwrap(), vertices[0], false, false));
+        segments.push((*vertices.last().unwrap(), vertices[0], false, false, 0..=0));
 
         for y in top..bottom + 1 {
             segments
                 .iter_mut()
-                .for_each(|(_, _, intersected, was_intersected)| {
+                .for_each(|(a, b, intersected, was_intersected, scan)| {
                     *intersected = false;
                     *was_intersected = false;
+                    *scan = line_scan(a, b, y);
                 });
 
             let mut counter = 0;
             for x in left..right + 1 {
                 let mut should_paint = false;
-                for (a, b, intersected, was_intersected) in segments.iter_mut() {
+                for (a, b, intersected, was_intersected, scan) in segments.iter_mut() {
                     let in_vertical_range = (y >= a.y() && y < b.y()) || (y >= b.y() && y < a.y());
                     if in_vertical_range {
-                        let scan = line_scan(a, b, y);
                         if x >= *scan.start() && x <= *scan.end() {
                             should_paint = !should_paint;
                             *intersected = true;
