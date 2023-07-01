@@ -153,7 +153,6 @@ where
                 {
                     *control_flow = ControlFlow::Exit;
                 }
-                app.window.request_redraw();
             }
             Event::WindowEvent { event, .. } => {
                 if let Some(event) = context.input.consume_window_event(event, &app.window) {
