@@ -7,6 +7,7 @@ use devotee::app::context::Context;
 use devotee::app::input::key_mouse::{KeyMouse, VirtualKeyCode};
 use devotee::app::root::Root;
 use devotee::app::setup;
+use devotee::util::vector::Vector;
 use devotee::visual::color;
 use devotee::visual::prelude::*;
 use devotee::visual::sprite::Sprite;
@@ -156,11 +157,12 @@ impl Root<Config> for TextApp {
         let color = FourBits::White;
 
         let mut render = render.painter();
+        render.set_offset(Vector::new(64, 64));
 
         render.clear(0.into());
-        render.line((64 - 16, 64), (64 + 16, 64), paint(FourBits::Red));
-        render.line((64, 64 - 16), (64, 64 + 16), paint(FourBits::Green));
-        render.text((64, 64), printer(), &self.font, "0", |_, _, p, _, _, o| {
+        render.line((-16, 0), (16, 0), paint(FourBits::Red));
+        render.line((0, -16), (0, 16), paint(FourBits::Green));
+        render.text((0, 0), printer(), &self.font, "0", |_, _, p, _, _, o| {
             if o == 0 {
                 p
             } else {
@@ -171,10 +173,10 @@ impl Root<Config> for TextApp {
         let cos = self.angle.cos();
         let sin = self.angle.sin();
 
-        let x = 64 + (32.0 * cos) as i32;
-        let y = 64 - (32.0 * sin) as i32;
+        let x = (32.0 * cos) as i32;
+        let y = -(32.0 * sin) as i32;
 
-        render.line((64, 64), (x, y), paint(FourBits::Beige));
+        render.line((0, 0), (x, y), paint(FourBits::Beige));
 
         render.text(
             (x, y),

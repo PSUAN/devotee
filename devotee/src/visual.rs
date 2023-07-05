@@ -147,32 +147,73 @@ pub trait PaintTarget<P> {
 /// Painter to draw on encapsulated target.
 pub struct Painter<'a, P> {
     target: &'a mut dyn Image<Pixel = P>,
+    offset: Vector<i32>,
+}
+
+impl<'a, P> Painter<'a, P> {
+    fn new(target: &'a mut dyn Image<Pixel = P>) -> Self {
+        Self {
+            target,
+            offset: Vector::new(0, 0),
+        }
+    }
+
+    /// Set offset for this particular painter.
+    pub fn set_offset(&mut self, offset: Vector<i32>) -> &mut Self {
+        self.offset = offset;
+        self
+    }
+
+    /// Get offset of this painter.
+    pub fn offset(&self) -> Vector<i32> {
+        self.offset
+    }
+
+    /// Get mutable reference to offset in this painter.
+    pub fn offset_mut(&mut self) -> &mut Vector<i32> {
+        &mut self.offset
+    }
 }
 
 impl<'a, P> Painter<'a, P>
 where
     P: Clone,
 {
-    fn map_on_pixel<F: FnMut(i32, i32, P) -> P>(&mut self, point: Vector<i32>, function: &mut F) {
+    fn map_on_pixel_raw<F: FnMut(i32, i32, P) -> P>(
+        &mut self,
+        point: Vector<i32>,
+        function: &mut F,
+    ) {
+        let point = point + self.offset;
         if let Some(pixel) = self.target.pixel_mut(point) {
             *pixel = function(point.x(), point.y(), pixel.clone());
         }
     }
 
-    fn map_on_line<F: FnMut(i32, i32, P) -> P>(
+    fn map_on_pixel_helper<F: FnMut(i32, i32, P) -> P>(
+        &mut self,
+        point: Vector<i32>,
+        function: &mut F,
+    ) {
+        if let Some(pixel) = self.target.pixel_mut(point) {
+            *pixel = function(point.x(), point.y(), pixel.clone());
+        }
+    }
+
+    fn map_on_line_raw<F: FnMut(i32, i32, P) -> P>(
         &mut self,
         from: Vector<i32>,
         to: Vector<i32>,
         function: &mut F,
     ) {
-        let mut from = from;
-        let mut to = to;
+        let mut from = from + self.offset;
+        let mut to = to + self.offset;
         if from.x() == to.x() {
-            self.map_vertical_line(from.x(), from.y(), to.y(), function);
+            self.map_vertical_line_helper(from.x(), from.y(), to.y(), function);
             return;
         }
         if from.y() == to.y() {
-            self.map_horizontal_line(from.x(), to.x(), from.y(), function);
+            self.map_horizontal_line_helper(from.x(), to.x(), from.y(), function);
             return;
         }
 
@@ -192,7 +233,7 @@ where
         }
     }
 
-    fn map_vertical_line<F: FnMut(i32, i32, P) -> P>(
+    fn map_vertical_line_helper<F: FnMut(i32, i32, P) -> P>(
         &mut self,
         x: i32,
         mut from_y: i32,
@@ -216,7 +257,7 @@ where
         }
     }
 
-    fn map_horizontal_line<F: FnMut(i32, i32, P) -> P>(
+    fn map_horizontal_line_helper<F: FnMut(i32, i32, P) -> P>(
         &mut self,
         mut from_x: i32,
         mut to_x: i32,
@@ -240,12 +281,15 @@ where
         }
     }
 
-    fn map_on_filled_rect<F: FnMut(i32, i32, P) -> P>(
+    fn map_on_filled_rect_raw<F: FnMut(i32, i32, P) -> P>(
         &mut self,
         from: Vector<i32>,
         to: Vector<i32>,
         function: &mut F,
     ) {
+        let from = from + self.offset;
+        let to = to + self.offset;
+
         let start_x = from.x().max(0);
         let start_y = from.y().max(0);
         let end_x = (to.x()).min(self.target.width());
@@ -262,19 +306,19 @@ where
         }
     }
 
-    fn map_on_filled_triangle<F: FnMut(i32, i32, P) -> P>(
+    fn map_on_filled_triangle_raw<F: FnMut(i32, i32, P) -> P>(
         &mut self,
         vertices: [Vector<i32>; 3],
         function: &mut F,
     ) {
-        let mut vertex = vertices;
+        let mut vertex = vertices.map(|v| v + self.offset);
         vertex.sort_by(|a, b| a.y_ref().cmp(b.y_ref()));
         let [a, b, c] = vertex;
 
         // We are on a horizontal line.
         if a.y() == c.y() {
             vertex.sort_by(|a, b| a.x().cmp(b.x_ref()));
-            self.map_horizontal_line(vertex[0].x(), vertex[2].x(), vertex[0].y(), function);
+            self.map_horizontal_line_helper(vertex[0].x(), vertex[2].x(), vertex[0].y(), function);
             return;
         }
 
@@ -285,7 +329,7 @@ where
             let right_range = line_scan(&a, &c, y);
             let left = *left_range.start().min(right_range.start());
             let right = *left_range.end().max(right_range.end());
-            self.map_horizontal_line(left, right, y, function);
+            self.map_horizontal_line_helper(left, right, y, function);
         }
 
         let middle = middle + 1;
@@ -294,11 +338,11 @@ where
             let right_range = line_scan(&b, &c, y);
             let left = *left_range.start().min(right_range.start());
             let right = *left_range.end().max(right_range.end());
-            self.map_horizontal_line(left, right, y, function);
+            self.map_horizontal_line_helper(left, right, y, function);
         }
     }
 
-    fn map_on_filled_sane_polygon<F: FnMut(i32, i32, P) -> P>(
+    fn map_on_filled_sane_polygon_raw<F: FnMut(i32, i32, P) -> P>(
         &mut self,
         vertices: &[Vector<i32>],
         function: &mut F,
@@ -350,26 +394,27 @@ where
                 }
                 should_paint = should_paint || (counter % 2) == 1;
                 if should_paint {
-                    self.map_on_pixel((x, y).into(), function);
+                    self.map_on_pixel_raw((x, y).into(), function);
                 }
             }
         }
     }
 
-    fn map_on_filled_circle<F: FnMut(i32, i32, P) -> P>(
+    fn map_on_filled_circle_raw<F: FnMut(i32, i32, P) -> P>(
         &mut self,
         center: Vector<i32>,
         radius: i32,
         function: &mut F,
     ) {
-        self.map_horizontal_line(
+        let center = center + self.offset;
+        self.map_horizontal_line_helper(
             center.x() - radius,
             center.x() + radius,
             center.y(),
             function,
         );
-        self.map_on_pixel(center + (0, radius), function);
-        self.map_on_pixel(center - (0, radius), function);
+        self.map_on_pixel_helper(center + (0, radius), function);
+        self.map_on_pixel_helper(center - (0, radius), function);
 
         let mut x = 0;
         let mut y = radius;
@@ -386,23 +431,44 @@ where
             x += 1;
             checker_x += 2;
             decision += checker_x;
-            self.map_horizontal_line(center.x() - x, center.x() + x, center.y() + y, function);
-            self.map_horizontal_line(center.x() - x, center.x() + x, center.y() - y, function);
-            self.map_horizontal_line(center.x() - y, center.x() + y, center.y() + x, function);
-            self.map_horizontal_line(center.x() - y, center.x() + y, center.y() - x, function);
+            self.map_horizontal_line_helper(
+                center.x() - x,
+                center.x() + x,
+                center.y() + y,
+                function,
+            );
+            self.map_horizontal_line_helper(
+                center.x() - x,
+                center.x() + x,
+                center.y() - y,
+                function,
+            );
+            self.map_horizontal_line_helper(
+                center.x() - y,
+                center.x() + y,
+                center.y() + x,
+                function,
+            );
+            self.map_horizontal_line_helper(
+                center.x() - y,
+                center.x() + y,
+                center.y() - x,
+                function,
+            );
         }
     }
 
-    fn map_on_circle<F: FnMut(i32, i32, P) -> P>(
+    fn map_on_circle_raw<F: FnMut(i32, i32, P) -> P>(
         &mut self,
         center: Vector<i32>,
         radius: i32,
         function: &mut F,
     ) {
-        self.map_on_pixel(center + (radius, 0), function);
-        self.map_on_pixel(center - (radius, 0), function);
-        self.map_on_pixel(center + (0, radius), function);
-        self.map_on_pixel(center - (0, radius), function);
+        let center = center + self.offset;
+        self.map_on_pixel_helper(center + (radius, 0), function);
+        self.map_on_pixel_helper(center - (radius, 0), function);
+        self.map_on_pixel_helper(center + (0, radius), function);
+        self.map_on_pixel_helper(center - (0, radius), function);
 
         let mut x = 0;
         let mut y = radius;
@@ -411,15 +477,15 @@ where
         let mut checker_y = -2 * radius;
 
         let mut mapper = move |x, y| {
-            self.map_on_pixel(center + (x, y), function);
-            self.map_on_pixel(center + (x, -y), function);
-            self.map_on_pixel(center + (-x, y), function);
-            self.map_on_pixel(center + (-x, -y), function);
+            self.map_on_pixel_helper(center + (x, y), function);
+            self.map_on_pixel_helper(center + (x, -y), function);
+            self.map_on_pixel_helper(center + (-x, y), function);
+            self.map_on_pixel_helper(center + (-x, -y), function);
 
-            self.map_on_pixel(center + (y, x), function);
-            self.map_on_pixel(center + (y, -x), function);
-            self.map_on_pixel(center + (-y, x), function);
-            self.map_on_pixel(center + (-y, -x), function);
+            self.map_on_pixel_helper(center + (y, x), function);
+            self.map_on_pixel_helper(center + (y, -x), function);
+            self.map_on_pixel_helper(center + (-y, x), function);
+            self.map_on_pixel_helper(center + (-y, -x), function);
         };
 
         while x < y {
@@ -435,12 +501,13 @@ where
         }
     }
 
-    fn zip_map_images<O: Clone, F: FnMut(i32, i32, P, i32, i32, O) -> P>(
+    fn zip_map_images_raw<O: Clone, F: FnMut(i32, i32, P, i32, i32, O) -> P>(
         &mut self,
         at: Vector<i32>,
         image: &dyn Image<Pixel = O>,
         function: &mut F,
     ) {
+        let at = at + self.offset;
         let image_start_x = if at.x() < 0 { -at.x() } else { 0 };
         let image_start_y = if at.y() < 0 { -at.y() } else { 0 };
 
@@ -494,7 +561,7 @@ where
     where
         I: Into<Vector<i32>>,
     {
-        Image::pixel(self.target, position.into())
+        Image::pixel(self.target, position.into() + self.offset)
     }
 
     /// Get mutable reference to pixel.
@@ -502,7 +569,7 @@ where
     where
         I: Into<Vector<i32>>,
     {
-        Image::pixel_mut(self.target, position.into())
+        Image::pixel_mut(self.target, position.into() + self.offset)
     }
 }
 
@@ -531,7 +598,7 @@ where
     {
         let (from, to) = (from.into(), to.into());
         let mut function = function;
-        self.map_on_line(from, to, &mut function);
+        self.map_on_line_raw(from, to, &mut function);
     }
 
     /// Use provided function on each pixel in a rectangle.
@@ -542,7 +609,7 @@ where
     {
         let (from, to) = (from.into(), to.into());
         let mut function = function;
-        self.map_on_filled_rect(from, to, &mut function);
+        self.map_on_filled_rect_raw(from, to, &mut function);
     }
 
     /// Use provided function on each pixel of rectangle bounds.
@@ -551,12 +618,12 @@ where
         I: Into<Vector<i32>>,
         F: FnMut(i32, i32, P) -> P,
     {
-        let (from, to) = (from.into(), to.into() - (1, 1));
+        let (from, to) = (from.into() + self.offset, to.into() - (1, 1) + self.offset);
         let mut function = function;
-        self.map_horizontal_line(from.x(), to.x(), from.y(), &mut function);
-        self.map_horizontal_line(from.x(), to.x(), to.y(), &mut function);
-        self.map_vertical_line(from.x(), from.y(), to.y(), &mut function);
-        self.map_vertical_line(to.x(), from.y(), to.y(), &mut function);
+        self.map_horizontal_line_helper(from.x(), to.x(), from.y(), &mut function);
+        self.map_horizontal_line_helper(from.x(), to.x(), to.y(), &mut function);
+        self.map_vertical_line_helper(from.x(), from.y(), to.y(), &mut function);
+        self.map_vertical_line_helper(to.x(), from.y(), to.y(), &mut function);
     }
 
     /// Use provided function on each pixel in triangle.
@@ -567,7 +634,7 @@ where
     {
         let vertex = vertices.map(Into::into);
         let mut function = function;
-        self.map_on_filled_triangle(vertex, &mut function);
+        self.map_on_filled_triangle_raw(vertex, &mut function);
     }
 
     /// Use provided function on each pixel of triangle bounds.
@@ -595,7 +662,7 @@ where
             0 => (),
             1 => self.mod_pixel(vertices[0], function),
             2 => self.line(vertices[0], vertices[1], function),
-            _ => self.map_on_filled_sane_polygon(&vertices, &mut function),
+            _ => self.map_on_filled_sane_polygon_raw(&vertices, &mut function),
         }
     }
 
@@ -607,14 +674,14 @@ where
     {
         let mut function = function;
         for window in vertices.windows(2) {
-            self.map_on_line(
+            self.map_on_line_raw(
                 window[0].clone().into(),
                 window[1].clone().into(),
                 &mut function,
             );
         }
         if vertices.len() > 2 {
-            self.map_on_line(
+            self.map_on_line_raw(
                 vertices[0].clone().into(),
                 // SAFETY: we have checked that `vertices` contain at least 3 elements.
                 vertices.last().unwrap().clone().into(),
@@ -631,7 +698,7 @@ where
     {
         let center = center.into();
         let mut function = function;
-        self.map_on_filled_circle(center, radius, &mut function);
+        self.map_on_filled_circle_raw(center, radius, &mut function);
     }
 
     /// Use provided function on each pixel of circle bounds.
@@ -642,29 +709,29 @@ where
     {
         let center = center.into();
         let mut function = function;
-        self.map_on_circle(center, radius, &mut function);
+        self.map_on_circle_raw(center, radius, &mut function);
     }
 
     /// Get reference to pixel.
     ///
     /// # Safety
-    /// - `position` must be in the `[0, (width, height))` range.
+    /// - `position + self.offset` must be in the `[0, (width, height))` range.
     pub unsafe fn pixel_unsafe<I>(&self, position: I) -> &P
     where
         I: Into<Vector<i32>>,
     {
-        Image::pixel_unsafe(self.target, position.into())
+        Image::pixel_unsafe(self.target, position.into() + self.offset)
     }
 
     /// Get mutable reference to pixel.
     ///
     /// # Safety
-    /// - `position` must be in the `[0, (width, height))` range.
+    /// - `position + self.offset` must be in the `[0, (width, height))` range.
     pub unsafe fn pixel_mut_unsafe<I>(&mut self, position: I) -> &mut P
     where
         I: Into<Vector<i32>>,
     {
-        Image::pixel_mut_unsafe(self.target, position.into())
+        Image::pixel_mut_unsafe(self.target, position.into() + self.offset)
     }
 }
 
@@ -682,7 +749,7 @@ where
     {
         let at = at.into();
         let mut function = function;
-        self.zip_map_images(at, image, &mut function)
+        self.zip_map_images_raw(at, image, &mut function)
     }
 }
 
@@ -711,7 +778,7 @@ where
         for code_point in text.chars() {
             if let Some(symbol) = font.get(&code_point) {
                 let local = at + mapper(code_point, symbol);
-                self.zip_map_images(local, symbol, &mut function);
+                self.zip_map_images_raw(local, symbol, &mut function);
             }
         }
     }

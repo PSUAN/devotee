@@ -32,7 +32,7 @@ where
     P: Copy,
 {
     fn painter(&mut self) -> Painter<P> {
-        Painter { target: self }
+        Painter::new(self)
     }
 }
 
