@@ -136,6 +136,11 @@ pub trait Image {
     fn height(&self) -> i32;
     /// Clear this image with color provided.
     fn clear(&mut self, color: Self::Pixel);
+
+    /// Get dimensions of this image.
+    fn dimensions(&self) -> Vector<i32> {
+        Vector::new(self.width(), self.height())
+    }
 }
 
 /// Something that can be painted on.
@@ -156,6 +161,11 @@ impl<'a, P> Painter<'a, P> {
             target,
             offset: Vector::new(0, 0),
         }
+    }
+
+    /// Get new painter with desired offset.
+    pub fn with_offset(self, offset: Vector<i32>) -> Self {
+        Self { offset, ..self }
     }
 
     /// Set offset for this particular painter.
