@@ -423,8 +423,6 @@ where
             center.y(),
             function,
         );
-        self.map_on_pixel_helper(center + (0, radius), function);
-        self.map_on_pixel_helper(center - (0, radius), function);
 
         let mut x = 0;
         let mut y = radius;
@@ -434,37 +432,39 @@ where
 
         while x < y {
             if decision > 0 {
+                self.map_horizontal_line_helper(
+                    center.x() - x,
+                    center.x() + x,
+                    center.y() + y,
+                    function,
+                );
+                self.map_horizontal_line_helper(
+                    center.x() - x,
+                    center.x() + x,
+                    center.y() - y,
+                    function,
+                );
                 y -= 1;
                 checker_y += 2;
                 decision += checker_y;
+            } else {
+                x += 1;
+                checker_x += 2;
+                decision += checker_x;
+
+                self.map_horizontal_line_helper(
+                    center.x() - y,
+                    center.x() + y,
+                    center.y() + x,
+                    function,
+                );
+                self.map_horizontal_line_helper(
+                    center.x() - y,
+                    center.x() + y,
+                    center.y() - x,
+                    function,
+                );
             }
-            x += 1;
-            checker_x += 2;
-            decision += checker_x;
-            self.map_horizontal_line_helper(
-                center.x() - x,
-                center.x() + x,
-                center.y() + y,
-                function,
-            );
-            self.map_horizontal_line_helper(
-                center.x() - x,
-                center.x() + x,
-                center.y() - y,
-                function,
-            );
-            self.map_horizontal_line_helper(
-                center.x() - y,
-                center.x() + y,
-                center.y() + x,
-                function,
-            );
-            self.map_horizontal_line_helper(
-                center.x() - y,
-                center.x() + y,
-                center.y() - x,
-                function,
-            );
         }
     }
 
