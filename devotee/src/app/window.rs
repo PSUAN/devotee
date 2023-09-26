@@ -187,7 +187,7 @@ impl Window {
         let scale_x = size.width / self.resolution.x();
         let scale_y = size.height / self.resolution.y();
 
-        let minimal_scale = scale_x.min(scale_y) as u32;
+        let minimal_scale = scale_x.min(scale_y);
 
         if minimal_scale < 1 {
             Err(Vector::new(0, 0))

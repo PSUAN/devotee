@@ -1,4 +1,3 @@
-use std::mem;
 use std::ops::RangeInclusive;
 
 use self::color::Color;
@@ -76,6 +75,20 @@ pub fn stamp<P>() -> impl FnMut(i32, i32, P, i32, i32, P) -> P {
     move |_, _, _original, _, _, other| other
 }
 
+fn skip_first<F: FnMut(i32, i32, P) -> P, P>(
+    function: &mut F,
+) -> impl FnMut(i32, i32, P) -> P + '_ {
+    let mut skip = true;
+    move |x, y, pixel| {
+        if skip {
+            skip = false;
+            pixel
+        } else {
+            function(x, y, pixel)
+        }
+    }
+}
+
 fn line_scan(from: &Vector<i32>, to: &Vector<i32>, vertical_scan: i32) -> RangeInclusive<i32> {
     let (from, to) = if from.y() > to.y() {
         (from, to)
@@ -83,15 +96,20 @@ fn line_scan(from: &Vector<i32>, to: &Vector<i32>, vertical_scan: i32) -> RangeI
         (to, from)
     };
 
-    let steep = (to.x() - from.x()).abs() < (to.y() - from.y()).abs();
+    let steep = (to.x() - from.x()).abs() <= (to.y() - from.y()).abs();
     let delta_y = to.y() - from.y();
+    let delta_x = to.x() - from.x();
     if delta_y == 0 {
         return from.x().min(to.x())..=from.x().max(to.x());
     }
     if steep {
         // It is one pixel wide
         let y = vertical_scan;
-        let x = (to.x() - from.x()) * (y - from.y()) / (delta_y) + from.x();
+        let x = ((delta_x + 1) * (y - from.y())
+            + (delta_x - 1) * (y - to.y())
+            + (from.x() + to.x()) * delta_y)
+            / (delta_y * 2);
+
         x..=x
     } else {
         // It is multiple pixels wide
@@ -100,14 +118,26 @@ fn line_scan(from: &Vector<i32>, to: &Vector<i32>, vertical_scan: i32) -> RangeI
         } else {
             (to.x(), from.x())
         };
-        let first_y = vertical_scan;
-        let second_y = vertical_scan + delta_y.signum();
-        let first_x = (to.x() - from.x()) * (first_y - from.y()) / delta_y + from.x();
-        let second_x = (to.x() - from.x()) * (second_y - from.y()) / delta_y + from.x();
-        if first_x < second_x {
-            first_x..=right.min(second_x - 1)
+
+        let y = vertical_scan;
+        let center_x = (delta_x + 1) * (y - from.y())
+            + (delta_x - 1) * (y - to.y())
+            + (from.x() + to.x()) * delta_y;
+
+        let left_x = (delta_x + 1) * (y - from.y() + 1)
+            + (delta_x - 1) * (y - to.y() + 1)
+            + (from.x() + to.x()) * delta_y;
+        let right_x = (delta_x + 1) * (y - from.y() - 1)
+            + (delta_x - 1) * (y - to.y() - 1)
+            + (from.x() + to.x()) * delta_y;
+
+        let first_x = (center_x + left_x) / (4 * delta_y);
+        let second_x = (center_x + right_x) / (4 * delta_y);
+
+        if first_x <= second_x {
+            left.max(first_x)..=right.min(second_x - 1)
         } else {
-            left.max(second_x + 1)..=first_x
+            left.max(second_x)..=right.min(first_x - 1)
         }
     }
 }
@@ -216,8 +246,8 @@ where
         to: Vector<i32>,
         function: &mut F,
     ) {
-        let mut from = from + self.offset;
-        let mut to = to + self.offset;
+        let from = from + self.offset;
+        let to = to + self.offset;
         if from.x() == to.x() {
             self.map_vertical_line_helper(from.x(), from.y(), to.y(), function);
             return;
@@ -227,11 +257,23 @@ where
             return;
         }
 
-        if from.y() > to.y() {
-            (from, to) = (to, from);
-        }
-        for y in from.y()..=to.y() {
-            for x in line_scan(&from, &to, y) {
+        let mut iter = from.y()..=to.y();
+        let mut iter_rev = (to.y()..=from.y()).rev();
+
+        let iter_ref: &mut dyn Iterator<Item = i32> = if from.y() < to.y() {
+            &mut iter
+        } else {
+            &mut iter_rev
+        };
+
+        let rev = from.x() > to.x();
+
+        for y in iter_ref {
+            let mut scan = line_scan(&from, &to, y);
+            let mut scan_rev = scan.clone().rev();
+            let scan: &mut dyn Iterator<Item = i32> = if rev { &mut scan_rev } else { &mut scan };
+
+            for x in scan {
                 if x >= 0 && y >= 0 && x < self.target.width() && y < self.target.height() {
                     unsafe {
                         let pose = (x, y).into();
@@ -253,12 +295,20 @@ where
         if x < 0 || x >= self.target.width() {
             return;
         }
-        if from_y > to_y {
-            mem::swap(&mut from_y, &mut to_y);
-        }
-        from_y = from_y.max(0);
-        to_y = (to_y + 1).min(self.target.height());
-        for y in from_y..to_y {
+
+        from_y = from_y.clamp(0, self.target.height() - 1);
+        to_y = to_y.clamp(0, self.target.height() - 1);
+
+        let mut iter = from_y..=to_y;
+        let mut iter_rev = (to_y..=from_y).rev();
+
+        let iter_ref: &mut dyn Iterator<Item = i32> = if from_y < to_y {
+            &mut iter
+        } else {
+            &mut iter_rev
+        };
+
+        for y in iter_ref {
             let step = (x, y).into();
             unsafe {
                 let pixel = function(x, y, self.target.pixel_unsafe(step).clone());
@@ -277,12 +327,20 @@ where
         if y < 0 || y >= self.target.height() {
             return;
         }
-        if from_x > to_x {
-            mem::swap(&mut from_x, &mut to_x);
-        }
-        from_x = from_x.max(0);
-        to_x = (to_x + 1).min(self.target.width());
-        for x in from_x..to_x {
+
+        from_x = from_x.clamp(0, self.target.width());
+        to_x = to_x.clamp(0, self.target.width());
+
+        let mut iter = from_x..=to_x;
+        let mut iter_rev = (to_x..=from_x).rev();
+
+        let iter_ref: &mut dyn Iterator<Item = i32> = if from_x < to_x {
+            &mut iter
+        } else {
+            &mut iter_rev
+        };
+
+        for x in iter_ref {
             let step = (x, y).into();
             unsafe {
                 let pixel = function(x, y, self.target.pixel_unsafe(step).clone());
@@ -375,7 +433,7 @@ where
             .collect();
         segments.push((*vertices.last().unwrap(), vertices[0], false, false, 0..=0));
 
-        for y in top..bottom + 1 {
+        for y in top..=bottom {
             segments
                 .iter_mut()
                 .for_each(|(a, b, intersected, was_intersected, scan)| {
@@ -385,21 +443,31 @@ where
                 });
 
             let mut counter = 0;
-            for x in left..right + 1 {
+            for x in left..=right {
                 let mut should_paint = false;
                 for (a, b, intersected, was_intersected, scan) in segments.iter_mut() {
                     let in_vertical_range = (y >= a.y() && y < b.y()) || (y >= b.y() && y < a.y());
-                    if in_vertical_range {
-                        if x >= *scan.start() && x <= *scan.end() {
-                            should_paint = !should_paint;
+                    if x >= *scan.start() && x <= *scan.end() {
+                        let in_full_vertical_range =
+                            (y >= a.y() && y <= b.y()) || (y >= b.y() && y <= a.y());
+                        if in_full_vertical_range {
+                            should_paint = true;
+                        }
+
+                        if in_vertical_range {
                             *intersected = true;
                             if !*was_intersected {
                                 counter += 1;
                             }
-                        } else {
-                            *intersected = false;
                         }
-                        *was_intersected = *intersected;
+                    } else {
+                        *intersected = false;
+                    }
+                    *was_intersected = *intersected;
+
+                    let in_vertex = (x == a.x() && y == a.y()) || (x == b.x() && y == b.y());
+                    if in_vertex {
+                        should_paint = true;
                     }
                 }
                 should_paint = should_paint || (counter % 2) == 1;
@@ -486,7 +554,7 @@ where
         let mut checker_x = 1;
         let mut checker_y = -2 * radius;
 
-        let mut mapper = move |x, y| {
+        let mut mapper = |x, y| {
             self.map_on_pixel_helper(center + (x, y), function);
             self.map_on_pixel_helper(center + (x, -y), function);
             self.map_on_pixel_helper(center + (-x, y), function);
@@ -498,7 +566,7 @@ where
             self.map_on_pixel_helper(center + (-y, -x), function);
         };
 
-        while x < y {
+        while x < y - 2 {
             if decision > 0 {
                 y -= 1;
                 checker_y += 2;
@@ -508,6 +576,14 @@ where
             checker_x += 2;
             decision += checker_x;
             mapper(x, y);
+        }
+
+        if x == y - 2 {
+            let x = x + 1;
+            self.map_on_pixel_helper(center + (x, x), function);
+            self.map_on_pixel_helper(center + (x, -x), function);
+            self.map_on_pixel_helper(center + (-x, x), function);
+            self.map_on_pixel_helper(center + (-x, -x), function);
         }
     }
 
@@ -630,10 +706,22 @@ where
     {
         let (from, to) = (from.into() + self.offset, to.into() - (1, 1) + self.offset);
         let mut function = function;
-        self.map_horizontal_line_helper(from.x(), to.x(), from.y(), &mut function);
-        self.map_horizontal_line_helper(from.x(), to.x(), to.y(), &mut function);
-        self.map_vertical_line_helper(from.x(), from.y(), to.y(), &mut function);
-        self.map_vertical_line_helper(to.x(), from.y(), to.y(), &mut function);
+        {
+            let mut skip = skip_first(&mut function);
+            self.map_horizontal_line_helper(from.x(), to.x(), from.y(), &mut skip);
+        }
+        {
+            let mut skip = skip_first(&mut function);
+            self.map_horizontal_line_helper(to.x(), from.x(), to.y(), &mut skip);
+        }
+        {
+            let mut skip = skip_first(&mut function);
+            self.map_vertical_line_helper(from.x(), to.y(), from.y(), &mut skip);
+        }
+        {
+            let mut skip = skip_first(&mut function);
+            self.map_vertical_line_helper(to.x(), from.y(), to.y(), &mut skip);
+        }
     }
 
     /// Use provided function on each pixel in triangle.
@@ -655,9 +743,18 @@ where
     {
         let [a, b, c] = vertices.map(Into::into);
         let mut function = function;
-        self.line(a, b, &mut function);
-        self.line(b, c, &mut function);
-        self.line(c, a, &mut function);
+        {
+            let mut skip = skip_first(&mut function);
+            self.line(a, b, &mut skip);
+        }
+        {
+            let mut skip = skip_first(&mut function);
+            self.line(b, c, &mut skip);
+        }
+        {
+            let mut skip = skip_first(&mut function);
+            self.line(c, a, &mut skip);
+        }
     }
 
     /// Use provided function on each pixel in polygon.
@@ -684,18 +781,20 @@ where
     {
         let mut function = function;
         for window in vertices.windows(2) {
+            let mut skip = skip_first(&mut function);
             self.map_on_line_raw(
                 window[0].clone().into(),
                 window[1].clone().into(),
-                &mut function,
+                &mut skip,
             );
         }
         if vertices.len() > 2 {
+            let mut skip = skip_first(&mut function);
             self.map_on_line_raw(
-                vertices[0].clone().into(),
-                // SAFETY: we have checked that `vertices` contain at least 3 elements.
                 vertices.last().unwrap().clone().into(),
-                &mut function,
+                // SAFETY: we have checked that `vertices` contain at least 3 elements.
+                vertices[0].clone().into(),
+                &mut skip,
             );
         }
     }
@@ -767,7 +866,7 @@ impl<'a, P> Painter<'a, P>
 where
     P: Clone,
 {
-    /// Use provided spatial mapper, tiles and color mapper function to draw text.
+    /// Use provided spatial mapper, font and mapper function to draw text.
     pub fn text<I, M, U, O, F>(
         &mut self,
         at: I,

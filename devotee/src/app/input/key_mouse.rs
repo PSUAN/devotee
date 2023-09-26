@@ -118,7 +118,7 @@ impl Mouse {
     }
 
     fn register_cursor_moved(&mut self, position: PhysicalPosition<f64>, window: &Window) {
-        self.position = Some(match window.window_pos_to_inner(position.into()) {
+        self.position = Some(match window.window_pos_to_inner(position) {
             Ok(in_bounds) => in_bounds,
             Err(out_of_bounds) => out_of_bounds,
         });

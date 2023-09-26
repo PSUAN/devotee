@@ -80,6 +80,18 @@ impl Root<Config> for Minial {
             INTERNAL_RADIUS,
             paint(Color([0x80, 0x80, 0x80])),
         );
+        render.line(
+            (64, 64).into(),
+            self.position,
+            paint(Color([0xff, 0xff, 0xff])),
+        );
+        render.line(
+            self.position,
+            (64, 64).into(),
+            paint(Color([0x00, 0xff, 0x00])),
+        );
+        render.mod_pixel((64, 64), paint(Color([0xff, 0x00, 0x00])));
+        render.mod_pixel(self.position, paint(Color([0xff, 0x00, 0x00])));
     }
 }
 

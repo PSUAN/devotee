@@ -21,16 +21,16 @@ impl<T> Vector<T> {
 
 impl<T> Vector<T>
 where
-    T: Clone,
+    T: Copy,
 {
     /// Get the x value.
-    pub fn x(&self) -> T {
-        self.x.clone()
+    pub fn x(self) -> T {
+        self.x
     }
 
     /// Get the y value.
-    pub fn y(&self) -> T {
-        self.y.clone()
+    pub fn y(self) -> T {
+        self.y
     }
 }
 
@@ -53,6 +53,28 @@ impl<T> Vector<T> {
     /// Get mutable reference to the y value.
     pub fn y_mut(&mut self) -> &mut T {
         &mut self.y
+    }
+
+    /// Apply `mapper` function to both elements, one by one, return `Vector` with new values.
+    pub fn map<F, R>(self, mapper: F) -> Vector<R>
+    where
+        F: Fn(T) -> R,
+    {
+        Vector {
+            x: mapper(self.x),
+            y: mapper(self.y),
+        }
+    }
+}
+
+impl<T> Vector<T> {
+    /// Calculate the dot product between `self` and `rhs` vectors.
+    pub fn dot<U, R>(self, rhs: Vector<U>) -> R
+    where
+        T: Mul<U, Output = R>,
+        R: Add<Output = R>,
+    {
+        self.x * rhs.x + self.y * rhs.y
     }
 }
 

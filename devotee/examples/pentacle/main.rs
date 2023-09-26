@@ -12,13 +12,12 @@ use devotee::visual::prelude::*;
 use devotee::visual::sprite::Sprite;
 
 fn main() {
-    let init_config = setup::Setup::<Config>::new(
-        Sprite::with_color(TwoBits::Black),
-        Default::default(),
-        |_| Default::default(),
-    )
-    .with_title("pentacle")
-    .with_scale(2);
+    let init_config =
+        setup::Setup::<Config>::new(Sprite::with_color(0.into()), Default::default(), |_| {
+            Default::default()
+        })
+        .with_title("pentacle")
+        .with_scale(3);
     let app = app::App::with_setup(init_config).unwrap();
 
     app.run();
@@ -30,14 +29,14 @@ impl config::Config for Config {
     type Root = Pentacle;
     type Converter = Converter;
     type Input = KeyMouse;
-    type RenderTarget = Sprite<TwoBits, 128, 128>;
+    type RenderTarget = Sprite<SummationPalette, 128, 128>;
 
     fn converter() -> Self::Converter {
         Converter
     }
 
-    fn background_color() -> TwoBits {
-        TwoBits::Black
+    fn background_color() -> SummationPalette {
+        0.into()
     }
 }
 
@@ -59,16 +58,18 @@ impl Root<Config> for Pentacle {
         self.counter += delta;
     }
 
-    fn render(&self, render: &mut Sprite<TwoBits, 128, 128>) {
+    fn render(&self, render: &mut Sprite<SummationPalette, 128, 128>) {
         let mut render = render.painter();
 
-        render.clear(TwoBits::Black);
+        render.clear(0.into());
 
         let radius = 48.0 + 8.0 * self.rotation.sin();
         let center = Vector::new(64, 64);
 
-        render.circle((64, 64), radius as i32, paint(TwoBits::White));
-        render.circle_f((64, 64), 32, paint(TwoBits::Gray));
+        render.circle((64, 64), radius as i32, draw(2.into()));
+        render.circle_f((64, 64), 32, draw(2.into()));
+
+        let radius = radius + 8.0;
 
         let vertices: Vec<_> = (0..5)
             .map(|i| {
@@ -81,31 +82,32 @@ impl Root<Config> for Pentacle {
                     )
             })
             .collect();
-        render.polygon_f(&vertices, paint(TwoBits::White));
 
+        render.polygon(&vertices, draw(2.into()));
         if self.counter.round() as i32 % 2 == 1 {
-            render.polygon(&vertices, paint(TwoBits::Red));
+            render.polygon_f(&vertices, draw(3.into()));
         }
+
+        render.rect((0, 0), (128, 128), draw(2.into()));
     }
 }
 
 #[derive(Copy, Clone, PartialEq)]
-enum TwoBits {
-    Black,
-    Gray,
-    White,
-    Red,
+struct SummationPalette {
+    value: u8,
 }
 
-impl From<u8> for TwoBits {
+impl From<u8> for SummationPalette {
     #[inline]
     fn from(value: u8) -> Self {
-        match value {
-            0 => TwoBits::Black,
-            1 => TwoBits::Gray,
-            2 => TwoBits::White,
-            3 => TwoBits::Red,
-            _ => TwoBits::Black,
+        Self { value }
+    }
+}
+
+impl Color for SummationPalette {
+    fn mix(self, other: Self) -> Self {
+        Self {
+            value: self.value.saturating_add(other.value),
         }
     }
 }
@@ -113,16 +115,15 @@ impl From<u8> for TwoBits {
 struct Converter;
 
 impl color::Converter for Converter {
-    type Palette = TwoBits;
+    type Palette = SummationPalette;
     #[inline]
     fn convert(&self, color: &Self::Palette) -> u32 {
-        {
-            match color {
-                TwoBits::Black => 0x00000000,
-                TwoBits::Gray => 0x00808080,
-                TwoBits::White => 0x00ffffff,
-                TwoBits::Red => 0x00ff4040,
-            }
+        let brightness = color.value.saturating_mul(64);
+
+        if brightness > 0x80 {
+            (brightness as u32) << 16
+        } else {
+            (brightness as u32) << 16 | (brightness as u32) << 8 | brightness as u32
         }
     }
 }
