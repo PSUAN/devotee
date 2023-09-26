@@ -328,8 +328,8 @@ where
             return;
         }
 
-        from_x = from_x.clamp(0, self.target.width());
-        to_x = to_x.clamp(0, self.target.width());
+        from_x = from_x.clamp(0, self.target.width() - 1);
+        to_x = to_x.clamp(0, self.target.width() - 1);
 
         let mut iter = from_x..=to_x;
         let mut iter_rev = (to_x..=from_x).rev();
