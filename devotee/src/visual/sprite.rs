@@ -1,4 +1,4 @@
-use super::{Image, PaintTarget, Painter};
+use super::{Image, PaintTarget, Painter, PixelsIterator};
 use crate::util::vector::Vector;
 
 /// Sprite of fixed dimensions.
@@ -32,12 +32,10 @@ where
     }
 }
 
-impl<P, const W: usize, const H: usize> Image for Sprite<P, W, H>
+impl<P, const W: usize, const H: usize> Image<P> for Sprite<P, W, H>
 where
     P: Copy,
 {
-    type Pixel = P;
-
     fn pixel(&self, position: Vector<i32>) -> Option<&P> {
         if position.x() < 0 || position.y() < 0 {
             return None;
@@ -62,12 +60,12 @@ where
         }
     }
 
-    unsafe fn pixel_unsafe(&self, position: Vector<i32>) -> &Self::Pixel {
+    unsafe fn pixel_unsafe(&self, position: Vector<i32>) -> &P {
         let (x, y) = (position.x() as usize, position.y() as usize);
         &self.data[y][x]
     }
 
-    unsafe fn pixel_mut_unsafe(&mut self, position: Vector<i32>) -> &mut Self::Pixel {
+    unsafe fn pixel_mut_unsafe(&mut self, position: Vector<i32>) -> &mut P {
         let (x, y) = (position.x() as usize, position.y() as usize);
         &mut self.data[y][x]
     }
@@ -80,7 +78,7 @@ where
         H as i32
     }
 
-    fn clear(&mut self, color: Self::Pixel) {
+    fn clear(&mut self, color: P) {
         self.data = [[color; W]; H];
     }
 }
@@ -94,15 +92,13 @@ where
     }
 }
 
-impl<'a, P, const W: usize, const H: usize> IntoIterator for &'a Sprite<P, W, H>
+impl<'a, P: 'a, const W: usize, const H: usize> PixelsIterator<'a, P> for Sprite<P, W, H>
 where
     P: Copy,
 {
-    type Item = &'a P;
+    type Iterator = SpriteIter<'a, P, W, H>;
 
-    type IntoIter = SpriteIter<'a, P, W, H>;
-
-    fn into_iter(self) -> Self::IntoIter {
+    fn pixels(&'a self) -> Self::Iterator {
         SpriteIter {
             sprite: self,
             index: 0,

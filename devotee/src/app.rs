@@ -12,7 +12,7 @@ use self::root::Root;
 use self::setup::Setup;
 use self::sound_system::SoundSystem;
 use crate::visual::color::Converter;
-use crate::visual::Image;
+use crate::visual::{Image, PixelsIterator};
 
 /// General application config.
 pub mod config;
@@ -60,8 +60,8 @@ where
 impl<Cfg> App<Cfg>
 where
     Cfg: Config,
-    Cfg::Converter: Converter<Palette = <Cfg::RenderTarget as Image>::Pixel>,
-    Cfg::RenderTarget: Image,
+    Cfg::Converter: Converter,
+    Cfg::RenderTarget: Image<<Cfg::Converter as Converter>::Palette>,
 {
     /// Create an app with given `setup`.
     pub fn with_setup(setup: Setup<Cfg>) -> Option<Self> {
@@ -94,9 +94,9 @@ impl<Cfg> App<Cfg>
 where
     Cfg: 'static + Config,
     Cfg::Root: Root<Cfg>,
-    Cfg::Converter: Converter<Palette = <Cfg::RenderTarget as Image>::Pixel>,
+    Cfg::Converter: Converter,
     Cfg::Input: Input,
-    for<'a> &'a Cfg::RenderTarget: IntoIterator<Item = &'a <Cfg::RenderTarget as Image>::Pixel>,
+    for<'a> Cfg::RenderTarget: PixelsIterator<'a, <Cfg::Converter as Converter>::Palette>,
 {
     /// Start the application event loop.
     pub fn run(self) {

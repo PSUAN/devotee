@@ -42,9 +42,9 @@ where
 
 /// Helper printer mapper for the `Text` trait.
 /// It breaks lines on newline symbol (`'\n'`) and ignores any special characters.
-pub fn printer<U>() -> impl FnMut(char, &U) -> Vector<i32>
+pub fn printer<U, P>() -> impl FnMut(char, &U) -> Vector<i32>
 where
-    U: Image,
+    U: Image<P>,
 {
     let mut column = 0;
     let mut line = 0;
@@ -143,33 +143,61 @@ fn line_scan(from: &Vector<i32>, to: &Vector<i32>, vertical_scan: i32) -> RangeI
 }
 
 /// General image trait.
-pub trait Image {
-    /// Pixel type of this image.
-    type Pixel;
+pub trait Image<P> {
     /// Get specific pixel reference.
-    fn pixel(&self, position: Vector<i32>) -> Option<&Self::Pixel>;
+    fn pixel(&self, position: Vector<i32>) -> Option<&P>;
     /// Get specific pixel mutable reference.
-    fn pixel_mut(&mut self, position: Vector<i32>) -> Option<&mut Self::Pixel>;
+    fn pixel_mut(&mut self, position: Vector<i32>) -> Option<&mut P>;
     /// Get specific pixel reference without bounds check.
     ///
     /// # Safety
     /// - position must be in range [(0, 0), [width - 1, height - 1]]
-    unsafe fn pixel_unsafe(&self, position: Vector<i32>) -> &Self::Pixel;
+    unsafe fn pixel_unsafe(&self, position: Vector<i32>) -> &P;
     /// Get specific pixel mutable reference without bounds check.
     ///
     /// # Safety
     /// - position must be in range [(0, 0), [width - 1, height - 1]]
-    unsafe fn pixel_mut_unsafe(&mut self, position: Vector<i32>) -> &mut Self::Pixel;
+    unsafe fn pixel_mut_unsafe(&mut self, position: Vector<i32>) -> &mut P;
     /// Get width of this image.
     fn width(&self) -> i32;
     /// Get height of this image.
     fn height(&self) -> i32;
     /// Clear this image with color provided.
-    fn clear(&mut self, color: Self::Pixel);
+    fn clear(&mut self, color: P);
 
     /// Get dimensions of this image.
     fn dimensions(&self) -> Vector<i32> {
         Vector::new(self.width(), self.height())
+    }
+}
+
+impl<P, I: Image<P> + ?Sized> Image<P> for Box<I> {
+    fn pixel(&self, position: Vector<i32>) -> Option<&P> {
+        I::pixel(self, position)
+    }
+
+    fn pixel_mut(&mut self, position: Vector<i32>) -> Option<&mut P> {
+        I::pixel_mut(self, position)
+    }
+
+    unsafe fn pixel_unsafe(&self, position: Vector<i32>) -> &P {
+        I::pixel_unsafe(self, position)
+    }
+
+    unsafe fn pixel_mut_unsafe(&mut self, position: Vector<i32>) -> &mut P {
+        I::pixel_mut_unsafe(self, position)
+    }
+
+    fn width(&self) -> i32 {
+        I::width(self)
+    }
+
+    fn height(&self) -> i32 {
+        I::height(self)
+    }
+
+    fn clear(&mut self, color: P) {
+        I::clear(self, color)
     }
 }
 
@@ -179,14 +207,20 @@ pub trait PaintTarget<P> {
     fn painter(&mut self) -> Painter<P>;
 }
 
+impl<P, T: PaintTarget<P> + ?Sized> PaintTarget<P> for Box<T> {
+    fn painter(&mut self) -> Painter<P> {
+        T::painter(self)
+    }
+}
+
 /// Painter to draw on encapsulated target.
 pub struct Painter<'a, P> {
-    target: &'a mut dyn Image<Pixel = P>,
+    target: &'a mut dyn Image<P>,
     offset: Vector<i32>,
 }
 
 impl<'a, P> Painter<'a, P> {
-    fn new(target: &'a mut dyn Image<Pixel = P>) -> Self {
+    fn new(target: &'a mut dyn Image<P>) -> Self {
         Self {
             target,
             offset: Vector::new(0, 0),
@@ -587,10 +621,14 @@ where
         }
     }
 
-    fn zip_map_images_raw<O: Clone, F: FnMut(i32, i32, P, i32, i32, O) -> P>(
+    fn zip_map_images_raw<
+        O: Clone,
+        F: FnMut(i32, i32, P, i32, i32, O) -> P,
+        U: Image<O> + ?Sized,
+    >(
         &mut self,
         at: Vector<i32>,
-        image: &dyn Image<Pixel = O>,
+        image: &U,
         function: &mut F,
     ) {
         let at = at + self.offset;
@@ -852,7 +890,7 @@ where
     pub fn image<I, F, O, U>(&mut self, at: I, image: &U, function: F)
     where
         I: Into<Vector<i32>>,
-        U: Image<Pixel = O>,
+        U: Image<O> + ?Sized,
         O: Clone,
         F: FnMut(i32, i32, P, i32, i32, O) -> P,
     {
@@ -877,7 +915,7 @@ where
     ) where
         I: Into<Vector<i32>>,
         M: FnMut(char, &U) -> Vector<i32>,
-        U: Image<Pixel = O>,
+        U: Image<O>,
         O: Clone,
         F: FnMut(i32, i32, P, i32, i32, O) -> P,
     {
@@ -890,5 +928,22 @@ where
                 self.zip_map_images_raw(local, symbol, &mut function);
             }
         }
+    }
+}
+
+/// Pixel iterator provider.
+pub trait PixelsIterator<'a, P: 'a> {
+    /// Specific iterator to be produced.
+    type Iterator: Iterator<Item = &'a P>;
+
+    /// Produce pixels iterator.
+    fn pixels(&'a self) -> Self::Iterator;
+}
+
+impl<'a, P: 'a, I: PixelsIterator<'a, P> + ?Sized> PixelsIterator<'a, P> for Box<I> {
+    type Iterator = I::Iterator;
+
+    fn pixels(&'a self) -> Self::Iterator {
+        I::pixels(self)
     }
 }

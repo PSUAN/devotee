@@ -40,7 +40,7 @@ impl config::Config for Config {
         Converter { hue: 0.0 }
     }
 
-    fn background_color() -> <Self::RenderTarget as Image>::Pixel {
+    fn background_color() -> Palette {
         Palette { value: 0.0 }
     }
 }

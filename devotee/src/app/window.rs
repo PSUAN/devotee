@@ -26,8 +26,8 @@ impl Window {
     pub(super) fn with_setup<Cfg>(event_loop: &EventLoop<()>, setup: &Setup<Cfg>) -> Option<Self>
     where
         Cfg: Config,
-        Cfg::RenderTarget: Image,
-        Cfg::Converter: Converter<Palette = <Cfg::RenderTarget as Image>::Pixel>,
+        Cfg::RenderTarget: Image<<Cfg::Converter as Converter>::Palette>,
+        Cfg::Converter: Converter,
     {
         let resolution = Vector::new(
             setup.render_target.width() as u32,
@@ -131,7 +131,7 @@ impl Window {
 
     pub(super) fn draw_image<P, C>(
         &mut self,
-        image: &dyn Image<Pixel = P>,
+        image: &dyn Image<P>,
         converter: &C,
     ) -> Result<(), SoftBufferError>
     where

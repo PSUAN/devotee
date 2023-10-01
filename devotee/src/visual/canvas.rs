@@ -1,6 +1,6 @@
 use std::slice::Iter;
 
-use super::{Image, PaintTarget, Painter};
+use super::{Image, PaintTarget, Painter, PixelsIterator};
 use crate::util::vector::Vector;
 
 /// Canvas based on box slice of pixel data.
@@ -36,12 +36,10 @@ where
     }
 }
 
-impl<P> Image for Canvas<P>
+impl<P> Image<P> for Canvas<P>
 where
     P: Clone,
 {
-    type Pixel = P;
-
     fn pixel(&self, position: Vector<i32>) -> Option<&P> {
         if position.x() < 0 || position.y() < 0 {
             return None;
@@ -95,12 +93,10 @@ where
     }
 }
 
-impl<'a, P> IntoIterator for &'a Canvas<P> {
-    type Item = &'a P;
+impl<'a, P: 'a> PixelsIterator<'a, P> for Canvas<P> {
+    type Iterator = Iter<'a, P>;
 
-    type IntoIter = Iter<'a, P>;
-
-    fn into_iter(self) -> Self::IntoIter {
+    fn pixels(&'a self) -> Self::Iterator {
         self.data.iter()
     }
 }
