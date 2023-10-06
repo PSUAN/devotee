@@ -461,51 +461,40 @@ where
             },
         );
 
-        let mut segments: Vec<_> = vertices
+        let mut segments = vertices
             .windows(2)
-            .map(|v| (v[0], v[1], false, false, 0..=0))
-            .collect();
-        segments.push((*vertices.last().unwrap(), vertices[0], false, false, 0..=0));
-
+            .map(|v| (v[0], v[1]))
+            .collect::<Vec<_>>();
+        segments.push((*vertices.last().unwrap(), vertices[0]));
         for y in top..=bottom {
-            segments
-                .iter_mut()
-                .for_each(|(a, b, intersected, was_intersected, scan)| {
-                    *intersected = false;
-                    *was_intersected = false;
-                    *scan = line_scan(a, b, y);
-                });
+            let mut segments = segments
+                .iter()
+                .filter(|(a, b)| (y >= a.y() && y <= b.y()) || (y >= b.y() && y <= a.y()))
+                .map(|(a, b)| (a, b, false, false, line_scan(a, b, y)))
+                .collect::<Vec<_>>();
 
-            let mut counter = 0;
+            let mut counter = false;
             for x in left..=right {
                 let mut should_paint = false;
+                let mut intersections = 0;
                 for (a, b, intersected, was_intersected, scan) in segments.iter_mut() {
-                    let in_vertical_range = (y >= a.y() && y < b.y()) || (y >= b.y() && y < a.y());
                     if x >= *scan.start() && x <= *scan.end() {
-                        let in_full_vertical_range =
-                            (y >= a.y() && y <= b.y()) || (y >= b.y() && y <= a.y());
-                        if in_full_vertical_range {
-                            should_paint = true;
-                        }
-
-                        if in_vertical_range {
-                            *intersected = true;
-                            if !*was_intersected {
-                                counter += 1;
-                            }
+                        should_paint = true;
+                        *intersected = true;
+                        if !*was_intersected && (y < a.y() || y < b.y()) {
+                            intersections += 1;
                         }
                     } else {
                         *intersected = false;
                     }
                     *was_intersected = *intersected;
-
-                    let in_vertex = (x == a.x() && y == a.y()) || (x == b.x() && y == b.y());
-                    if in_vertex {
-                        should_paint = true;
-                    }
                 }
-                should_paint = should_paint || (counter % 2) == 1;
-                if should_paint {
+
+                if intersections % 2 == 1 {
+                    counter = !counter;
+                }
+
+                if should_paint || counter {
                     self.map_on_pixel_raw((x, y).into(), function);
                 }
             }
