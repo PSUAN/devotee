@@ -75,20 +75,6 @@ pub fn stamp<P>() -> impl FnMut(i32, i32, P, i32, i32, P) -> P {
     move |_, _, _original, _, _, other| other
 }
 
-fn skip_first<F: FnMut(i32, i32, P) -> P, P>(
-    function: &mut F,
-) -> impl FnMut(i32, i32, P) -> P + '_ {
-    let mut skip = true;
-    move |x, y, pixel| {
-        if skip {
-            skip = false;
-            pixel
-        } else {
-            function(x, y, pixel)
-        }
-    }
-}
-
 fn line_scan(from: &Vector<i32>, to: &Vector<i32>, vertical_scan: i32) -> RangeInclusive<i32> {
     let (from, to) = if from.y() > to.y() {
         (from, to)
@@ -253,7 +239,7 @@ impl<'a, P> Painter<'a, P>
 where
     P: Clone,
 {
-    fn map_on_pixel_raw<F: FnMut(i32, i32, P) -> P>(
+    fn map_on_pixel_offset<F: FnMut(i32, i32, P) -> P>(
         &mut self,
         point: Vector<i32>,
         function: &mut F,
@@ -264,7 +250,7 @@ where
         }
     }
 
-    fn map_on_pixel_helper<F: FnMut(i32, i32, P) -> P>(
+    fn map_on_pixel_raw<F: FnMut(i32, i32, P) -> P>(
         &mut self,
         point: Vector<i32>,
         function: &mut F,
@@ -274,20 +260,21 @@ where
         }
     }
 
-    fn map_on_line_raw<F: FnMut(i32, i32, P) -> P>(
+    fn map_on_line_offset<F: FnMut(i32, i32, P) -> P>(
         &mut self,
         from: Vector<i32>,
         to: Vector<i32>,
         function: &mut F,
+        skip: usize,
     ) {
         let from = from + self.offset;
         let to = to + self.offset;
         if from.x() == to.x() {
-            self.map_vertical_line_helper(from.x(), from.y(), to.y(), function);
+            self.map_vertical_line_raw(from.x(), from.y(), to.y(), function, skip);
             return;
         }
         if from.y() == to.y() {
-            self.map_horizontal_line_helper(from.x(), to.x(), from.y(), function);
+            self.map_horizontal_line_raw(from.x(), to.x(), from.y(), function, skip);
             return;
         }
 
@@ -302,36 +289,35 @@ where
 
         let rev = from.x() > to.x();
 
+        let mut skip = skip;
+
         for y in iter_ref {
             let mut scan = line_scan(&from, &to, y);
             let mut scan_rev = scan.clone().rev();
             let scan: &mut dyn Iterator<Item = i32> = if rev { &mut scan_rev } else { &mut scan };
 
             for x in scan {
-                if x >= 0 && y >= 0 && x < self.target.width() && y < self.target.height() {
-                    unsafe {
-                        let pose = (x, y).into();
-                        let pixel = function(x, y, self.target.pixel_unsafe(pose).clone());
-                        *self.target.pixel_mut_unsafe(pose) = pixel;
-                    }
+                if skip == 0 {
+                    let pose = (x, y);
+                    self.map_on_pixel_raw(pose.into(), function);
+                } else {
+                    skip -= 1;
                 }
             }
         }
     }
 
-    fn map_vertical_line_helper<F: FnMut(i32, i32, P) -> P>(
+    fn map_vertical_line_raw<F: FnMut(i32, i32, P) -> P>(
         &mut self,
         x: i32,
-        mut from_y: i32,
-        mut to_y: i32,
+        from_y: i32,
+        to_y: i32,
         function: &mut F,
+        skip: usize,
     ) {
         if x < 0 || x >= self.target.width() {
             return;
         }
-
-        from_y = from_y.clamp(0, self.target.height() - 1);
-        to_y = to_y.clamp(0, self.target.height() - 1);
 
         let mut iter = from_y..=to_y;
         let mut iter_rev = (to_y..=from_y).rev();
@@ -342,28 +328,23 @@ where
             &mut iter_rev
         };
 
-        for y in iter_ref {
-            let step = (x, y).into();
-            unsafe {
-                let pixel = function(x, y, self.target.pixel_unsafe(step).clone());
-                *self.target.pixel_mut_unsafe(step) = pixel;
-            }
+        for y in iter_ref.skip(skip) {
+            let pose = (x, y);
+            self.map_on_pixel_raw(pose.into(), function);
         }
     }
 
-    fn map_horizontal_line_helper<F: FnMut(i32, i32, P) -> P>(
+    fn map_horizontal_line_raw<F: FnMut(i32, i32, P) -> P>(
         &mut self,
-        mut from_x: i32,
-        mut to_x: i32,
+        from_x: i32,
+        to_x: i32,
         y: i32,
         function: &mut F,
+        skip: usize,
     ) {
         if y < 0 || y >= self.target.height() {
             return;
         }
-
-        from_x = from_x.clamp(0, self.target.width() - 1);
-        to_x = to_x.clamp(0, self.target.width() - 1);
 
         let mut iter = from_x..=to_x;
         let mut iter_rev = (to_x..=from_x).rev();
@@ -374,16 +355,13 @@ where
             &mut iter_rev
         };
 
-        for x in iter_ref {
-            let step = (x, y).into();
-            unsafe {
-                let pixel = function(x, y, self.target.pixel_unsafe(step).clone());
-                *self.target.pixel_mut_unsafe(step) = pixel;
-            }
+        for x in iter_ref.skip(skip) {
+            let pose = (x, y);
+            self.map_on_pixel_raw(pose.into(), function);
         }
     }
 
-    fn map_on_filled_rect_raw<F: FnMut(i32, i32, P) -> P>(
+    fn map_on_filled_rect_offset<F: FnMut(i32, i32, P) -> P>(
         &mut self,
         from: Vector<i32>,
         to: Vector<i32>,
@@ -408,7 +386,7 @@ where
         }
     }
 
-    fn map_on_filled_triangle_raw<F: FnMut(i32, i32, P) -> P>(
+    fn map_on_filled_triangle_offset<F: FnMut(i32, i32, P) -> P>(
         &mut self,
         vertices: [Vector<i32>; 3],
         function: &mut F,
@@ -420,7 +398,7 @@ where
         // We are on a horizontal line.
         if a.y() == c.y() {
             vertex.sort_by(|a, b| a.x().cmp(b.x_ref()));
-            self.map_horizontal_line_helper(vertex[0].x(), vertex[2].x(), vertex[0].y(), function);
+            self.map_horizontal_line_raw(vertex[0].x(), vertex[2].x(), vertex[0].y(), function, 0);
             return;
         }
 
@@ -431,7 +409,7 @@ where
             let right_range = line_scan(&a, &c, y);
             let left = *left_range.start().min(right_range.start());
             let right = *left_range.end().max(right_range.end());
-            self.map_horizontal_line_helper(left, right, y, function);
+            self.map_horizontal_line_raw(left, right, y, function, 0);
         }
 
         let middle = middle + 1;
@@ -440,11 +418,11 @@ where
             let right_range = line_scan(&b, &c, y);
             let left = *left_range.start().min(right_range.start());
             let right = *left_range.end().max(right_range.end());
-            self.map_horizontal_line_helper(left, right, y, function);
+            self.map_horizontal_line_raw(left, right, y, function, 0);
         }
     }
 
-    fn map_on_filled_sane_polygon_raw<F: FnMut(i32, i32, P) -> P>(
+    fn map_on_filled_sane_polygon_offset<F: FnMut(i32, i32, P) -> P>(
         &mut self,
         vertices: &[Vector<i32>],
         function: &mut F,
@@ -495,24 +473,25 @@ where
                 }
 
                 if should_paint || counter {
-                    self.map_on_pixel_raw((x, y).into(), function);
+                    self.map_on_pixel_offset((x, y).into(), function);
                 }
             }
         }
     }
 
-    fn map_on_filled_circle_raw<F: FnMut(i32, i32, P) -> P>(
+    fn map_on_filled_circle_offset<F: FnMut(i32, i32, P) -> P>(
         &mut self,
         center: Vector<i32>,
         radius: i32,
         function: &mut F,
     ) {
         let center = center + self.offset;
-        self.map_horizontal_line_helper(
+        self.map_horizontal_line_raw(
             center.x() - radius,
             center.x() + radius,
             center.y(),
             function,
+            0,
         );
 
         let mut x = 0;
@@ -523,17 +502,19 @@ where
 
         while x < y {
             if decision > 0 {
-                self.map_horizontal_line_helper(
+                self.map_horizontal_line_raw(
                     center.x() - x,
                     center.x() + x,
                     center.y() + y,
                     function,
+                    0,
                 );
-                self.map_horizontal_line_helper(
+                self.map_horizontal_line_raw(
                     center.x() - x,
                     center.x() + x,
                     center.y() - y,
                     function,
+                    0,
                 );
                 y -= 1;
                 checker_y += 2;
@@ -543,33 +524,35 @@ where
                 checker_x += 2;
                 decision += checker_x;
 
-                self.map_horizontal_line_helper(
+                self.map_horizontal_line_raw(
                     center.x() - y,
                     center.x() + y,
                     center.y() + x,
                     function,
+                    0,
                 );
-                self.map_horizontal_line_helper(
+                self.map_horizontal_line_raw(
                     center.x() - y,
                     center.x() + y,
                     center.y() - x,
                     function,
+                    0,
                 );
             }
         }
     }
 
-    fn map_on_circle_raw<F: FnMut(i32, i32, P) -> P>(
+    fn map_on_circle_offset<F: FnMut(i32, i32, P) -> P>(
         &mut self,
         center: Vector<i32>,
         radius: i32,
         function: &mut F,
     ) {
         let center = center + self.offset;
-        self.map_on_pixel_helper(center + (radius, 0), function);
-        self.map_on_pixel_helper(center - (radius, 0), function);
-        self.map_on_pixel_helper(center + (0, radius), function);
-        self.map_on_pixel_helper(center - (0, radius), function);
+        self.map_on_pixel_raw(center + (radius, 0), function);
+        self.map_on_pixel_raw(center - (radius, 0), function);
+        self.map_on_pixel_raw(center + (0, radius), function);
+        self.map_on_pixel_raw(center - (0, radius), function);
 
         let mut x = 0;
         let mut y = radius;
@@ -578,15 +561,15 @@ where
         let mut checker_y = -2 * radius;
 
         let mut mapper = |x, y| {
-            self.map_on_pixel_helper(center + (x, y), function);
-            self.map_on_pixel_helper(center + (x, -y), function);
-            self.map_on_pixel_helper(center + (-x, y), function);
-            self.map_on_pixel_helper(center + (-x, -y), function);
+            self.map_on_pixel_raw(center + (x, y), function);
+            self.map_on_pixel_raw(center + (x, -y), function);
+            self.map_on_pixel_raw(center + (-x, y), function);
+            self.map_on_pixel_raw(center + (-x, -y), function);
 
-            self.map_on_pixel_helper(center + (y, x), function);
-            self.map_on_pixel_helper(center + (y, -x), function);
-            self.map_on_pixel_helper(center + (-y, x), function);
-            self.map_on_pixel_helper(center + (-y, -x), function);
+            self.map_on_pixel_raw(center + (y, x), function);
+            self.map_on_pixel_raw(center + (y, -x), function);
+            self.map_on_pixel_raw(center + (-y, x), function);
+            self.map_on_pixel_raw(center + (-y, -x), function);
         };
 
         while x < y - 2 {
@@ -603,14 +586,14 @@ where
 
         if x == y - 2 {
             let x = x + 1;
-            self.map_on_pixel_helper(center + (x, x), function);
-            self.map_on_pixel_helper(center + (x, -x), function);
-            self.map_on_pixel_helper(center + (-x, x), function);
-            self.map_on_pixel_helper(center + (-x, -x), function);
+            self.map_on_pixel_raw(center + (x, x), function);
+            self.map_on_pixel_raw(center + (x, -x), function);
+            self.map_on_pixel_raw(center + (-x, x), function);
+            self.map_on_pixel_raw(center + (-x, -x), function);
         }
     }
 
-    fn zip_map_images_raw<
+    fn zip_map_images_offset<
         O: Clone,
         F: FnMut(i32, i32, P, i32, i32, O) -> P,
         U: Image<O> + ?Sized,
@@ -711,7 +694,7 @@ where
     {
         let (from, to) = (from.into(), to.into());
         let mut function = function;
-        self.map_on_line_raw(from, to, &mut function);
+        self.map_on_line_offset(from, to, &mut function, 0);
     }
 
     /// Use provided function on each pixel in a rectangle.
@@ -722,7 +705,7 @@ where
     {
         let (from, to) = (from.into(), to.into());
         let mut function = function;
-        self.map_on_filled_rect_raw(from, to, &mut function);
+        self.map_on_filled_rect_offset(from, to, &mut function);
     }
 
     /// Use provided function on each pixel of rectangle bounds.
@@ -733,22 +716,10 @@ where
     {
         let (from, to) = (from.into() + self.offset, to.into() - (1, 1) + self.offset);
         let mut function = function;
-        {
-            let mut skip = skip_first(&mut function);
-            self.map_horizontal_line_helper(from.x(), to.x(), from.y(), &mut skip);
-        }
-        {
-            let mut skip = skip_first(&mut function);
-            self.map_horizontal_line_helper(to.x(), from.x(), to.y(), &mut skip);
-        }
-        {
-            let mut skip = skip_first(&mut function);
-            self.map_vertical_line_helper(from.x(), to.y(), from.y(), &mut skip);
-        }
-        {
-            let mut skip = skip_first(&mut function);
-            self.map_vertical_line_helper(to.x(), from.y(), to.y(), &mut skip);
-        }
+        self.map_horizontal_line_raw(from.x(), to.x(), from.y(), &mut function, 1);
+        self.map_horizontal_line_raw(to.x(), from.x(), to.y(), &mut function, 1);
+        self.map_vertical_line_raw(from.x(), to.y(), from.y(), &mut function, 1);
+        self.map_vertical_line_raw(to.x(), from.y(), to.y(), &mut function, 1);
     }
 
     /// Use provided function on each pixel in triangle.
@@ -759,7 +730,7 @@ where
     {
         let vertex = vertices.map(Into::into);
         let mut function = function;
-        self.map_on_filled_triangle_raw(vertex, &mut function);
+        self.map_on_filled_triangle_offset(vertex, &mut function);
     }
 
     /// Use provided function on each pixel of triangle bounds.
@@ -770,18 +741,9 @@ where
     {
         let [a, b, c] = vertices.map(Into::into);
         let mut function = function;
-        {
-            let mut skip = skip_first(&mut function);
-            self.line(a, b, &mut skip);
-        }
-        {
-            let mut skip = skip_first(&mut function);
-            self.line(b, c, &mut skip);
-        }
-        {
-            let mut skip = skip_first(&mut function);
-            self.line(c, a, &mut skip);
-        }
+        self.map_on_line_offset(a, b, &mut function, 1);
+        self.map_on_line_offset(b, c, &mut function, 1);
+        self.map_on_line_offset(c, a, &mut function, 1);
     }
 
     /// Use provided function on each pixel in polygon.
@@ -796,7 +758,7 @@ where
             0 => (),
             1 => self.mod_pixel(vertices[0], function),
             2 => self.line(vertices[0], vertices[1], function),
-            _ => self.map_on_filled_sane_polygon_raw(&vertices, &mut function),
+            _ => self.map_on_filled_sane_polygon_offset(&vertices, &mut function),
         }
     }
 
@@ -808,20 +770,20 @@ where
     {
         let mut function = function;
         for window in vertices.windows(2) {
-            let mut skip = skip_first(&mut function);
-            self.map_on_line_raw(
+            self.map_on_line_offset(
                 window[0].clone().into(),
                 window[1].clone().into(),
-                &mut skip,
+                &mut function,
+                1,
             );
         }
         if vertices.len() > 2 {
-            let mut skip = skip_first(&mut function);
-            self.map_on_line_raw(
+            self.map_on_line_offset(
                 vertices.last().unwrap().clone().into(),
                 // SAFETY: we have checked that `vertices` contain at least 3 elements.
                 vertices[0].clone().into(),
-                &mut skip,
+                &mut function,
+                1,
             );
         }
     }
@@ -834,7 +796,7 @@ where
     {
         let center = center.into();
         let mut function = function;
-        self.map_on_filled_circle_raw(center, radius, &mut function);
+        self.map_on_filled_circle_offset(center, radius, &mut function);
     }
 
     /// Use provided function on each pixel of circle bounds.
@@ -845,7 +807,7 @@ where
     {
         let center = center.into();
         let mut function = function;
-        self.map_on_circle_raw(center, radius, &mut function);
+        self.map_on_circle_offset(center, radius, &mut function);
     }
 
     /// Get reference to pixel.
@@ -885,7 +847,7 @@ where
     {
         let at = at.into();
         let mut function = function;
-        self.zip_map_images_raw(at, image, &mut function)
+        self.zip_map_images_offset(at, image, &mut function)
     }
 }
 
@@ -914,7 +876,7 @@ where
         for code_point in text.chars() {
             if let Some(symbol) = font.get(&code_point) {
                 let local = at + mapper(code_point, symbol);
-                self.zip_map_images_raw(local, symbol, &mut function);
+                self.zip_map_images_offset(local, symbol, &mut function);
             }
         }
     }
