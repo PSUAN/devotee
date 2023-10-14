@@ -1,13 +1,13 @@
 use std::collections::HashSet;
 
-use winit::dpi::PhysicalPosition;
-use winit::event::{ElementState, KeyboardInput, WindowEvent};
+use devotee_backend::winit::dpi::PhysicalPosition;
+use devotee_backend::winit::event::{ElementState, KeyboardInput, WindowEvent};
 
 use super::Input;
 use crate::app::window::Window;
 use crate::util::vector::Vector;
 
-pub use winit::event::{MouseButton, VirtualKeyCode};
+pub use devotee_backend::winit::event::{MouseButton, VirtualKeyCode};
 
 /// The naive keyboard and mouse input handler.
 #[derive(Clone, Default)]

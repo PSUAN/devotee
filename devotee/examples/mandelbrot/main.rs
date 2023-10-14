@@ -12,6 +12,7 @@ use devotee::util::vector::Vector;
 use devotee::visual::canvas::Canvas;
 use devotee::visual::color;
 use devotee::visual::prelude::*;
+use devotee::winit;
 
 fn main() {
     let init_config = setup::Setup::<Config>::new(

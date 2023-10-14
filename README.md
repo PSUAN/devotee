@@ -1,4 +1,5 @@
 # devotee
+
 A bit personal visualization engine.
 
 `devotee` is intended for use inside PSUAN's projects.

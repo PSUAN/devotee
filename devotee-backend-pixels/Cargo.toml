@@ -1,0 +1,22 @@
+[package]
+name = "devotee-backend-pixels"
+version = "0.1.0"
+edition = "2021"
+publish = true
+authors = ["PSUAN collective", "Hara Red <rtc6fg4.fejg2@gmail.com>"]
+description = "Pixels-based backend for devotee project"
+repository = "https://github.com/PSUAN/devotee"
+license = "MIT"
+homepage = "https://github.com/PSUAN/devotee"
+documentation = "https://docs.rs/devotee"
+readme = "README.md"
+keywords = ["gamedev", "graphics"]
+categories = ["game-engines"]
+
+[dependencies]
+devotee-backend = "0.1.0"
+
+pixels = "0.13.0"
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+pollster = "0.3.0"

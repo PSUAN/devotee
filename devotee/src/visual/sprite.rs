@@ -1,3 +1,5 @@
+use devotee_backend::BackendImage;
+
 use super::{Image, PaintTarget, Painter, PixelsIterator};
 use crate::util::vector::Vector;
 
@@ -123,5 +125,28 @@ impl<'a, P, const W: usize, const H: usize> Iterator for SpriteIter<'a, P, W, H>
         } else {
             None
         }
+    }
+}
+
+impl<'a, P: 'a, const W: usize, const H: usize> BackendImage<'a, P> for Sprite<P, W, H>
+where
+    P: Copy,
+{
+    type Iterator = SpriteIter<'a, P, W, H>;
+
+    unsafe fn pixel_unsafe(&self, x: u32, y: u32) -> &P {
+        Image::pixel_unsafe(self, Vector::new(x as i32, y as i32))
+    }
+
+    fn width(&self) -> u32 {
+        W as u32
+    }
+
+    fn height(&self) -> u32 {
+        H as u32
+    }
+
+    fn pixels(&'a self) -> Self::Iterator {
+        PixelsIterator::pixels(self)
     }
 }

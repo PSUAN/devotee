@@ -769,21 +769,25 @@ where
         F: FnMut(i32, i32, P) -> P,
     {
         let mut function = function;
-        for window in vertices.windows(2) {
-            self.map_on_line_offset(
-                window[0].clone().into(),
-                window[1].clone().into(),
-                &mut function,
-                1,
-            );
-        }
-        if vertices.len() > 2 {
+        let skip = if vertices.len() > 2 {
             self.map_on_line_offset(
                 vertices.last().unwrap().clone().into(),
                 // SAFETY: we have checked that `vertices` contain at least 3 elements.
                 vertices[0].clone().into(),
                 &mut function,
                 1,
+            );
+            1
+        } else {
+            0
+        };
+
+        for window in vertices.windows(2) {
+            self.map_on_line_offset(
+                window[0].clone().into(),
+                window[1].clone().into(),
+                &mut function,
+                skip,
             );
         }
     }
