@@ -1,9 +1,10 @@
 use std::num::NonZeroU32;
 use std::time::Duration;
 
+use devotee_backend::winit::event::{Event, StartCause, WindowEvent};
+use devotee_backend::winit::event_loop::{ControlFlow, EventLoop};
+use devotee_backend::BackendImage;
 use instant::Instant;
-use winit::event::{Event, StartCause, WindowEvent};
-use winit::event_loop::{ControlFlow, EventLoop};
 
 use self::config::Config;
 use self::context::Context;
@@ -12,7 +13,7 @@ use self::root::Root;
 use self::setup::Setup;
 use self::sound_system::SoundSystem;
 use crate::visual::color::Converter;
-use crate::visual::{Image, PixelsIterator};
+use crate::visual::Image;
 
 /// General application config.
 pub mod config;
@@ -96,7 +97,7 @@ where
     Cfg::Root: Root<Cfg>,
     Cfg::Converter: Converter,
     Cfg::Input: Input,
-    for<'a> Cfg::RenderTarget: PixelsIterator<'a, <Cfg::Converter as Converter>::Palette>,
+    for<'a> Cfg::RenderTarget: BackendImage<'a, <Cfg::Converter as Converter>::Palette>,
 {
     /// Start the application event loop.
     pub fn run(self) {
@@ -149,7 +150,7 @@ where
                 if app
                     .window
                     .draw_image(&app.render_target, &context.converter)
-                    .is_err()
+                    .is_none()
                 {
                     *control_flow = ControlFlow::Exit;
                 }
@@ -164,7 +165,7 @@ where
                             if let (Some(width), Some(height)) =
                                 (NonZeroU32::new(size.width), NonZeroU32::new(size.height))
                             {
-                                if app.window.resize_surface(width, height).is_err() {
+                                if app.window.resize_surface(width, height).is_none() {
                                     *control_flow = ControlFlow::Exit;
                                 }
                             }

@@ -4,4 +4,7 @@ resolver = "2"
 
 members = [
     "devotee",
+    "devotee-backend",
+    "devotee-backend-softbuffer",
+    "devotee-backend-pixels",
 ]

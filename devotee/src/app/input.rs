@@ -1,4 +1,4 @@
-pub use winit::event;
+pub use devotee_backend::winit::event;
 
 use super::window::Window;
 

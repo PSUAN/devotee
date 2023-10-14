@@ -1,0 +1,17 @@
+[package]
+name = "devotee-backend"
+version = "0.1.0"
+edition = "2021"
+publish = true
+authors = ["PSUAN collective", "Hara Red <rtc6fg4.fejg2@gmail.com>"]
+description = "Backend library specification for devotee project"
+repository = "https://github.com/PSUAN/devotee"
+license = "MIT"
+homepage = "https://github.com/PSUAN/devotee"
+documentation = "https://docs.rs/devotee-backend"
+readme = "README.md"
+keywords = ["gamedev", "graphics"]
+categories = ["game-engines"]
+
+[dependencies]
+winit = "0.28.7"

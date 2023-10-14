@@ -1,5 +1,7 @@
 use std::slice::Iter;
 
+use devotee_backend::BackendImage;
+
 use super::{Image, PaintTarget, Painter, PixelsIterator};
 use crate::util::vector::Vector;
 
@@ -98,5 +100,28 @@ impl<'a, P: 'a> PixelsIterator<'a, P> for Canvas<P> {
 
     fn pixels(&'a self) -> Self::Iterator {
         self.data.iter()
+    }
+}
+
+impl<'a, P: 'a> BackendImage<'a, P> for Canvas<P>
+where
+    P: Clone,
+{
+    type Iterator = Iter<'a, P>;
+
+    unsafe fn pixel_unsafe(&self, x: u32, y: u32) -> &P {
+        Image::pixel_unsafe(self, Vector::new(x as i32, y as i32))
+    }
+
+    fn width(&self) -> u32 {
+        self.width as u32
+    }
+
+    fn height(&self) -> u32 {
+        self.height as u32
+    }
+
+    fn pixels(&'a self) -> Self::Iterator {
+        PixelsIterator::pixels(self)
     }
 }

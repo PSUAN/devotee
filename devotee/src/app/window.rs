@@ -1,23 +1,35 @@
 use std::num::NonZeroU32;
 
-use softbuffer::{Context, SoftBufferError, Surface};
-use winit::dpi::{PhysicalPosition, PhysicalSize};
-use winit::event_loop::EventLoop;
+use devotee_backend::winit::dpi::{PhysicalPosition, PhysicalSize};
+use devotee_backend::winit::event_loop::EventLoop;
 #[cfg(target_arch = "wasm32")]
-use winit::platform::web::WindowExtWebSys;
-use winit::window::{Fullscreen, Window as WinitWindow, WindowBuilder};
+use devotee_backend::winit::platform::web::WindowExtWebSys;
+use devotee_backend::winit::window::{Fullscreen, Window as WinitWindow, WindowBuilder};
+use devotee_backend::{Backend, BackendImage};
+#[cfg(feature = "back-pixels")]
+use devotee_backend_pixels::PixelsBackend;
+#[cfg(feature = "back-softbuffer")]
+use devotee_backend_softbuffer::SoftbufferBackend;
 
 use super::{Config, Setup};
 use crate::util::vector::Vector;
 use crate::visual::color::Converter;
 use crate::visual::Image;
 
+pub use devotee_backend::winit;
+
 pub(super) type WindowCommand = Box<dyn FnOnce(&mut Window)>;
+
+#[cfg(feature = "back-softbuffer")]
+type Back = SoftbufferBackend;
+
+#[cfg(feature = "back-pixels")]
+type Back = PixelsBackend;
 
 /// The application window.
 pub struct Window {
     window: WinitWindow,
-    surface: Surface,
+    back: Back,
     resolution: Vector<u32>,
     background: u32,
 }
@@ -67,25 +79,14 @@ impl Window {
                     .append_child(&web_sys::Element::from(window.canvas()));
             }
         }
-        // SAFETY: context and window are stored in the same struct, so the window will be valid for all context lifetime.
-        let context = unsafe { Context::new(&window) }.ok()?;
-        // SAFETY: surface, context and window are in the same struct.
-        // Surface will be valid for a proper lifetime.
-        let mut surface = unsafe { Surface::new(&context, &window) }.ok()?;
-        // SAFETY: arguments won't be zero, checked in advance.
-        unsafe {
-            surface.resize(
-                NonZeroU32::new_unchecked(resolution.x() * setup.scale),
-                NonZeroU32::new_unchecked(resolution.y() * setup.scale),
-            )
-        }
-        .ok()?;
+
+        let back = Backend::new(&window, resolution.split(), setup.scale)?;
 
         let background = setup.background_color;
 
         Some(Window {
             window,
-            surface,
+            back,
             resolution,
             background,
         })
@@ -95,12 +96,8 @@ impl Window {
         self.window.request_redraw();
     }
 
-    pub(super) fn resize_surface(
-        &mut self,
-        width: NonZeroU32,
-        height: NonZeroU32,
-    ) -> Result<(), SoftBufferError> {
-        self.surface.resize(width, height)
+    pub(super) fn resize_surface(&mut self, width: NonZeroU32, height: NonZeroU32) -> Option<()> {
+        self.back.resize(width, height)
     }
 
     /// Get window pixel resolution.
@@ -129,53 +126,16 @@ impl Window {
         }
     }
 
-    pub(super) fn draw_image<P, C>(
+    pub(super) fn draw_image<'a, P: 'a, I>(
         &mut self,
-        image: &dyn Image<P>,
-        converter: &C,
-    ) -> Result<(), SoftBufferError>
+        image: &'a dyn BackendImage<'a, P, Iterator = I>,
+        converter: &dyn Converter<Palette = P>,
+    ) -> Option<()>
     where
-        C: Converter<Palette = P>,
+        I: Iterator<Item = &'a P>,
     {
-        let mut buffer = self.surface.buffer_mut()?;
-
-        let surface_size = self.window.inner_size();
-
-        if buffer.len() != (surface_size.width * surface_size.height) as usize {
-            return Ok(());
-        }
-
-        buffer.fill(self.background);
-
-        let scale_x = surface_size.width / image.width() as u32;
-        let scale_y = surface_size.height / image.height() as u32;
-
-        let minimal_scale = scale_x.min(scale_y);
-
-        if minimal_scale < 1 {
-        } else {
-            let start_x = (surface_size.width - image.width() as u32 * minimal_scale) as usize / 2;
-            let start_y =
-                (surface_size.height - image.height() as u32 * minimal_scale) as usize / 2;
-
-            for y in 0..image.height() {
-                for x in 0..image.width() {
-                    // Safety: we are sure that we are in a proper range due to for loops proper arguments.
-                    let pixel = unsafe { image.pixel_unsafe(Vector::new(x, y)) };
-                    let rgb = converter.convert(pixel);
-
-                    for iy in 0..minimal_scale {
-                        let index = (start_x + (x * minimal_scale as i32) as usize)
-                            + (iy as usize + start_y + (y * minimal_scale as i32) as usize)
-                                * surface_size.width as usize;
-
-                        buffer[index..index + minimal_scale as usize].fill(rgb);
-                    }
-                }
-            }
-        }
-
-        buffer.present()
+        self.back
+            .draw_image(image, converter, &self.window, self.background)
     }
 
     /// Recalculate raw window position into camera-related.
@@ -183,30 +143,9 @@ impl Window {
         &self,
         position: PhysicalPosition<f64>,
     ) -> Result<Vector<i32>, Vector<i32>> {
-        let size = self.window.inner_size();
-        let scale_x = size.width / self.resolution.x();
-        let scale_y = size.height / self.resolution.y();
-
-        let minimal_scale = scale_x.min(scale_y);
-
-        if minimal_scale < 1 {
-            Err(Vector::new(0, 0))
-        } else {
-            let position = Vector::new(position.x as i32, position.y as i32);
-            let start_x = ((size.width - self.resolution.x() * minimal_scale) / 2) as i32;
-            let start_y = ((size.height - self.resolution.y() * minimal_scale) / 2) as i32;
-
-            let position = (position - Vector::new(start_x, start_y)) / minimal_scale as i32;
-
-            if position.x() < 0
-                || position.x() >= self.resolution.x() as i32
-                || position.y() < 0
-                || position.y() >= self.resolution.y() as i32
-            {
-                Err(position)
-            } else {
-                Ok(position)
-            }
-        }
+        self.back
+            .window_pos_to_inner(position, &self.window, self.resolution.split())
+            .map(Into::into)
+            .map_err(Into::into)
     }
 }
