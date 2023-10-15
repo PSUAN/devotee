@@ -51,8 +51,8 @@ impl Backend for PixelsBackend {
     where
         I: Iterator<Item = &'a P>,
     {
-        let r = background & 0x00ff0000 >> 16;
-        let g = background & 0x0000ff00 >> 8;
+        let r = (background & 0x00ff0000) >> 16;
+        let g = (background & 0x0000ff00) >> 8;
         let b = background & 0x000000ff;
 
         self.pixels.clear_color(Color {
