@@ -1,6 +1,6 @@
 [package]
 name = "devotee-backend-softbuffer"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 publish = true
 authors = ["PSUAN collective", "Hara Red <rtc6fg4.fejg2@gmail.com>"]

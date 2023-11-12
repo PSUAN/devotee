@@ -52,7 +52,7 @@ impl Backend for SoftbufferBackend {
         let surface_size = window.inner_size();
 
         if buffer.len() != (surface_size.width * surface_size.height) as usize {
-            return None;
+            return Some(());
         }
 
         buffer.fill(background);

@@ -82,7 +82,7 @@ impl Window {
 
         let back = Backend::new(&window, resolution.split(), setup.scale)?;
 
-        let background = setup.background_color;
+        let background = Cfg::converter().convert(&Cfg::background_color());
 
         Some(Window {
             window,

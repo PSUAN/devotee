@@ -7,7 +7,7 @@ use std::num::NonZeroU32;
 use devotee_backend::winit::dpi::PhysicalPosition;
 use devotee_backend::winit::window::Window;
 use devotee_backend::{Backend, BackendImage, Converter};
-use pixels::wgpu::Color;
+use pixels::wgpu::{Color, TextureFormat};
 use pixels::{Pixels, PixelsBuilder, SurfaceTexture};
 
 /// [Pixels](https://crates.io/crates/pixels)-based backend.
@@ -21,7 +21,8 @@ impl Backend for PixelsBackend {
             let window_size = window.inner_size();
             let surface_texture =
                 SurfaceTexture::new(window_size.width, window_size.height, &window);
-            let builder = PixelsBuilder::new(resolution.0, resolution.1, surface_texture);
+            let builder = PixelsBuilder::new(resolution.0, resolution.1, surface_texture)
+                .texture_format(TextureFormat::Rgba8Unorm);
 
             #[cfg(target_arch = "wasm32")]
             {

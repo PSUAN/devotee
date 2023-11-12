@@ -38,7 +38,7 @@ impl config::Config for Config {
     }
 
     fn background_color() -> Color {
-        Color([0, 0, 0])
+        Color([0x00, 0x00, 0x80])
     }
 }
 
@@ -103,6 +103,6 @@ struct Converter;
 impl color::Converter for Converter {
     type Palette = Color;
     fn convert(&self, color: &Self::Palette) -> u32 {
-        ((color.0[0] as u32) << 16) | ((color.0[1] as u32) << 8) | color.0[2] as u32
+        ((color.0[0] as u32) << 16) | ((color.0[1] as u32) << 8) | (color.0[2] as u32)
     }
 }

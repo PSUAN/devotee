@@ -20,7 +20,6 @@ where
     pub(super) element_id: Option<&'static str>,
     pub(super) pause_on_focus_lost: bool,
     pub(super) input: Cfg::Input,
-    pub(super) background_color: u32,
 }
 
 impl<Cfg> Setup<Cfg>
@@ -38,7 +37,6 @@ where
         let fullscreen = false;
         let scale = 1;
         let constructor = Box::new(constructor);
-        let background_color = 0x00000000;
         Self {
             title,
             update_delay,
@@ -50,7 +48,6 @@ where
             element_id: None,
             pause_on_focus_lost: true,
             input,
-            background_color,
         }
     }
 
@@ -91,14 +88,6 @@ where
     pub fn with_pause_on_focus_lost(self, pause_on_focus_lost: bool) -> Self {
         Self {
             pause_on_focus_lost,
-            ..self
-        }
-    }
-
-    /// Set background color for the window.
-    pub fn with_background_color(self, background_color: u32) -> Self {
-        Self {
-            background_color,
             ..self
         }
     }
