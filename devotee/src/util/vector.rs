@@ -1,4 +1,4 @@
-use std::ops::{Add, Div, Mul, Neg, Sub};
+use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};
 
 /// Generic two-dimensional vector.
 #[derive(Clone, Copy, Debug, Default, Eq, Ord, PartialEq, PartialOrd)]
@@ -106,6 +106,16 @@ where
     }
 }
 
+impl<T> MulAssign<T> for Vector<T>
+where
+    T: MulAssign + Clone,
+{
+    fn mul_assign(&mut self, rhs: T) {
+        self.x *= rhs.clone();
+        self.y *= rhs;
+    }
+}
+
 impl<T> Div<T> for Vector<T>
 where
     T: Div<Output = T> + Clone,
@@ -116,6 +126,16 @@ where
             x: self.x / other.clone(),
             y: self.y / other,
         }
+    }
+}
+
+impl<T> DivAssign<T> for Vector<T>
+where
+    T: DivAssign + Clone,
+{
+    fn div_assign(&mut self, rhs: T) {
+        self.x /= rhs.clone();
+        self.y /= rhs;
     }
 }
 
@@ -134,6 +154,18 @@ where
     }
 }
 
+impl<T, U> AddAssign<U> for Vector<T>
+where
+    T: AddAssign,
+    U: Into<Vector<T>>,
+{
+    fn add_assign(&mut self, rhs: U) {
+        let rhs = rhs.into();
+        self.x += rhs.x;
+        self.y += rhs.y;
+    }
+}
+
 impl<T, U> Sub<U> for Vector<T>
 where
     T: Sub<Output = T>,
@@ -146,6 +178,18 @@ where
             x: self.x - other.x,
             y: self.y - other.y,
         }
+    }
+}
+
+impl<T, U> SubAssign<U> for Vector<T>
+where
+    T: SubAssign,
+    U: Into<Vector<T>>,
+{
+    fn sub_assign(&mut self, rhs: U) {
+        let rhs = rhs.into();
+        self.x -= rhs.x;
+        self.y -= rhs.y;
     }
 }
 
