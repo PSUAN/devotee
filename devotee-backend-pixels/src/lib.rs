@@ -22,7 +22,8 @@ impl Backend for PixelsBackend {
             let surface_texture =
                 SurfaceTexture::new(window_size.width, window_size.height, &window);
             let builder = PixelsBuilder::new(resolution.0, resolution.1, surface_texture)
-                .texture_format(TextureFormat::Rgba8Unorm);
+                .texture_format(TextureFormat::Rgba8Unorm)
+                .surface_texture_format(TextureFormat::Bgra8Unorm);
 
             #[cfg(target_arch = "wasm32")]
             {
