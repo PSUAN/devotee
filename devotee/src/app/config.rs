@@ -10,7 +10,7 @@ pub trait Config {
     /// The input handler.
     type Input;
     /// Render target to render to.
-    type RenderTarget: Image<<Self::Converter as Converter>::Palette>;
+    type RenderTarget: Image;
 
     /// Provide palette converter.
     fn converter() -> Self::Converter;

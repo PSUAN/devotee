@@ -1,4 +1,4 @@
-use std::ops::RangeInclusive;
+use std::ops::{Deref, DerefMut, RangeInclusive};
 
 use self::color::Color;
 use crate::util::getter::Getter;
@@ -42,9 +42,9 @@ where
 
 /// Helper printer mapper for the `Text` trait.
 /// It breaks lines on newline symbol (`'\n'`) and ignores any special characters.
-pub fn printer<U, P>() -> impl FnMut(char, &U) -> Vector<i32>
+pub fn printer<U>() -> impl FnMut(char, &U) -> Vector<i32>
 where
-    U: Image<P>,
+    U: Image,
 {
     let mut column = 0;
     let mut line = 0;
@@ -129,27 +129,37 @@ fn line_scan(from: &Vector<i32>, to: &Vector<i32>, vertical_scan: i32) -> RangeI
 }
 
 /// General image trait.
-pub trait Image<P> {
+pub trait Image {
+    /// Pixel type of this image.
+    type Pixel;
+    /// Reference to pixel.
+    type PixelRef<'a>
+    where
+        Self: 'a;
+    /// Mutable reference to pixel.
+    type PixelMut<'a>
+    where
+        Self: 'a;
     /// Get specific pixel reference.
-    fn pixel(&self, position: Vector<i32>) -> Option<&P>;
+    fn pixel<'a>(&'a self, position: Vector<i32>) -> Option<Self::PixelRef<'a>>;
     /// Get specific pixel mutable reference.
-    fn pixel_mut(&mut self, position: Vector<i32>) -> Option<&mut P>;
+    fn pixel_mut<'a>(&'a mut self, position: Vector<i32>) -> Option<Self::PixelMut<'a>>;
     /// Get specific pixel reference without bounds check.
     ///
     /// # Safety
     /// - position must be in range [(0, 0), [width - 1, height - 1]]
-    unsafe fn pixel_unsafe(&self, position: Vector<i32>) -> &P;
+    unsafe fn pixel_unsafe<'a>(&'a self, position: Vector<i32>) -> Self::PixelRef<'a>;
     /// Get specific pixel mutable reference without bounds check.
     ///
     /// # Safety
     /// - position must be in range [(0, 0), [width - 1, height - 1]]
-    unsafe fn pixel_mut_unsafe(&mut self, position: Vector<i32>) -> &mut P;
+    unsafe fn pixel_mut_unsafe<'a>(&'a mut self, position: Vector<i32>) -> Self::PixelMut<'a>;
     /// Get width of this image.
     fn width(&self) -> i32;
     /// Get height of this image.
     fn height(&self) -> i32;
     /// Clear this image with color provided.
-    fn clear(&mut self, color: P);
+    fn clear(&mut self, color: Self::Pixel);
 
     /// Get dimensions of this image.
     fn dimensions(&self) -> Vector<i32> {
@@ -157,56 +167,26 @@ pub trait Image<P> {
     }
 }
 
-impl<P, I: Image<P> + ?Sized> Image<P> for Box<I> {
-    fn pixel(&self, position: Vector<i32>) -> Option<&P> {
-        I::pixel(self, position)
-    }
-
-    fn pixel_mut(&mut self, position: Vector<i32>) -> Option<&mut P> {
-        I::pixel_mut(self, position)
-    }
-
-    unsafe fn pixel_unsafe(&self, position: Vector<i32>) -> &P {
-        I::pixel_unsafe(self, position)
-    }
-
-    unsafe fn pixel_mut_unsafe(&mut self, position: Vector<i32>) -> &mut P {
-        I::pixel_mut_unsafe(self, position)
-    }
-
-    fn width(&self) -> i32 {
-        I::width(self)
-    }
-
-    fn height(&self) -> i32 {
-        I::height(self)
-    }
-
-    fn clear(&mut self, color: P) {
-        I::clear(self, color)
-    }
-}
-
 /// Something that can be painted on.
-pub trait PaintTarget<P> {
+pub trait PaintTarget<T> {
     /// Get painter for painting.
-    fn painter(&mut self) -> Painter<P>;
+    fn painter(&mut self) -> Painter<T>;
 }
 
-impl<P, T: PaintTarget<P> + ?Sized> PaintTarget<P> for Box<T> {
-    fn painter(&mut self) -> Painter<P> {
-        T::painter(self)
+impl<T> PaintTarget<T> for T {
+    fn painter(&mut self) -> Painter<T> {
+        Painter::new(self)
     }
 }
 
 /// Painter to draw on encapsulated target.
-pub struct Painter<'a, P> {
-    target: &'a mut dyn Image<P>,
+pub struct Painter<'a, I> {
+    target: &'a mut I,
     offset: Vector<i32>,
 }
 
-impl<'a, P> Painter<'a, P> {
-    fn new(target: &'a mut dyn Image<P>) -> Self {
+impl<'a, I> Painter<'a, I> {
+    fn new(target: &'a mut I) -> Self {
         Self {
             target,
             offset: Vector::new(0, 0),
@@ -235,9 +215,12 @@ impl<'a, P> Painter<'a, P> {
     }
 }
 
-impl<'a, P> Painter<'a, P>
+impl<'a, T, P> Painter<'a, T>
 where
-    P: Clone,
+    T: Image<Pixel = P>,
+    <T as Image>::Pixel: Clone,
+    for<'b> <T as Image>::PixelRef<'b>: Deref<Target = <T as Image>::Pixel>,
+    for<'b> <T as Image>::PixelMut<'b>: DerefMut<Target = <T as Image>::Pixel>,
 {
     fn map_on_pixel_offset<F: FnMut(i32, i32, P) -> P>(
         &mut self,
@@ -245,7 +228,7 @@ where
         function: &mut F,
     ) {
         let point = point + self.offset;
-        if let Some(pixel) = self.target.pixel_mut(point) {
+        if let Some(mut pixel) = self.target.pixel_mut(point) {
             *pixel = function(point.x(), point.y(), pixel.clone());
         }
     }
@@ -255,7 +238,7 @@ where
         point: Vector<i32>,
         function: &mut F,
     ) {
-        if let Some(pixel) = self.target.pixel_mut(point) {
+        if let Some(mut pixel) = self.target.pixel_mut(point) {
             *pixel = function(point.x(), point.y(), pixel.clone());
         }
     }
@@ -594,15 +577,18 @@ where
     }
 
     fn zip_map_images_offset<
+        'b,
         O: Clone,
         F: FnMut(i32, i32, P, i32, i32, O) -> P,
-        U: Image<O> + ?Sized,
+        U: 'b + Image<Pixel = O> + ?Sized,
     >(
         &mut self,
         at: Vector<i32>,
-        image: &U,
+        image: &'b U,
         function: &mut F,
-    ) {
+    ) where
+        <U as Image>::PixelRef<'b>: Deref<Target = O>,
+    {
         let at = at + self.offset;
         let image_start_x = if at.x() < 0 { -at.x() } else { 0 };
         let image_start_y = if at.y() < 0 { -at.y() } else { 0 };
@@ -653,7 +639,7 @@ where
     }
 
     /// Get reference to pixel.
-    pub fn pixel<I>(&self, position: I) -> Option<&P>
+    pub fn pixel<I>(&self, position: I) -> Option<T::PixelRef<'_>>
     where
         I: Into<Vector<i32>>,
     {
@@ -661,18 +647,13 @@ where
     }
 
     /// Get mutable reference to pixel.
-    pub fn pixel_mut<I>(&mut self, position: I) -> Option<&mut P>
+    pub fn pixel_mut<I>(&mut self, position: I) -> Option<T::PixelMut<'_>>
     where
         I: Into<Vector<i32>>,
     {
         Image::pixel_mut(self.target, position.into() + self.offset)
     }
-}
 
-impl<'a, P> Painter<'a, P>
-where
-    P: Clone,
-{
     /// Use provided function on a pixel at given position.
     pub fn mod_pixel<I, F>(&mut self, position: I, function: F)
     where
@@ -681,7 +662,7 @@ where
     {
         let mut function = function;
         let position = position.into();
-        if let Some(pixel) = self.pixel_mut(position) {
+        if let Some(mut pixel) = self.pixel_mut(position) {
             *pixel = function(position.x(), position.y(), pixel.clone());
         }
     }
@@ -818,7 +799,7 @@ where
     ///
     /// # Safety
     /// - `position + self.offset` must be in the `[0, (width, height))` range.
-    pub unsafe fn pixel_unsafe<I>(&self, position: I) -> &P
+    pub unsafe fn pixel_unsafe<I>(&self, position: I) -> T::PixelRef<'_>
     where
         I: Into<Vector<i32>>,
     {
@@ -829,50 +810,42 @@ where
     ///
     /// # Safety
     /// - `position + self.offset` must be in the `[0, (width, height))` range.
-    pub unsafe fn pixel_mut_unsafe<I>(&mut self, position: I) -> &mut P
+    pub unsafe fn pixel_mut_unsafe<I>(&mut self, position: I) -> T::PixelMut<'_>
     where
         I: Into<Vector<i32>>,
     {
         Image::pixel_mut_unsafe(self.target, position.into() + self.offset)
     }
-}
 
-impl<'a, P> Painter<'a, P>
-where
-    P: Clone,
-{
     /// Use provided function and given image on this drawable.
-    pub fn image<I, F, O, U>(&mut self, at: I, image: &U, function: F)
+    pub fn image<'b, I, F, O, U>(&mut self, at: I, image: &'b U, function: F)
     where
         I: Into<Vector<i32>>,
-        U: Image<O> + ?Sized,
+        U: 'b + Image<Pixel = O> + ?Sized,
         O: Clone,
         F: FnMut(i32, i32, P, i32, i32, O) -> P,
+        <U as Image>::PixelRef<'b>: Deref<Target = O>,
     {
         let at = at.into();
         let mut function = function;
         self.zip_map_images_offset(at, image, &mut function)
     }
-}
 
-impl<'a, P> Painter<'a, P>
-where
-    P: Clone,
-{
     /// Use provided spatial mapper, font and mapper function to draw text.
-    pub fn text<I, M, U, O, F>(
+    pub fn text<'b, I, M, U, O, F>(
         &mut self,
         at: I,
         mapper: M,
-        font: &dyn Getter<Index = char, Item = U>,
+        font: &'b dyn Getter<Index = char, Item = U>,
         text: &str,
         function: F,
     ) where
         I: Into<Vector<i32>>,
         M: FnMut(char, &U) -> Vector<i32>,
-        U: Image<O>,
+        U: 'b + Image<Pixel = O>,
         O: Clone,
         F: FnMut(i32, i32, P, i32, i32, O) -> P,
+        <U as Image>::PixelRef<'b>: Deref<Target = O>,
     {
         let at = at.into();
         let mut mapper = mapper;

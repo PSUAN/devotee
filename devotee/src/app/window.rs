@@ -38,7 +38,7 @@ impl Window {
     pub(super) fn with_setup<Cfg>(event_loop: &EventLoop<()>, setup: &Setup<Cfg>) -> Option<Self>
     where
         Cfg: Config,
-        Cfg::RenderTarget: Image<<Cfg::Converter as Converter>::Palette>,
+        Cfg::RenderTarget: Image,
         Cfg::Converter: Converter,
     {
         let resolution = Vector::new(

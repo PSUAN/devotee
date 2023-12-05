@@ -62,7 +62,7 @@ impl<Cfg> App<Cfg>
 where
     Cfg: Config,
     Cfg::Converter: Converter,
-    Cfg::RenderTarget: Image<<Cfg::Converter as Converter>::Palette>,
+    Cfg::RenderTarget: Image,
 {
     /// Create an app with given `setup`.
     pub fn with_setup(setup: Setup<Cfg>) -> Option<Self> {

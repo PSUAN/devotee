@@ -2,7 +2,7 @@ use std::slice::Iter;
 
 use devotee_backend::BackendImage;
 
-use super::{Image, PaintTarget, Painter, PixelsIterator};
+use super::{Image, PixelsIterator};
 use crate::util::vector::Vector;
 
 /// Canvas based on box slice of pixel data.
@@ -29,19 +29,13 @@ where
     }
 }
 
-impl<P> PaintTarget<P> for Canvas<P>
-where
-    P: Copy,
-{
-    fn painter(&mut self) -> Painter<P> {
-        Painter::new(self)
-    }
-}
-
-impl<P> Image<P> for Canvas<P>
+impl<P> Image for Canvas<P>
 where
     P: Clone,
 {
+    type Pixel = P;
+    type PixelRef<'a> = &'a P where P:'a;
+    type PixelMut<'a> = &'a mut P where P:'a;
     fn pixel(&self, position: Vector<i32>) -> Option<&P> {
         if position.x() < 0 || position.y() < 0 {
             return None;

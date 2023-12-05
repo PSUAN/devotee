@@ -1,6 +1,6 @@
 use devotee_backend::BackendImage;
 
-use super::{Image, PaintTarget, Painter, PixelsIterator};
+use super::{Image, PixelsIterator};
 use crate::util::vector::Vector;
 
 /// Sprite of fixed dimensions.
@@ -25,19 +25,13 @@ where
     }
 }
 
-impl<P, const W: usize, const H: usize> PaintTarget<P> for Sprite<P, W, H>
+impl<P, const W: usize, const H: usize> Image for Sprite<P, W, H>
 where
     P: Copy,
 {
-    fn painter(&mut self) -> Painter<P> {
-        Painter::new(self)
-    }
-}
-
-impl<P, const W: usize, const H: usize> Image<P> for Sprite<P, W, H>
-where
-    P: Copy,
-{
+    type Pixel = P;
+    type PixelRef<'a> = &'a P where P:'a;
+    type PixelMut<'a> = &'a mut P where P:'a;
     fn pixel(&self, position: Vector<i32>) -> Option<&P> {
         if position.x() < 0 || position.y() < 0 {
             return None;
