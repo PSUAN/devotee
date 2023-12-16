@@ -141,19 +141,19 @@ pub trait Image {
     where
         Self: 'a;
     /// Get specific pixel reference.
-    fn pixel<'a>(&'a self, position: Vector<i32>) -> Option<Self::PixelRef<'a>>;
+    fn pixel(&self, position: Vector<i32>) -> Option<Self::PixelRef<'_>>;
     /// Get specific pixel mutable reference.
-    fn pixel_mut<'a>(&'a mut self, position: Vector<i32>) -> Option<Self::PixelMut<'a>>;
+    fn pixel_mut(&mut self, position: Vector<i32>) -> Option<Self::PixelMut<'_>>;
     /// Get specific pixel reference without bounds check.
     ///
     /// # Safety
     /// - position must be in range [(0, 0), [width - 1, height - 1]]
-    unsafe fn pixel_unsafe<'a>(&'a self, position: Vector<i32>) -> Self::PixelRef<'a>;
+    unsafe fn pixel_unsafe(&self, position: Vector<i32>) -> Self::PixelRef<'_>;
     /// Get specific pixel mutable reference without bounds check.
     ///
     /// # Safety
     /// - position must be in range [(0, 0), [width - 1, height - 1]]
-    unsafe fn pixel_mut_unsafe<'a>(&'a mut self, position: Vector<i32>) -> Self::PixelMut<'a>;
+    unsafe fn pixel_mut_unsafe(&mut self, position: Vector<i32>) -> Self::PixelMut<'_>;
     /// Get width of this image.
     fn width(&self) -> i32;
     /// Get height of this image.
