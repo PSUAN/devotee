@@ -56,12 +56,12 @@ where
         }
     }
 
-    unsafe fn pixel_unsafe(&self, position: Vector<i32>) -> &P {
+    unsafe fn unsafe_pixel(&self, position: Vector<i32>) -> &P {
         let (x, y) = (position.x() as usize, position.y() as usize);
         &self.data[y][x]
     }
 
-    unsafe fn pixel_mut_unsafe(&mut self, position: Vector<i32>) -> &mut P {
+    unsafe fn unsafe_pixel_mut(&mut self, position: Vector<i32>) -> &mut P {
         let (x, y) = (position.x() as usize, position.y() as usize);
         &mut self.data[y][x]
     }
@@ -129,7 +129,7 @@ where
     type Iterator = SpriteIter<'a, P, W, H>;
 
     unsafe fn pixel_unsafe(&self, x: u32, y: u32) -> &P {
-        Image::pixel_unsafe(self, Vector::new(x as i32, y as i32))
+        Image::unsafe_pixel(self, Vector::new(x as i32, y as i32))
     }
 
     fn width(&self) -> u32 {

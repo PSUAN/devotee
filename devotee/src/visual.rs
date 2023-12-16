@@ -141,19 +141,19 @@ pub trait Image {
     where
         Self: 'a;
     /// Get specific pixel reference.
-    fn pixel<'a>(&'a self, position: Vector<i32>) -> Option<Self::PixelRef<'a>>;
+    fn pixel(&self, position: Vector<i32>) -> Option<Self::PixelRef<'_>>;
     /// Get specific pixel mutable reference.
-    fn pixel_mut<'a>(&'a mut self, position: Vector<i32>) -> Option<Self::PixelMut<'a>>;
+    fn pixel_mut(&mut self, position: Vector<i32>) -> Option<Self::PixelMut<'_>>;
     /// Get specific pixel reference without bounds check.
     ///
     /// # Safety
     /// - position must be in range [(0, 0), [width - 1, height - 1]]
-    unsafe fn pixel_unsafe<'a>(&'a self, position: Vector<i32>) -> Self::PixelRef<'a>;
+    unsafe fn unsafe_pixel(&self, position: Vector<i32>) -> Self::PixelRef<'_>;
     /// Get specific pixel mutable reference without bounds check.
     ///
     /// # Safety
     /// - position must be in range [(0, 0), [width - 1, height - 1]]
-    unsafe fn pixel_mut_unsafe<'a>(&'a mut self, position: Vector<i32>) -> Self::PixelMut<'a>;
+    unsafe fn unsafe_pixel_mut(&mut self, position: Vector<i32>) -> Self::PixelMut<'_>;
     /// Get width of this image.
     fn width(&self) -> i32;
     /// Get height of this image.
@@ -362,8 +362,8 @@ where
             for y in start_y..end_y {
                 let step = (x, y).into();
                 unsafe {
-                    let pixel = function(x, y, self.target.pixel_unsafe(step).clone());
-                    *self.target.pixel_mut_unsafe(step) = pixel;
+                    let pixel = function(x, y, self.target.unsafe_pixel(step).clone());
+                    *self.target.unsafe_pixel_mut(step) = pixel;
                 }
             }
         }
@@ -608,16 +608,16 @@ where
                 let step = (x, y).into();
                 let pose = at + step;
                 unsafe {
-                    let color = Image::pixel_unsafe(image, step);
+                    let color = Image::unsafe_pixel(image, step);
                     let pixel = function(
                         pose.x(),
                         pose.y(),
-                        self.target.pixel_unsafe(pose).clone(),
+                        self.target.unsafe_pixel(pose).clone(),
                         x,
                         y,
                         color.clone(),
                     );
-                    *self.target.pixel_mut_unsafe(pose) = pixel;
+                    *self.target.unsafe_pixel_mut(pose) = pixel;
                 }
             }
         }
@@ -803,7 +803,7 @@ where
     where
         I: Into<Vector<i32>>,
     {
-        Image::pixel_unsafe(self.target, position.into() + self.offset)
+        Image::unsafe_pixel(self.target, position.into() + self.offset)
     }
 
     /// Get mutable reference to pixel.
@@ -814,7 +814,7 @@ where
     where
         I: Into<Vector<i32>>,
     {
-        Image::pixel_mut_unsafe(self.target, position.into() + self.offset)
+        Image::unsafe_pixel_mut(self.target, position.into() + self.offset)
     }
 
     /// Use provided function and given image on this drawable.

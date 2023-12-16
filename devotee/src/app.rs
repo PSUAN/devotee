@@ -31,7 +31,7 @@ pub mod sound_system;
 pub mod window;
 
 /// Node constructor.
-/// Takes mutable reference to `Context` and provides constructed node.
+/// Takes mutable reference to `Context` and provides constructed root node.
 pub type Constructor<T, U> = Box<dyn FnOnce(&mut Context<U>) -> T>;
 
 /// App is the root of the `devotee` project.
