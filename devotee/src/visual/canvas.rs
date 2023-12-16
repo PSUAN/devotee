@@ -63,7 +63,7 @@ where
     /// Get reference to pixel.
     /// # Safety
     /// - `position` must be in range `[0, width-1]` by `x` and `[0, height-1]` by `y`.
-    unsafe fn pixel_unsafe(&self, position: Vector<i32>) -> &P {
+    unsafe fn unsafe_pixel(&self, position: Vector<i32>) -> &P {
         let (x, y) = (position.x() as usize, position.y() as usize);
         &self.data[x + self.width * y]
     }
@@ -71,7 +71,7 @@ where
     /// Get mutable reference to pixel.
     /// # Safety
     /// - `position` must be in range `[0, width-1]` by `x` and `[0, height-1]` by `y`.
-    unsafe fn pixel_mut_unsafe(&mut self, position: Vector<i32>) -> &mut P {
+    unsafe fn unsafe_pixel_mut(&mut self, position: Vector<i32>) -> &mut P {
         let (x, y) = (position.x() as usize, position.y() as usize);
         &mut self.data[x + self.width * y]
     }
@@ -104,7 +104,7 @@ where
     type Iterator = Iter<'a, P>;
 
     unsafe fn pixel_unsafe(&self, x: u32, y: u32) -> &P {
-        Image::pixel_unsafe(self, Vector::new(x as i32, y as i32))
+        Image::unsafe_pixel(self, Vector::new(x as i32, y as i32))
     }
 
     fn width(&self) -> u32 {

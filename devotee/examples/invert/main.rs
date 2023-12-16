@@ -93,8 +93,9 @@ impl Root<Config> for Invert {
         drop(painter);
         for x in 8..(render.width() - 8) {
             for y in 8..(render.height() - 8) {
+                // SAFETY: we are iterating in safe range.
                 unsafe {
-                    *Image::pixel_mut_unsafe(render, (x, y).into()) =
+                    *Image::unsafe_pixel_mut(render, (x, y).into()) =
                         Color([2 * x as u8, 2 * y as u8, 0x00]);
                 }
             }
