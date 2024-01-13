@@ -10,15 +10,16 @@ use devotee::util::vector::Vector;
 use devotee::visual::color;
 use devotee::visual::prelude::*;
 use devotee::visual::sprite::Sprite;
+use devotee_backend_softbuffer::SoftbufferBackend;
 
 fn main() {
-    let init_config =
-        setup::Setup::<Config>::new(Sprite::with_color(0.into()), Default::default(), |_| {
-            Default::default()
-        })
+    let init_config = setup::Builder::<Config>::new()
+        .with_render_target(Sprite::with_color(0.into()))
+        .with_input(Default::default())
+        .with_root_constructor(|_| Default::default())
         .with_title("pentacle")
         .with_scale(3);
-    let app = app::App::with_setup(init_config).unwrap();
+    let app = app::App::<_, SoftbufferBackend>::with_setup(init_config).unwrap();
 
     app.run();
 }

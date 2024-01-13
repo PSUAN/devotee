@@ -2,6 +2,7 @@ use std::collections::HashSet;
 
 use devotee_backend::winit::dpi::PhysicalPosition;
 use devotee_backend::winit::event::{ElementState, KeyboardInput, WindowEvent};
+use devotee_backend::Backend;
 
 use super::Input;
 use crate::app::window::Window;
@@ -17,6 +18,11 @@ pub struct KeyMouse {
 }
 
 impl KeyMouse {
+    /// Create new input handler instance.
+    pub fn new() -> Self {
+        Default::default()
+    }
+
     /// Get the `Keyboard` part.
     pub fn keys(&self) -> &Keyboard {
         &self.keyboard
@@ -117,15 +123,25 @@ impl Mouse {
         self.position = None;
     }
 
-    fn register_cursor_moved(&mut self, position: PhysicalPosition<f64>, window: &Window) {
-        self.position = Some(match window.window_pos_to_inner(position) {
+    fn register_cursor_moved<Bck>(
+        &mut self,
+        position: PhysicalPosition<f64>,
+        window: &Window,
+        back: &Bck,
+    ) where
+        Bck: Backend,
+    {
+        self.position = Some(match window.window_pos_to_inner(back, position) {
             Ok(in_bounds) => in_bounds,
             Err(out_of_bounds) => out_of_bounds,
         });
     }
 }
 
-impl Input for KeyMouse {
+impl<Bck> Input<Bck> for KeyMouse
+where
+    Bck: Backend,
+{
     fn next_frame(&mut self) {
         self.keyboard.step();
         self.mouse.step();
@@ -135,6 +151,7 @@ impl Input for KeyMouse {
         &mut self,
         event: WindowEvent<'a>,
         window: &Window,
+        back: &Bck,
     ) -> Option<WindowEvent<'a>> {
         match event {
             WindowEvent::KeyboardInput { input, .. } => {
@@ -146,7 +163,7 @@ impl Input for KeyMouse {
                 None
             }
             WindowEvent::CursorMoved { position, .. } => {
-                self.mouse.register_cursor_moved(position, window);
+                self.mouse.register_cursor_moved(position, window, back);
                 None
             }
             WindowEvent::MouseInput { state, button, .. } => {

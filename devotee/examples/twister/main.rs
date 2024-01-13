@@ -10,17 +10,17 @@ use devotee::app::setup;
 use devotee::visual::color;
 use devotee::visual::prelude::*;
 use devotee::visual::sprite::Sprite;
+use devotee_backend_softbuffer::SoftbufferBackend;
 use rodio::source::{SineWave, Source};
 
 fn main() {
-    let init_config = setup::Setup::<Config>::new(
-        Sprite::with_color(FourBits::Black),
-        Default::default(),
-        |_| Default::default(),
-    )
-    .with_title("twister")
-    .with_scale(2);
-    let app = app::App::with_setup(init_config).unwrap();
+    let init_config = setup::Builder::<Config>::new()
+        .with_render_target(Sprite::with_color(FourBits::Black))
+        .with_input(Default::default())
+        .with_root_constructor(|_| Default::default())
+        .with_title("twister")
+        .with_scale(2);
+    let app = app::App::<_, SoftbufferBackend>::with_setup(init_config).unwrap();
 
     app.run();
 }

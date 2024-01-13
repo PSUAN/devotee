@@ -8,19 +8,19 @@ use devotee::util::vector::Vector;
 use devotee::visual::canvas::Canvas;
 use devotee::visual::color;
 use devotee::visual::prelude::*;
+use devotee_backend_softbuffer::SoftbufferBackend;
 
 const BOX_BOUNDARIES: (i32, i32) = (16, 128 - 16);
 const INTERNAL_RADIUS: i32 = 8;
 
 fn main() {
-    let init_config = setup::Setup::<Config>::new(
-        Canvas::with_resolution(Default::default(), 128, 128),
-        Default::default(),
-        |_| Default::default(),
-    )
-    .with_title("minimal")
-    .with_scale(2);
-    let app = app::App::with_setup(init_config).unwrap();
+    let init_config = setup::Builder::<Config>::new()
+        .with_render_target(Canvas::with_resolution(Default::default(), 128, 128))
+        .with_input(Default::default())
+        .with_root_constructor(|_| Default::default())
+        .with_title("minimal")
+        .with_scale(2);
+    let app = app::App::<_, SoftbufferBackend>::with_setup(init_config).unwrap();
 
     app.run();
 }
@@ -28,7 +28,7 @@ fn main() {
 struct Config;
 
 impl config::Config for Config {
-    type Root = Minial;
+    type Root = Minimal;
     type Converter = Converter;
     type Input = KeyMouse;
     type RenderTarget = Canvas<Color>;
@@ -43,11 +43,11 @@ impl config::Config for Config {
 }
 
 #[derive(Default)]
-struct Minial {
+struct Minimal {
     position: Vector<i32>,
 }
 
-impl Root<Config> for Minial {
+impl Root<Config> for Minimal {
     fn update(&mut self, update: &mut Context<Config>) {
         if update.input().keys().just_pressed(VirtualKeyCode::Escape) {
             update.shutdown();

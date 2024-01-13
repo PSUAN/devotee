@@ -11,16 +11,16 @@ use devotee::util::vector::Vector;
 use devotee::visual::color;
 use devotee::visual::prelude::*;
 use devotee::visual::sprite::Sprite;
+use devotee_backend_softbuffer::SoftbufferBackend;
 
 fn main() {
-    let init_config = setup::Setup::<Config>::new(
-        Sprite::with_color(FourBits::Black),
-        Default::default(),
-        |_| TextApp::new(),
-    )
-    .with_title("text")
-    .with_scale(2);
-    let app = app::App::with_setup(init_config).unwrap();
+    let init_config = setup::Builder::<Config>::new()
+        .with_render_target(Sprite::with_color(FourBits::Black))
+        .with_input(Default::default())
+        .with_root_constructor(|_| TextApp::new())
+        .with_title("text")
+        .with_scale(2);
+    let app = app::App::<_, SoftbufferBackend>::with_setup(init_config).unwrap();
 
     app.run();
 }

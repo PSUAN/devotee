@@ -3,7 +3,7 @@ use std::time::Duration;
 
 use devotee_backend::winit::event::{Event, StartCause, WindowEvent};
 use devotee_backend::winit::event_loop::{ControlFlow, EventLoop};
-use devotee_backend::BackendImage;
+use devotee_backend::{Backend, BackendImage};
 use instant::Instant;
 
 use self::config::Config;
@@ -36,7 +36,7 @@ pub type Constructor<T, U> = Box<dyn FnOnce(&mut Context<U>) -> T>;
 
 /// App is the root of the `devotee` project.
 /// It handles `winit`'s event loop and render.
-pub struct App<Cfg>
+pub struct App<Cfg, Bck>
 where
     Cfg: Config,
 {
@@ -44,11 +44,11 @@ where
     constructor: Constructor<Cfg::Root, Cfg>,
     converter: Cfg::Converter,
     sound_system: Option<SoundSystem>,
-    inner: Inner<Cfg>,
+    inner: Inner<Cfg, Bck>,
     input: Cfg::Input,
 }
 
-struct Inner<Cfg>
+struct Inner<Cfg, Bck>
 where
     Cfg: Config,
 {
@@ -56,13 +56,15 @@ where
     update_delay: Duration,
     render_target: Cfg::RenderTarget,
     pause_on_focus_lost: bool,
+    backend: Bck,
 }
 
-impl<Cfg> App<Cfg>
+impl<Cfg, Bck> App<Cfg, Bck>
 where
     Cfg: Config,
     Cfg::Converter: Converter,
     Cfg::RenderTarget: Image,
+    Bck: Backend,
 {
     /// Create an app with given `setup`.
     pub fn with_setup(setup: Setup<Cfg>) -> Option<Self> {
@@ -75,6 +77,7 @@ where
         let sound_system = SoundSystem::try_new();
         let constructor = setup.constructor;
         let pause_on_focus_lost = setup.pause_on_focus_lost;
+        let backend = Bck::new(window.inner(), window.resolution().split(), setup.scale)?;
         Some(Self {
             event_loop,
             constructor,
@@ -85,18 +88,20 @@ where
                 update_delay,
                 render_target,
                 pause_on_focus_lost,
+                backend,
             },
             input,
         })
     }
 }
 
-impl<Cfg> App<Cfg>
+impl<Cfg, Bck> App<Cfg, Bck>
 where
     Cfg: 'static + Config,
     Cfg::Root: Root<Cfg>,
     Cfg::Converter: Converter,
-    Cfg::Input: Input,
+    Cfg::Input: Input<Bck>,
+    Bck: 'static + Backend,
     for<'a> Cfg::RenderTarget: BackendImage<'a, <Cfg::Converter as Converter>::Palette>,
 {
     /// Start the application event loop.
@@ -149,14 +154,18 @@ where
                 node.render(&mut app.render_target);
                 if app
                     .window
-                    .draw_image(&app.render_target, &context.converter)
+                    .draw_image(&mut app.backend, &app.render_target, &context.converter)
                     .is_none()
                 {
                     *control_flow = ControlFlow::Exit;
                 }
             }
             Event::WindowEvent { event, .. } => {
-                if let Some(event) = context.input.consume_window_event(event, &app.window) {
+                if let Some(event) =
+                    context
+                        .input
+                        .consume_window_event(event, &app.window, &app.backend)
+                {
                     match event {
                         WindowEvent::CloseRequested => {
                             *control_flow = ControlFlow::Exit;
@@ -165,7 +174,7 @@ where
                             if let (Some(width), Some(height)) =
                                 (NonZeroU32::new(size.width), NonZeroU32::new(size.height))
                             {
-                                if app.window.resize_surface(width, height).is_none() {
+                                if app.backend.resize(width, height).is_none() {
                                     *control_flow = ControlFlow::Exit;
                                 }
                             }

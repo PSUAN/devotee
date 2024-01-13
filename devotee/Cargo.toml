@@ -1,6 +1,6 @@
 [package]
 name = "devotee"
-version = "0.1.45"
+version = "0.1.46"
 edition = "2021"
 publish = true
 authors = ["PSUAN collective", "Hara Red <rtc6fg4.fejg2@gmail.com>"]
@@ -14,15 +14,9 @@ keywords = ["gamedev", "graphics"]
 categories = ["game-engines"]
 
 [features]
-default = ["back-softbuffer"]
-back-softbuffer = ["dep:devotee-backend-softbuffer"]
-back-pixels = ["dep:devotee-backend-pixels"]
 
 [dependencies]
 devotee-backend = "0.1.0"
-devotee-backend-softbuffer = { version = "0.1.1", optional = true }
-devotee-backend-pixels = { version = "0.1.2", optional = true }
-
 instant = "0.1.12"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
@@ -34,3 +28,6 @@ rodio = { version = "0.17.1", default-features = false, features = [
     "wasm-bindgen",
 ] }
 web-sys = "0.3.64"
+
+[dev-dependencies]
+devotee-backend-softbuffer = { version = "0.1.1" }

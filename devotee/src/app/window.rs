@@ -1,15 +1,9 @@
-use std::num::NonZeroU32;
-
 use devotee_backend::winit::dpi::{PhysicalPosition, PhysicalSize};
 use devotee_backend::winit::event_loop::EventLoop;
 #[cfg(target_arch = "wasm32")]
 use devotee_backend::winit::platform::web::WindowExtWebSys;
 use devotee_backend::winit::window::{Fullscreen, Window as WinitWindow, WindowBuilder};
 use devotee_backend::{Backend, BackendImage};
-#[cfg(feature = "back-pixels")]
-use devotee_backend_pixels::PixelsBackend;
-#[cfg(feature = "back-softbuffer")]
-use devotee_backend_softbuffer::SoftbufferBackend;
 
 use super::{Config, Setup};
 use crate::util::vector::Vector;
@@ -20,16 +14,9 @@ pub use devotee_backend::winit;
 
 pub(super) type WindowCommand = Box<dyn FnOnce(&mut Window)>;
 
-#[cfg(feature = "back-softbuffer")]
-type Back = SoftbufferBackend;
-
-#[cfg(feature = "back-pixels")]
-type Back = PixelsBackend;
-
 /// The application window.
 pub struct Window {
     window: WinitWindow,
-    back: Back,
     resolution: Vector<u32>,
     background: u32,
 }
@@ -80,13 +67,10 @@ impl Window {
             }
         }
 
-        let back = Backend::new(&window, resolution.split(), setup.scale)?;
-
         let background = Cfg::converter().convert(&Cfg::background_color());
 
         Some(Window {
             window,
-            back,
             resolution,
             background,
         })
@@ -96,8 +80,8 @@ impl Window {
         self.window.request_redraw();
     }
 
-    pub(super) fn resize_surface(&mut self, width: NonZeroU32, height: NonZeroU32) -> Option<()> {
-        self.back.resize(width, height)
+    pub(super) fn inner(&self) -> &WinitWindow {
+        &self.window
     }
 
     /// Get window pixel resolution.
@@ -126,25 +110,29 @@ impl Window {
         }
     }
 
-    pub(super) fn draw_image<'a, P: 'a, I>(
-        &mut self,
+    pub(super) fn draw_image<'a, P: 'a, I, Bck>(
+        &self,
+        back: &mut Bck,
         image: &'a dyn BackendImage<'a, P, Iterator = I>,
         converter: &dyn Converter<Palette = P>,
     ) -> Option<()>
     where
         I: Iterator<Item = &'a P>,
+        Bck: Backend,
     {
-        self.back
-            .draw_image(image, converter, &self.window, self.background)
+        back.draw_image(image, converter, &self.window, self.background)
     }
 
     /// Recalculate raw window position into camera-related.
-    pub fn window_pos_to_inner(
+    pub fn window_pos_to_inner<Bck>(
         &self,
+        back: &Bck,
         position: PhysicalPosition<f64>,
-    ) -> Result<Vector<i32>, Vector<i32>> {
-        self.back
-            .window_pos_to_inner(position, &self.window, self.resolution.split())
+    ) -> Result<Vector<i32>, Vector<i32>>
+    where
+        Bck: Backend,
+    {
+        back.window_pos_to_inner(position, &self.window, self.resolution.split())
             .map(Into::into)
             .map_err(Into::into)
     }

@@ -9,18 +9,18 @@ use devotee::util::vector::Vector;
 use devotee::visual::color;
 use devotee::visual::prelude::*;
 use devotee::visual::sprite::Sprite;
+use devotee_backend_softbuffer::SoftbufferBackend;
 
 fn main() {
-    let init_config = setup::Setup::<Config>::new(
-        Sprite::with_color(Palette { value: 0.0 }),
-        Default::default(),
-        |_| Default::default(),
-    )
-    .with_update_delay(Duration::from_secs_f64(1.0 / 60.0))
-    .with_title("mouse")
-    .with_fullscreen(false)
-    .with_scale(4);
-    let app = app::App::with_setup(init_config).unwrap();
+    let init_config = setup::Builder::<Config>::new()
+        .with_render_target(Sprite::with_color(Palette { value: 0.0 }))
+        .with_input(Default::default())
+        .with_root_constructor(|_| Default::default())
+        .with_update_delay(Duration::from_secs_f64(1.0 / 60.0))
+        .with_title("mouse")
+        .with_fullscreen(false)
+        .with_scale(4);
+    let app = app::App::<_, SoftbufferBackend>::with_setup(init_config).unwrap();
 
     app.run();
 }
@@ -29,11 +29,8 @@ struct Config;
 
 impl config::Config for Config {
     type Root = Paint;
-
     type Converter = Converter;
-
     type Input = KeyMouse;
-
     type RenderTarget = Sprite<Palette, 128, 64>;
 
     fn converter() -> Self::Converter {

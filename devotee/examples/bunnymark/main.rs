@@ -10,6 +10,7 @@ use devotee::util::vector::Vector;
 use devotee::visual::color;
 use devotee::visual::prelude::*;
 use devotee::visual::sprite::Sprite;
+use devotee_backend_softbuffer::SoftbufferBackend;
 
 const BUNNY_WIDTH: usize = 8;
 const BUNNY_HEIGHT: usize = 16;
@@ -18,12 +19,13 @@ const HEIGHT: usize = 128;
 const ACCELERATION: f64 = 8.0;
 
 fn main() {
-    let init_config = setup::Setup::<Config>::new(Default::default(), Default::default(), |_| {
-        Default::default()
-    })
-    .with_title("bunnymark")
-    .with_update_delay(Duration::from_secs_f64(1.0 / 60.0));
-    let app = app::App::with_setup(init_config).unwrap();
+    let init_config = setup::Builder::<Config>::new()
+        .with_render_target(Sprite::with_color(FourBits::Black))
+        .with_input(KeyMouse::default())
+        .with_root_constructor(|_| Default::default())
+        .with_title("bunnymark")
+        .with_update_delay(Duration::from_secs_f64(1.0 / 60.0));
+    let app = app::App::<_, SoftbufferBackend>::with_setup(init_config).unwrap();
 
     app.run();
 }

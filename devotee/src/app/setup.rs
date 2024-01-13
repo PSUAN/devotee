@@ -1,8 +1,75 @@
+use std::marker::PhantomData;
 use std::time::Duration;
 
 use super::config::Config;
 use super::context::Context;
 use super::Constructor;
+
+/// Builder for `Setup`.
+#[derive(Default)]
+pub struct Builder<Cfg> {
+    _phantom: PhantomData<Cfg>,
+}
+
+impl<Cfg> Builder<Cfg>
+where
+    Cfg: Config,
+{
+    /// Create new builder.
+    pub fn new() -> Builder<Cfg> {
+        Self {
+            _phantom: PhantomData,
+        }
+    }
+
+    /// Add render target to setup.
+    pub fn with_render_target(self, render_target: Cfg::RenderTarget) -> StepRenderTarget<Cfg> {
+        StepRenderTarget { render_target }
+    }
+}
+
+/// Temporary container of setup properties.
+pub struct StepRenderTarget<Cfg>
+where
+    Cfg: Config,
+{
+    render_target: Cfg::RenderTarget,
+}
+
+impl<Cfg> StepRenderTarget<Cfg>
+where
+    Cfg: Config,
+{
+    /// Add input system to setup.
+    pub fn with_input(self, input: Cfg::Input) -> StepInput<Cfg> {
+        StepInput {
+            render_target: self.render_target,
+            input,
+        }
+    }
+}
+
+/// Temporary container of setup properties.
+pub struct StepInput<Cfg>
+where
+    Cfg: Config,
+{
+    render_target: Cfg::RenderTarget,
+    input: Cfg::Input,
+}
+
+impl<Cfg> StepInput<Cfg>
+where
+    Cfg: Config,
+{
+    /// Add root constructor to setup.
+    pub fn with_root_constructor<F>(self, constructor: F) -> Setup<Cfg>
+    where
+        F: 'static + FnOnce(&mut Context<Cfg>) -> Cfg::Root,
+    {
+        Setup::new(self.render_target, self.input, constructor)
+    }
+}
 
 /// Application setup structure.
 /// Describes root node, title, pause behavior, etc.
@@ -26,9 +93,7 @@ impl<Cfg> Setup<Cfg>
 where
     Cfg: Config,
 {
-    /// Create new setup with given the `RenderTarget`, `Input` and `Node` constructor.
-    /// Defaults to 30 frames per second update.
-    pub fn new<F>(render_target: Cfg::RenderTarget, input: Cfg::Input, constructor: F) -> Self
+    fn new<F>(render_target: Cfg::RenderTarget, input: Cfg::Input, constructor: F) -> Self
     where
         F: 'static + FnOnce(&mut Context<Cfg>) -> Cfg::Root,
     {

@@ -13,16 +13,16 @@ use devotee::visual::canvas::Canvas;
 use devotee::visual::color;
 use devotee::visual::prelude::*;
 use devotee::winit;
+use devotee_backend_softbuffer::SoftbufferBackend;
 
 fn main() {
-    let init_config = setup::Setup::<Config>::new(
-        Canvas::with_resolution(FourBits::Black, 128, 128),
-        Default::default(),
-        |_| Default::default(),
-    )
-    .with_title("mandelbrot")
-    .with_scale(4);
-    let app = app::App::with_setup(init_config).unwrap();
+    let init_config = setup::Builder::<Config>::new()
+        .with_render_target(Canvas::with_resolution(FourBits::Black, 128, 128))
+        .with_input(Default::default())
+        .with_root_constructor(|_| Default::default())
+        .with_title("mandelbrot")
+        .with_scale(4);
+    let app = app::App::<_, SoftbufferBackend>::with_setup(init_config).unwrap();
 
     app.run();
 }
@@ -240,7 +240,7 @@ impl CustomInput {
     }
 }
 
-impl Input for CustomInput {
+impl<Bck> Input<Bck> for CustomInput {
     fn next_frame(&mut self) {
         self.was_pressed = self.is_pressed.clone();
     }
@@ -249,6 +249,7 @@ impl Input for CustomInput {
         &mut self,
         event: winit::event::WindowEvent<'a>,
         _window: &Window,
+        _back: &Bck,
     ) -> Option<winit::event::WindowEvent<'a>> {
         match event {
             winit::event::WindowEvent::KeyboardInput { input, .. } => {

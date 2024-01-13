@@ -7,7 +7,7 @@ pub mod key_mouse;
 
 /// Input trait.
 /// Specifies input storing.
-pub trait Input {
+pub trait Input<Bck> {
     /// Handle frame change.
     fn next_frame(&mut self);
     /// Register `winit` event.
@@ -16,5 +16,6 @@ pub trait Input {
         &mut self,
         event: event::WindowEvent<'a>,
         window: &Window,
+        backend: &Bck,
     ) -> Option<event::WindowEvent<'a>>;
 }

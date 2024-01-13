@@ -8,16 +8,16 @@ use devotee::util::vector::Vector;
 use devotee::visual::canvas::Canvas;
 use devotee::visual::color;
 use devotee::visual::prelude::*;
+use devotee_backend_softbuffer::SoftbufferBackend;
 
 fn main() {
-    let init_config = setup::Setup::<Config>::new(
-        Canvas::with_resolution(Color([0, 0, 0]), 128, 128),
-        Default::default(),
-        |_| Invert::new(),
-    )
-    .with_title("invert")
-    .with_scale(2);
-    let app = app::App::with_setup(init_config).unwrap();
+    let init_config = setup::Builder::<Config>::new()
+        .with_render_target(Canvas::with_resolution(Color([0, 0, 0]), 128, 128))
+        .with_input(KeyMouse::default())
+        .with_root_constructor(|_| Invert::new())
+        .with_title("invert")
+        .with_scale(2);
+    let app = app::App::<_, SoftbufferBackend>::with_setup(init_config).unwrap();
 
     app.run();
 }
