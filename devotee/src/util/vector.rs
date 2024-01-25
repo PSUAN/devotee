@@ -55,14 +55,26 @@ impl<T> Vector<T> {
         &mut self.y
     }
 
-    /// Apply `mapper` function to both elements, one by one, return `Vector` with new values.
+    /// Apply `mapper` function to both elements, one by one, return `Vector` new with new values.
     pub fn map<F, R>(self, mapper: F) -> Vector<R>
     where
-        F: Fn(T) -> R,
+        F: FnMut(T) -> R,
     {
+        let mut mapper = mapper;
         Vector {
             x: mapper(self.x),
             y: mapper(self.y),
+        }
+    }
+
+    /// Convert into vector of other type by converting each element.
+    pub fn into<I>(self) -> Vector<I>
+    where
+        T: Into<I>,
+    {
+        Vector {
+            x: self.x.into(),
+            y: self.y.into(),
         }
     }
 }
@@ -75,6 +87,16 @@ impl<T> Vector<T> {
         R: Add<Output = R>,
     {
         self.x * rhs.x + self.y * rhs.y
+    }
+
+    /// Calculate two-dimensional cross product between `self` and `rhs` vectors.
+    /// This, in fact, calculates the value of `z` component of the resulting vector.
+    pub fn cross_2d<U, R>(self, rhs: Vector<U>) -> R
+    where
+        T: Mul<U, Output = R>,
+        R: Sub<Output = R>,
+    {
+        self.x * rhs.y - self.y * rhs.x
     }
 }
 
