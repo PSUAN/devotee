@@ -9,7 +9,7 @@ use instant::Instant;
 use self::config::Config;
 use self::context::Context;
 use self::input::Input;
-use self::root::Root;
+use self::root::{ExitPermission, Root};
 use self::setup::Setup;
 use self::sound_system::SoundSystem;
 use crate::visual::color::Converter;
@@ -42,7 +42,6 @@ where
 {
     event_loop: EventLoop<()>,
     constructor: Constructor<Cfg::Root, Cfg>,
-    converter: Cfg::Converter,
     sound_system: Option<SoundSystem>,
     inner: Inner<Cfg, Bck>,
     input: Cfg::Input,
@@ -73,7 +72,6 @@ where
         let update_delay = setup.update_delay;
         let input = setup.input;
         let render_target = setup.render_target;
-        let converter = Cfg::converter();
         let sound_system = SoundSystem::try_new();
         let constructor = setup.constructor;
         let pause_on_focus_lost = setup.pause_on_focus_lost;
@@ -81,7 +79,6 @@ where
         Some(Self {
             event_loop,
             constructor,
-            converter,
             sound_system,
             inner: Inner {
                 window,
@@ -113,7 +110,6 @@ where
             shall_stop: false,
             window_commands: Vec::new(),
             sound_system: app.sound_system,
-            converter: app.converter,
         };
 
         let mut node = (app.constructor)(&mut context);
@@ -154,7 +150,12 @@ where
                 node.render(&mut app.render_target);
                 if app
                     .window
-                    .draw_image(&mut app.backend, &app.render_target, &context.converter)
+                    .draw_image(
+                        &mut app.backend,
+                        &app.render_target,
+                        node.converter(),
+                        node.background_color(),
+                    )
                     .is_none()
                 {
                     *control_flow = ControlFlow::Exit;
@@ -168,7 +169,9 @@ where
                 {
                     match event {
                         WindowEvent::CloseRequested => {
-                            *control_flow = ControlFlow::Exit;
+                            if let ExitPermission::Allow = node.handle_exit_request() {
+                                *control_flow = ControlFlow::Exit;
+                            }
                         }
                         WindowEvent::Resized(size) => {
                             if let (Some(width), Some(height)) =

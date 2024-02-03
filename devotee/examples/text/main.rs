@@ -32,14 +32,6 @@ impl config::Config for Config {
     type Converter = Converter;
     type Input = KeyMouse;
     type RenderTarget = Sprite<FourBits, 128, 128>;
-
-    fn converter() -> Self::Converter {
-        Converter { transparent: None }
-    }
-
-    fn background_color() -> FourBits {
-        FourBits::Black
-    }
 }
 
 struct TextApp {
@@ -53,8 +45,6 @@ struct TextApp {
 impl TextApp {
     fn new() -> Self {
         let counter = 0.0;
-        // FIXME: replace with array::zip of chars and symbols arrays when
-        // stabilized.
         let font = HashMap::from([
             (
                 '0',
@@ -192,6 +182,14 @@ impl Root<Config> for TextApp {
             },
         );
     }
+
+    fn converter(&self) -> &Converter {
+        &Converter
+    }
+
+    fn background_color(&self) -> FourBits {
+        FourBits::Black
+    }
 }
 
 #[derive(Copy, Clone, PartialEq)]
@@ -239,36 +237,29 @@ impl From<u8> for FourBits {
     }
 }
 
-struct Converter {
-    transparent: Option<FourBits>,
-}
+struct Converter;
 
 impl color::Converter for Converter {
     type Palette = FourBits;
     #[inline]
     fn convert(&self, color: &Self::Palette) -> u32 {
-        if matches!(&self.transparent, Some(transparent) if *transparent == *color) {
-            return 0x0000000000;
-        }
-        {
-            match color {
-                FourBits::Black => 0x00000000,
-                FourBits::DarkBlue => 0x001d2b53,
-                FourBits::Eggplant => 0x007e2553,
-                FourBits::DarkGreen => 0x00008751,
-                FourBits::Brown => 0x00ab5236,
-                FourBits::DirtyGray => 0x005f574f,
-                FourBits::Gray => 0x00c2c3c7,
-                FourBits::White => 0x00fff1e8,
-                FourBits::Red => 0x00ff004d,
-                FourBits::Orange => 0x00ffa300,
-                FourBits::Yellow => 0x00ffec27,
-                FourBits::Green => 0x0000e436,
-                FourBits::LightBlue => 0x0029adff,
-                FourBits::Purple => 0x0083769c,
-                FourBits::Pink => 0x00ff77a8,
-                FourBits::Beige => 0x00ffccaa,
-            }
+        match color {
+            FourBits::Black => 0x00000000,
+            FourBits::DarkBlue => 0x001d2b53,
+            FourBits::Eggplant => 0x007e2553,
+            FourBits::DarkGreen => 0x00008751,
+            FourBits::Brown => 0x00ab5236,
+            FourBits::DirtyGray => 0x005f574f,
+            FourBits::Gray => 0x00c2c3c7,
+            FourBits::White => 0x00fff1e8,
+            FourBits::Red => 0x00ff004d,
+            FourBits::Orange => 0x00ffa300,
+            FourBits::Yellow => 0x00ffec27,
+            FourBits::Green => 0x0000e436,
+            FourBits::LightBlue => 0x0029adff,
+            FourBits::Purple => 0x0083769c,
+            FourBits::Pink => 0x00ff77a8,
+            FourBits::Beige => 0x00ffccaa,
         }
     }
 }

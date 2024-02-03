@@ -37,14 +37,6 @@ impl config::Config for Config {
     type Converter = Converter;
     type Input = KeyMouse;
     type RenderTarget = Sprite<FourBits, 128, 128>;
-
-    fn converter() -> Self::Converter {
-        Converter
-    }
-
-    fn background_color() -> FourBits {
-        FourBits::Black
-    }
 }
 
 pub struct Converter;
@@ -177,6 +169,14 @@ impl Root<Config> for BunnyMark {
                 |_, _, p, _, _, o| p.mix(o),
             );
         }
+    }
+
+    fn converter(&self) -> &Converter {
+        &Converter
+    }
+
+    fn background_color(&self) -> FourBits {
+        FourBits::Black
     }
 }
 

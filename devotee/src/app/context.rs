@@ -14,7 +14,6 @@ where
     pub(super) shall_stop: bool,
     pub(super) window_commands: Vec<WindowCommand>,
     pub(super) sound_system: Option<SoundSystem>,
-    pub(super) converter: Cfg::Converter,
 }
 
 impl<Cfg> Context<Cfg>
@@ -53,15 +52,5 @@ where
     /// Get optional mutable reference to the `SoundSystem`.
     pub fn sound_system_mut(&mut self) -> Option<&mut SoundSystem> {
         self.sound_system.as_mut()
-    }
-
-    /// Get reference to the palette converter.
-    pub fn converter(&self) -> &Cfg::Converter {
-        &self.converter
-    }
-
-    /// Get mutable reference to the palette converter.
-    pub fn converter_mut(&mut self) -> &mut Cfg::Converter {
-        &mut self.converter
     }
 }

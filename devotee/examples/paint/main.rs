@@ -17,7 +17,7 @@ fn main() {
         .with_input(Default::default())
         .with_root_constructor(|_| Default::default())
         .with_update_delay(Duration::from_secs_f64(1.0 / 60.0))
-        .with_title("mouse")
+        .with_title("paint")
         .with_fullscreen(false)
         .with_scale(4);
     let app = app::App::<_, SoftbufferBackend>::with_setup(init_config).unwrap();
@@ -32,14 +32,6 @@ impl config::Config for Config {
     type Converter = Converter;
     type Input = KeyMouse;
     type RenderTarget = Sprite<Palette, 128, 64>;
-
-    fn converter() -> Self::Converter {
-        Converter { hue: 0.0 }
-    }
-
-    fn background_color() -> Palette {
-        Palette { value: 0.0 }
-    }
 }
 
 #[derive(Default)]
@@ -47,6 +39,7 @@ struct Paint {
     droplets: Vec<Droplet>,
     canvas: Sprite<Palette, 128, 64>,
     cursor: Option<Vector<i32>>,
+    converter: Converter,
 }
 
 impl Root<Config> for Paint {
@@ -70,8 +63,7 @@ impl Root<Config> for Paint {
         }
 
         let delta = update.delta().as_secs_f64();
-
-        update.converter_mut().hue += delta;
+        self.converter.hue += delta;
 
         for droplet in self.droplets.iter_mut() {
             if let Some(pixel) = self.canvas.pixel_mut(droplet.position) {
@@ -102,6 +94,14 @@ impl Root<Config> for Paint {
             }
         }
     }
+
+    fn converter(&self) -> &Converter {
+        &self.converter
+    }
+
+    fn background_color(&self) -> Palette {
+        Palette { value: 0.0 }
+    }
 }
 
 struct Droplet {
@@ -115,6 +115,7 @@ struct Palette {
     value: f64,
 }
 
+#[derive(Default)]
 struct Converter {
     hue: f64,
 }

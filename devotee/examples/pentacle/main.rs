@@ -31,14 +31,6 @@ impl config::Config for Config {
     type Converter = Converter;
     type Input = KeyMouse;
     type RenderTarget = Sprite<SummationPalette, 128, 128>;
-
-    fn converter() -> Self::Converter {
-        Converter
-    }
-
-    fn background_color() -> SummationPalette {
-        0.into()
-    }
 }
 
 #[derive(Default)]
@@ -90,6 +82,14 @@ impl Root<Config> for Pentacle {
         }
 
         render.rect((0, 0), (128, 128), draw(2.into()));
+    }
+
+    fn converter(&self) -> &Converter {
+        &Converter
+    }
+
+    fn background_color(&self) -> SummationPalette {
+        SummationPalette { value: 0 }
     }
 }
 

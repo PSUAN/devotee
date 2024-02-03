@@ -2,7 +2,7 @@ use devotee::app;
 use devotee::app::config;
 use devotee::app::context::Context;
 use devotee::app::input::key_mouse::{KeyMouse, VirtualKeyCode};
-use devotee::app::root::Root;
+use devotee::app::root::{ExitPermission, Root};
 use devotee::app::setup;
 use devotee::util::vector::Vector;
 use devotee::visual::canvas::Canvas;
@@ -32,19 +32,12 @@ impl config::Config for Config {
     type Converter = Converter;
     type Input = KeyMouse;
     type RenderTarget = Canvas<Color>;
-
-    fn converter() -> Self::Converter {
-        Converter
-    }
-
-    fn background_color() -> Color {
-        Color([0x00, 0x00, 0x80])
-    }
 }
 
 #[derive(Default)]
 struct Minimal {
     position: Vector<i32>,
+    exit_was_requested: bool,
 }
 
 impl Root<Config> for Minimal {
@@ -68,7 +61,11 @@ impl Root<Config> for Minimal {
     fn render(&self, render: &mut Canvas<Color>) {
         let mut render = render.painter();
 
-        render.clear(Color([0x00, 0x00, 0x80]));
+        if self.exit_was_requested {
+            render.clear(Color([0x80, 0x00, 0x00]));
+        } else {
+            render.clear(Color([0x00, 0x00, 0x80]));
+        }
 
         render.rect(
             (BOX_BOUNDARIES.0, BOX_BOUNDARIES.0),
@@ -92,6 +89,27 @@ impl Root<Config> for Minimal {
         );
         render.mod_pixel((64, 64), paint(Color([0xff, 0x00, 0x00])));
         render.mod_pixel(self.position, paint(Color([0xff, 0x00, 0x00])));
+    }
+
+    fn handle_exit_request(&mut self) -> ExitPermission {
+        if self.exit_was_requested {
+            ExitPermission::Allow
+        } else {
+            self.exit_was_requested = true;
+            ExitPermission::Forbid
+        }
+    }
+
+    fn converter(&self) -> &Converter {
+        &Converter
+    }
+
+    fn background_color(&self) -> Color {
+        if self.exit_was_requested {
+            Color([0x80, 0x00, 0x00])
+        } else {
+            Color([0x00, 0x00, 0x80])
+        }
     }
 }
 

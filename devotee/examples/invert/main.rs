@@ -29,14 +29,6 @@ impl config::Config for Config {
     type Converter = Converter;
     type Input = KeyMouse;
     type RenderTarget = Canvas<Color>;
-
-    fn converter() -> Self::Converter {
-        Converter
-    }
-
-    fn background_color() -> Color {
-        Color([0, 0, 0])
-    }
 }
 
 struct Invert {
@@ -110,6 +102,14 @@ impl Root<Config> for Invert {
                 value
             }
         });
+    }
+
+    fn converter(&self) -> &Converter {
+        &Converter
+    }
+
+    fn background_color(&self) -> Color {
+        Color([0x00, 0x00, 0x00])
     }
 }
 

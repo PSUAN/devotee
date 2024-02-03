@@ -18,7 +18,6 @@ pub(super) type WindowCommand = Box<dyn FnOnce(&mut Window)>;
 pub struct Window {
     window: WinitWindow,
     resolution: Vector<u32>,
-    background: u32,
 }
 
 impl Window {
@@ -67,13 +66,7 @@ impl Window {
             }
         }
 
-        let background = Cfg::converter().convert(&Cfg::background_color());
-
-        Some(Window {
-            window,
-            resolution,
-            background,
-        })
+        Some(Window { window, resolution })
     }
 
     pub(super) fn request_redraw(&self) {
@@ -115,12 +108,14 @@ impl Window {
         back: &mut Bck,
         image: &'a dyn BackendImage<'a, P, Iterator = I>,
         converter: &dyn Converter<Palette = P>,
+        background: P,
     ) -> Option<()>
     where
         I: Iterator<Item = &'a P>,
         Bck: Backend,
     {
-        back.draw_image(image, converter, &self.window, self.background)
+        let background = converter.convert(&background);
+        back.draw_image(image, converter, &self.window, background)
     }
 
     /// Recalculate raw window position into camera-related.
