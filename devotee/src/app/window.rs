@@ -5,7 +5,8 @@ use devotee_backend::winit::platform::web::WindowExtWebSys;
 use devotee_backend::winit::window::{Fullscreen, Window as WinitWindow, WindowBuilder};
 use devotee_backend::{Backend, BackendImage};
 
-use super::{Config, Setup};
+use super::root::Root;
+use super::Setup;
 use crate::util::vector::Vector;
 use crate::visual::color::Converter;
 use crate::visual::Image;
@@ -21,11 +22,11 @@ pub struct Window {
 }
 
 impl Window {
-    pub(super) fn with_setup<Cfg>(event_loop: &EventLoop<()>, setup: &Setup<Cfg>) -> Option<Self>
+    pub(super) fn with_setup<R>(event_loop: &EventLoop<()>, setup: &Setup<R>) -> Option<Self>
     where
-        Cfg: Config,
-        Cfg::RenderTarget: Image,
-        Cfg::Converter: Converter,
+        R: Root,
+        R::RenderTarget: Image,
+        R::Converter: Converter,
     {
         let resolution = Vector::new(
             setup.render_target.width() as u32,

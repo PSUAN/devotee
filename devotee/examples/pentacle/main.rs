@@ -1,7 +1,6 @@
 use std::f64::consts;
 
 use devotee::app;
-use devotee::app::config;
 use devotee::app::context::Context;
 use devotee::app::input::key_mouse::{KeyMouse, VirtualKeyCode};
 use devotee::app::root::Root;
@@ -13,24 +12,15 @@ use devotee::visual::sprite::Sprite;
 use devotee_backend_softbuffer::SoftbufferBackend;
 
 fn main() {
-    let init_config = setup::Builder::<Config>::new()
+    let init_config = setup::Builder::new()
         .with_render_target(Sprite::with_color(0.into()))
         .with_input(Default::default())
         .with_root_constructor(|_| Default::default())
         .with_title("pentacle")
         .with_scale(3);
-    let app = app::App::<_, SoftbufferBackend>::with_setup(init_config).unwrap();
+    let app = app::App::<Pentacle, SoftbufferBackend>::with_setup(init_config).unwrap();
 
     app.run();
-}
-
-struct Config;
-
-impl config::Config for Config {
-    type Root = Pentacle;
-    type Converter = Converter;
-    type Input = KeyMouse;
-    type RenderTarget = Sprite<SummationPalette, 128, 128>;
 }
 
 #[derive(Default)]
@@ -39,8 +29,12 @@ struct Pentacle {
     counter: f64,
 }
 
-impl Root<Config> for Pentacle {
-    fn update(&mut self, update: &mut Context<Config>) {
+impl Root for Pentacle {
+    type Converter = Converter;
+    type Input = KeyMouse;
+    type RenderTarget = Sprite<SummationPalette, 128, 128>;
+
+    fn update(&mut self, update: &mut Context<KeyMouse>) {
         if update.input().keys().just_pressed(VirtualKeyCode::Escape) {
             update.shutdown();
         }

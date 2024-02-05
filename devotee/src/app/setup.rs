@@ -1,8 +1,8 @@
 use std::marker::PhantomData;
 use std::time::Duration;
 
-use super::config::Config;
 use super::context::Context;
+use super::root::Root;
 use super::Constructor;
 
 /// Builder for `Setup`.
@@ -11,37 +11,37 @@ pub struct Builder<Cfg> {
     _phantom: PhantomData<Cfg>,
 }
 
-impl<Cfg> Builder<Cfg>
+impl<R> Builder<R>
 where
-    Cfg: Config,
+    R: Root,
 {
     /// Create new builder.
-    pub fn new() -> Builder<Cfg> {
+    pub fn new() -> Builder<R> {
         Self {
             _phantom: PhantomData,
         }
     }
 
     /// Add render target to setup.
-    pub fn with_render_target(self, render_target: Cfg::RenderTarget) -> StepRenderTarget<Cfg> {
+    pub fn with_render_target(self, render_target: R::RenderTarget) -> StepRenderTarget<R> {
         StepRenderTarget { render_target }
     }
 }
 
 /// Temporary container of setup properties.
-pub struct StepRenderTarget<Cfg>
+pub struct StepRenderTarget<R>
 where
-    Cfg: Config,
+    R: Root,
 {
-    render_target: Cfg::RenderTarget,
+    render_target: R::RenderTarget,
 }
 
-impl<Cfg> StepRenderTarget<Cfg>
+impl<R> StepRenderTarget<R>
 where
-    Cfg: Config,
+    R: Root,
 {
     /// Add input system to setup.
-    pub fn with_input(self, input: Cfg::Input) -> StepInput<Cfg> {
+    pub fn with_input(self, input: R::Input) -> StepInput<R> {
         StepInput {
             render_target: self.render_target,
             input,
@@ -50,22 +50,22 @@ where
 }
 
 /// Temporary container of setup properties.
-pub struct StepInput<Cfg>
+pub struct StepInput<R>
 where
-    Cfg: Config,
+    R: Root,
 {
-    render_target: Cfg::RenderTarget,
-    input: Cfg::Input,
+    render_target: R::RenderTarget,
+    input: R::Input,
 }
 
-impl<Cfg> StepInput<Cfg>
+impl<R> StepInput<R>
 where
-    Cfg: Config,
+    R: Root,
 {
     /// Add root constructor to setup.
-    pub fn with_root_constructor<F>(self, constructor: F) -> Setup<Cfg>
+    pub fn with_root_constructor<F>(self, constructor: F) -> Setup<R>
     where
-        F: 'static + FnOnce(&mut Context<Cfg>) -> Cfg::Root,
+        F: 'static + FnOnce(&mut Context<R::Input>) -> R,
     {
         Setup::new(self.render_target, self.input, constructor)
     }
@@ -73,29 +73,29 @@ where
 
 /// Application setup structure.
 /// Describes root node, title, pause behavior, etc.
-pub struct Setup<Cfg>
+pub struct Setup<R>
 where
-    Cfg: Config,
+    R: Root,
 {
     pub(super) title: String,
     pub(super) update_delay: Duration,
     pub(super) fullscreen: bool,
     pub(super) scale: u32,
-    pub(super) render_target: Cfg::RenderTarget,
-    pub(super) constructor: Constructor<Cfg::Root, Cfg>,
+    pub(super) render_target: R::RenderTarget,
+    pub(super) constructor: Constructor<R, R::Input>,
     #[cfg(target_arch = "wasm32")]
     pub(super) element_id: Option<&'static str>,
     pub(super) pause_on_focus_lost: bool,
-    pub(super) input: Cfg::Input,
+    pub(super) input: R::Input,
 }
 
-impl<Cfg> Setup<Cfg>
+impl<R> Setup<R>
 where
-    Cfg: Config,
+    R: Root,
 {
-    fn new<F>(render_target: Cfg::RenderTarget, input: Cfg::Input, constructor: F) -> Self
+    fn new<F>(render_target: R::RenderTarget, input: R::Input, constructor: F) -> Self
     where
-        F: 'static + FnOnce(&mut Context<Cfg>) -> Cfg::Root,
+        F: 'static + FnOnce(&mut Context<R::Input>) -> R,
     {
         let title = String::new();
         let update_delay = Duration::from_secs_f64(1.0 / 30.0);

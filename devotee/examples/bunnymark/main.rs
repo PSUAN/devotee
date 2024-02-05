@@ -1,7 +1,6 @@
 use std::time::{Duration, Instant};
 
 use devotee::app;
-use devotee::app::config;
 use devotee::app::context::Context;
 use devotee::app::input::key_mouse::{KeyMouse, VirtualKeyCode};
 use devotee::app::root::Root;
@@ -19,24 +18,15 @@ const HEIGHT: usize = 128;
 const ACCELERATION: f64 = 8.0;
 
 fn main() {
-    let init_config = setup::Builder::<Config>::new()
+    let init_config = setup::Builder::new()
         .with_render_target(Sprite::with_color(FourBits::Black))
         .with_input(KeyMouse::default())
         .with_root_constructor(|_| Default::default())
         .with_title("bunnymark")
         .with_update_delay(Duration::from_secs_f64(1.0 / 60.0));
-    let app = app::App::<_, SoftbufferBackend>::with_setup(init_config).unwrap();
+    let app = app::App::<BunnyMark, SoftbufferBackend>::with_setup(init_config).unwrap();
 
     app.run();
-}
-
-struct Config;
-
-impl config::Config for Config {
-    type Root = BunnyMark;
-    type Converter = Converter;
-    type Input = KeyMouse;
-    type RenderTarget = Sprite<FourBits, 128, 128>;
 }
 
 pub struct Converter;
@@ -121,8 +111,12 @@ impl BunnyMark {
     }
 }
 
-impl Root<Config> for BunnyMark {
-    fn update(&mut self, update: &mut Context<Config>) {
+impl Root for BunnyMark {
+    type Converter = Converter;
+    type Input = KeyMouse;
+    type RenderTarget = Sprite<FourBits, 128, 128>;
+
+    fn update(&mut self, update: &mut Context<KeyMouse>) {
         if update.input().keys().just_pressed(VirtualKeyCode::Escape) {
             update.shutdown();
         }
@@ -194,7 +188,7 @@ impl Bunny {
 
     fn update(&mut self, delta: f64) {
         *self.velocity.y_mut() += ACCELERATION;
-        self.pose = self.pose + self.velocity * delta;
+        self.pose += self.velocity * delta;
         if self.pose.x() < 0.0 {
             *self.velocity.x_mut() = self.velocity.x().abs();
         }

@@ -1,10 +1,11 @@
 use std::f64::consts;
 use std::time::Duration;
 
+use devotee::app;
 use devotee::app::context::Context;
 use devotee::app::input::key_mouse::{KeyMouse, MouseButton, VirtualKeyCode};
 use devotee::app::root::Root;
-use devotee::app::{self, config, setup};
+use devotee::app::setup;
 use devotee::util::vector::Vector;
 use devotee::visual::color;
 use devotee::visual::prelude::*;
@@ -12,7 +13,7 @@ use devotee::visual::sprite::Sprite;
 use devotee_backend_softbuffer::SoftbufferBackend;
 
 fn main() {
-    let init_config = setup::Builder::<Config>::new()
+    let init_config = setup::Builder::new()
         .with_render_target(Sprite::with_color(Palette { value: 0.0 }))
         .with_input(Default::default())
         .with_root_constructor(|_| Default::default())
@@ -20,18 +21,9 @@ fn main() {
         .with_title("paint")
         .with_fullscreen(false)
         .with_scale(4);
-    let app = app::App::<_, SoftbufferBackend>::with_setup(init_config).unwrap();
+    let app = app::App::<Paint, SoftbufferBackend>::with_setup(init_config).unwrap();
 
     app.run();
-}
-
-struct Config;
-
-impl config::Config for Config {
-    type Root = Paint;
-    type Converter = Converter;
-    type Input = KeyMouse;
-    type RenderTarget = Sprite<Palette, 128, 64>;
 }
 
 #[derive(Default)]
@@ -42,8 +34,12 @@ struct Paint {
     converter: Converter,
 }
 
-impl Root<Config> for Paint {
-    fn update(&mut self, update: &mut Context<Config>) {
+impl Root for Paint {
+    type Converter = Converter;
+    type Input = KeyMouse;
+    type RenderTarget = Sprite<Palette, 128, 64>;
+
+    fn update(&mut self, update: &mut Context<KeyMouse>) {
         if update.input().keys().just_pressed(VirtualKeyCode::Escape) {
             update.shutdown()
         }

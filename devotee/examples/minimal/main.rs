@@ -1,5 +1,4 @@
 use devotee::app;
-use devotee::app::config;
 use devotee::app::context::Context;
 use devotee::app::input::key_mouse::{KeyMouse, VirtualKeyCode};
 use devotee::app::root::{ExitPermission, Root};
@@ -14,24 +13,15 @@ const BOX_BOUNDARIES: (i32, i32) = (16, 128 - 16);
 const INTERNAL_RADIUS: i32 = 8;
 
 fn main() {
-    let init_config = setup::Builder::<Config>::new()
+    let init_config = setup::Builder::new()
         .with_render_target(Canvas::with_resolution(Default::default(), 128, 128))
         .with_input(Default::default())
         .with_root_constructor(|_| Default::default())
         .with_title("minimal")
         .with_scale(2);
-    let app = app::App::<_, SoftbufferBackend>::with_setup(init_config).unwrap();
+    let app = app::App::<Minimal, SoftbufferBackend>::with_setup(init_config).unwrap();
 
     app.run();
-}
-
-struct Config;
-
-impl config::Config for Config {
-    type Root = Minimal;
-    type Converter = Converter;
-    type Input = KeyMouse;
-    type RenderTarget = Canvas<Color>;
 }
 
 #[derive(Default)]
@@ -40,8 +30,12 @@ struct Minimal {
     exit_was_requested: bool,
 }
 
-impl Root<Config> for Minimal {
-    fn update(&mut self, update: &mut Context<Config>) {
+impl Root for Minimal {
+    type Converter = Converter;
+    type Input = KeyMouse;
+    type RenderTarget = Canvas<Color>;
+
+    fn update(&mut self, update: &mut Context<KeyMouse>) {
         if update.input().keys().just_pressed(VirtualKeyCode::Escape) {
             update.shutdown();
         }

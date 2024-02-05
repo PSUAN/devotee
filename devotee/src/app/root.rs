@@ -1,20 +1,22 @@
 use devotee_backend::Converter;
 
-use super::config::Config;
 use super::context::Context;
 
 /// Root of a `devotee` app.
 /// Handles update and render logic.
-pub trait Root<Cfg>
-where
-    Cfg: Config,
-    Cfg::Converter: Converter,
-{
+pub trait Root {
+    /// Input system accepted by this root.
+    type Input;
+    /// Converter to produce `u32` values from inner palette.
+    type Converter: Converter;
+    /// Target to render on.
+    type RenderTarget;
+
     /// Update mutably.
-    fn update(&mut self, update: &mut Context<Cfg>);
+    fn update(&mut self, update: &mut Context<Self::Input>);
 
     /// Perform render on provided `RenderTarget`.
-    fn render(&self, render: &mut Cfg::RenderTarget);
+    fn render(&self, render: &mut Self::RenderTarget);
 
     /// Handle exit request and optionally forbid it.
     fn handle_exit_request(&mut self) -> ExitPermission {
@@ -22,10 +24,10 @@ where
     }
 
     /// Provide palette converter.
-    fn converter(&self) -> &Cfg::Converter;
+    fn converter(&self) -> &Self::Converter;
 
     /// Provide current background color for the window.
-    fn background_color(&self) -> <Cfg::Converter as Converter>::Palette;
+    fn background_color(&self) -> <Self::Converter as Converter>::Palette;
 }
 
 /// Enumeration of exit permission variants.

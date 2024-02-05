@@ -6,7 +6,6 @@ use devotee_backend::winit::event_loop::{ControlFlow, EventLoop};
 use devotee_backend::{Backend, BackendImage};
 use instant::Instant;
 
-use self::config::Config;
 use self::context::Context;
 use self::input::Input;
 use self::root::{ExitPermission, Root};
@@ -15,8 +14,6 @@ use self::sound_system::SoundSystem;
 use crate::visual::color::Converter;
 use crate::visual::Image;
 
-/// General application config.
-pub mod config;
 /// Context provided by the application during the `update`.
 pub mod context;
 /// User input handler.
@@ -32,41 +29,41 @@ pub mod window;
 
 /// Node constructor.
 /// Takes mutable reference to `Context` and provides constructed root node.
-pub type Constructor<T, U> = Box<dyn FnOnce(&mut Context<U>) -> T>;
+pub type Constructor<T, I> = Box<dyn FnOnce(&mut Context<I>) -> T>;
 
 /// App is the root of the `devotee` project.
 /// It handles `winit`'s event loop and render.
-pub struct App<Cfg, Bck>
+pub struct App<R, Bck>
 where
-    Cfg: Config,
+    R: Root,
 {
     event_loop: EventLoop<()>,
-    constructor: Constructor<Cfg::Root, Cfg>,
+    constructor: Constructor<R, R::Input>,
     sound_system: Option<SoundSystem>,
-    inner: Inner<Cfg, Bck>,
-    input: Cfg::Input,
+    inner: Inner<R, Bck>,
+    input: R::Input,
 }
 
-struct Inner<Cfg, Bck>
+struct Inner<R, Bck>
 where
-    Cfg: Config,
+    R: Root,
 {
     window: window::Window,
     update_delay: Duration,
-    render_target: Cfg::RenderTarget,
+    render_target: R::RenderTarget,
     pause_on_focus_lost: bool,
     backend: Bck,
 }
 
-impl<Cfg, Bck> App<Cfg, Bck>
+impl<R, Bck> App<R, Bck>
 where
-    Cfg: Config,
-    Cfg::Converter: Converter,
-    Cfg::RenderTarget: Image,
+    R: Root,
+    R::Converter: Converter,
+    R::RenderTarget: Image,
     Bck: Backend,
 {
     /// Create an app with given `setup`.
-    pub fn with_setup(setup: Setup<Cfg>) -> Option<Self> {
+    pub fn with_setup(setup: Setup<R>) -> Option<Self> {
         let event_loop = EventLoop::new();
         let window = window::Window::with_setup(&event_loop, &setup)?;
         let update_delay = setup.update_delay;
@@ -92,14 +89,13 @@ where
     }
 }
 
-impl<Cfg, Bck> App<Cfg, Bck>
+impl<R, Bck> App<R, Bck>
 where
-    Cfg: 'static + Config,
-    Cfg::Root: Root<Cfg>,
-    Cfg::Converter: Converter,
-    Cfg::Input: Input<Bck>,
+    R: 'static + Root,
+    R::Converter: Converter,
+    R::Input: Input<Bck>,
     Bck: 'static + Backend,
-    for<'a> Cfg::RenderTarget: BackendImage<'a, <Cfg::Converter as Converter>::Palette>,
+    for<'a> R::RenderTarget: BackendImage<'a, <R::Converter as Converter>::Palette>,
 {
     /// Start the application event loop.
     pub fn run(self) {

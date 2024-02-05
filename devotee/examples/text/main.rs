@@ -2,7 +2,6 @@ use std::collections::HashMap;
 use std::f64::consts::{FRAC_PI_2, PI};
 
 use devotee::app;
-use devotee::app::config;
 use devotee::app::context::Context;
 use devotee::app::input::key_mouse::{KeyMouse, VirtualKeyCode};
 use devotee::app::root::Root;
@@ -14,24 +13,15 @@ use devotee::visual::sprite::Sprite;
 use devotee_backend_softbuffer::SoftbufferBackend;
 
 fn main() {
-    let init_config = setup::Builder::<Config>::new()
+    let init_config = setup::Builder::new()
         .with_render_target(Sprite::with_color(FourBits::Black))
         .with_input(Default::default())
         .with_root_constructor(|_| TextApp::new())
         .with_title("text")
         .with_scale(2);
-    let app = app::App::<_, SoftbufferBackend>::with_setup(init_config).unwrap();
+    let app = app::App::<TextApp, SoftbufferBackend>::with_setup(init_config).unwrap();
 
     app.run();
-}
-
-struct Config;
-
-impl config::Config for Config {
-    type Root = TextApp;
-    type Converter = Converter;
-    type Input = KeyMouse;
-    type RenderTarget = Sprite<FourBits, 128, 128>;
 }
 
 struct TextApp {
@@ -118,8 +108,12 @@ fn symbol(data: [[u8; 3]; 5]) -> Sprite<u8, 4, 6> {
     Sprite::with_data(data)
 }
 
-impl Root<Config> for TextApp {
-    fn update(&mut self, update: &mut Context<Config>) {
+impl Root for TextApp {
+    type Converter = Converter;
+    type Input = KeyMouse;
+    type RenderTarget = Sprite<FourBits, 128, 128>;
+
+    fn update(&mut self, update: &mut Context<KeyMouse>) {
         if update.input().keys().just_pressed(VirtualKeyCode::Escape) {
             update.shutdown();
         }
@@ -152,13 +146,14 @@ impl Root<Config> for TextApp {
         render.clear(0.into());
         render.line((-16, 0), (16, 0), paint(FourBits::Red));
         render.line((0, -16), (0, 16), paint(FourBits::Green));
-        render.text((0, 0), printer(), &self.font, "0", |_, _, p, _, _, o| {
+
+        let text_painter = |_, _, p, _, _, o| {
             if o == 0 {
                 p
             } else {
                 color
             }
-        });
+        };
 
         let cos = self.angle.cos();
         let sin = self.angle.sin();
@@ -168,18 +163,13 @@ impl Root<Config> for TextApp {
 
         render.line((0, 0), (x, y), paint(FourBits::Beige));
 
+        render.text((0, 0), printer(), &self.font, "0", text_painter);
         render.text(
             (x, y),
             printer(),
             &self.font,
             &format!("{:.3}\n{:.3}", cos, sin),
-            |_, _, p, _, _, o| {
-                if o == 0 {
-                    p
-                } else {
-                    color
-                }
-            },
+            text_painter,
         );
     }
 

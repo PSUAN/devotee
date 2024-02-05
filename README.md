@@ -6,5 +6,6 @@ A bit personal visualization engine.
 However it is not limited to that.
 
 ## Work in progress
+
 `devotee` is totally a work in progress.
 We'd suggest to avoid relying on it in a long term yet.

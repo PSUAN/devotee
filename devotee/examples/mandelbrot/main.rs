@@ -1,7 +1,6 @@
 use std::collections::HashSet;
 
 use devotee::app;
-use devotee::app::config;
 use devotee::app::context::Context;
 use devotee::app::input::event;
 use devotee::app::input::Input;
@@ -16,24 +15,15 @@ use devotee::winit;
 use devotee_backend_softbuffer::SoftbufferBackend;
 
 fn main() {
-    let init_config = setup::Builder::<Config>::new()
+    let init_config = setup::Builder::new()
         .with_render_target(Canvas::with_resolution(FourBits::Black, 128, 128))
         .with_input(Default::default())
         .with_root_constructor(|_| Default::default())
         .with_title("mandelbrot")
         .with_scale(4);
-    let app = app::App::<_, SoftbufferBackend>::with_setup(init_config).unwrap();
+    let app = app::App::<Mandelbrot, SoftbufferBackend>::with_setup(init_config).unwrap();
 
     app.run();
-}
-
-struct Config;
-
-impl config::Config for Config {
-    type Root = Mandelbrot;
-    type Converter = Converter;
-    type Input = CustomInput;
-    type RenderTarget = Canvas<FourBits>;
 }
 
 struct Mandelbrot {
@@ -50,8 +40,12 @@ impl Default for Mandelbrot {
     }
 }
 
-impl Root<Config> for Mandelbrot {
-    fn update(&mut self, update: &mut Context<Config>) {
+impl Root for Mandelbrot {
+    type Converter = Converter;
+    type Input = CustomInput;
+    type RenderTarget = Canvas<FourBits>;
+
+    fn update(&mut self, update: &mut Context<CustomInput>) {
         let delta = update.delta().as_secs_f64();
 
         if update.input().is_pressed(Button::In) {

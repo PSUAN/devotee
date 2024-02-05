@@ -1,32 +1,25 @@
 use std::time::Duration;
 
-use super::config::Config;
 use super::sound_system::SoundSystem;
 use super::window::{Window, WindowCommand};
 
 /// Context that stores various update-related data.
-pub struct Context<Cfg>
-where
-    Cfg: Config,
-{
+pub struct Context<Input> {
     pub(super) delta: Duration,
-    pub(super) input: Cfg::Input,
+    pub(super) input: Input,
     pub(super) shall_stop: bool,
     pub(super) window_commands: Vec<WindowCommand>,
     pub(super) sound_system: Option<SoundSystem>,
 }
 
-impl<Cfg> Context<Cfg>
-where
-    Cfg: Config,
-{
+impl<Input> Context<Input> {
     /// Get `Duration` of simulation step.
     pub fn delta(&self) -> Duration {
         self.delta
     }
 
     /// Get reference to the `Input` structure.
-    pub fn input(&self) -> &Cfg::Input {
+    pub fn input(&self) -> &Input {
         &self.input
     }
 

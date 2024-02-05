@@ -1,5 +1,4 @@
 use devotee::app;
-use devotee::app::config;
 use devotee::app::context::Context;
 use devotee::app::input::key_mouse::{KeyMouse, VirtualKeyCode};
 use devotee::app::root::Root;
@@ -11,24 +10,15 @@ use devotee::visual::prelude::*;
 use devotee_backend_softbuffer::SoftbufferBackend;
 
 fn main() {
-    let init_config = setup::Builder::<Config>::new()
+    let init_config = setup::Builder::new()
         .with_render_target(Canvas::with_resolution(Color([0, 0, 0]), 128, 128))
         .with_input(KeyMouse::default())
         .with_root_constructor(|_| Invert::new())
         .with_title("invert")
         .with_scale(2);
-    let app = app::App::<_, SoftbufferBackend>::with_setup(init_config).unwrap();
+    let app = app::App::<Invert, SoftbufferBackend>::with_setup(init_config).unwrap();
 
     app.run();
-}
-
-struct Config;
-
-impl config::Config for Config {
-    type Root = Invert;
-    type Converter = Converter;
-    type Input = KeyMouse;
-    type RenderTarget = Canvas<Color>;
 }
 
 struct Invert {
@@ -59,8 +49,12 @@ impl Invert {
     }
 }
 
-impl Root<Config> for Invert {
-    fn update(&mut self, update: &mut Context<Config>) {
+impl Root for Invert {
+    type Converter = Converter;
+    type Input = KeyMouse;
+    type RenderTarget = Canvas<Color>;
+
+    fn update(&mut self, update: &mut Context<KeyMouse>) {
         if update.input().keys().just_pressed(VirtualKeyCode::Escape) {
             update.shutdown();
         }
@@ -82,7 +76,6 @@ impl Root<Config> for Invert {
     fn render(&self, render: &mut Canvas<Color>) {
         let mut painter = render.painter();
         painter.clear(Color([0, 0, 0]));
-        drop(painter);
         for x in 8..(render.width() - 8) {
             for y in 8..(render.height() - 8) {
                 // SAFETY: we are iterating in safe range.

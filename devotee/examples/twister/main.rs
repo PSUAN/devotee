@@ -2,7 +2,6 @@ use std::f64::consts;
 use std::time::Duration;
 
 use devotee::app;
-use devotee::app::config;
 use devotee::app::context::Context;
 use devotee::app::input::key_mouse::{KeyMouse, VirtualKeyCode};
 use devotee::app::root::Root;
@@ -14,24 +13,15 @@ use devotee_backend_softbuffer::SoftbufferBackend;
 use rodio::source::{SineWave, Source};
 
 fn main() {
-    let init_config = setup::Builder::<Config>::new()
+    let init_config = setup::Builder::new()
         .with_render_target(Sprite::with_color(FourBits::Black))
         .with_input(Default::default())
         .with_root_constructor(|_| Default::default())
         .with_title("twister")
         .with_scale(2);
-    let app = app::App::<_, SoftbufferBackend>::with_setup(init_config).unwrap();
+    let app = app::App::<Twister, SoftbufferBackend>::with_setup(init_config).unwrap();
 
     app.run();
-}
-
-struct Config;
-
-impl config::Config for Config {
-    type Root = Twister;
-    type Converter = Converter;
-    type Input = KeyMouse;
-    type RenderTarget = Sprite<FourBits, 128, 128>;
 }
 
 #[derive(Default)]
@@ -40,8 +30,14 @@ struct Twister {
     twist: f64,
 }
 
-impl Root<Config> for Twister {
-    fn update(&mut self, update: &mut Context<Config>) {
+impl Root for Twister {
+    type Input = KeyMouse;
+
+    type Converter = Converter;
+
+    type RenderTarget = Sprite<FourBits, 128, 128>;
+
+    fn update(&mut self, update: &mut Context<KeyMouse>) {
         if update.input().keys().just_pressed(VirtualKeyCode::Escape) {
             update.shutdown();
         }
