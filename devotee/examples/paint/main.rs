@@ -7,7 +7,6 @@ use devotee::app::input::key_mouse::{KeyMouse, MouseButton, VirtualKeyCode};
 use devotee::app::root::Root;
 use devotee::app::setup;
 use devotee::util::vector::Vector;
-use devotee::visual::color;
 use devotee::visual::prelude::*;
 use devotee::visual::sprite::Sprite;
 use devotee_backend_softbuffer::SoftbufferBackend;
@@ -116,7 +115,7 @@ struct Converter {
     hue: f64,
 }
 
-impl color::Converter for Converter {
+impl devotee_backend::Converter for Converter {
     type Palette = Palette;
 
     fn convert(&self, color: &Self::Palette) -> u32 {

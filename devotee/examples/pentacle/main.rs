@@ -6,7 +6,6 @@ use devotee::app::input::key_mouse::{KeyMouse, VirtualKeyCode};
 use devotee::app::root::Root;
 use devotee::app::setup;
 use devotee::util::vector::Vector;
-use devotee::visual::color;
 use devotee::visual::prelude::*;
 use devotee::visual::sprite::Sprite;
 use devotee_backend_softbuffer::SoftbufferBackend;
@@ -99,7 +98,7 @@ impl From<u8> for SummationPalette {
     }
 }
 
-impl Color for SummationPalette {
+impl SummationPalette {
     fn mix(self, other: Self) -> Self {
         Self {
             value: self.value.saturating_add(other.value),
@@ -107,9 +106,13 @@ impl Color for SummationPalette {
     }
 }
 
+fn draw(color: SummationPalette) -> impl FnMut(i32, i32, SummationPalette) -> SummationPalette {
+    move |_x, _y, original| original.mix(color)
+}
+
 struct Converter;
 
-impl color::Converter for Converter {
+impl devotee_backend::Converter for Converter {
     type Palette = SummationPalette;
     #[inline]
     fn convert(&self, color: &Self::Palette) -> u32 {

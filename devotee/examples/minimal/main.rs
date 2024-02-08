@@ -5,7 +5,6 @@ use devotee::app::root::{ExitPermission, Root};
 use devotee::app::setup;
 use devotee::util::vector::Vector;
 use devotee::visual::canvas::Canvas;
-use devotee::visual::color;
 use devotee::visual::prelude::*;
 use devotee_backend_softbuffer::SoftbufferBackend;
 
@@ -112,7 +111,7 @@ struct Color([u8; 3]);
 
 struct Converter;
 
-impl color::Converter for Converter {
+impl devotee_backend::Converter for Converter {
     type Palette = Color;
     fn convert(&self, color: &Self::Palette) -> u32 {
         ((color.0[0] as u32) << 16) | ((color.0[1] as u32) << 8) | (color.0[2] as u32)

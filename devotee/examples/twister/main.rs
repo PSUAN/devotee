@@ -6,7 +6,6 @@ use devotee::app::context::Context;
 use devotee::app::input::key_mouse::{KeyMouse, VirtualKeyCode};
 use devotee::app::root::Root;
 use devotee::app::setup;
-use devotee::visual::color;
 use devotee::visual::prelude::*;
 use devotee::visual::sprite::Sprite;
 use devotee_backend_softbuffer::SoftbufferBackend;
@@ -72,13 +71,13 @@ impl Root for Twister {
         render.rect_f(
             (resolution_x / 6, resolution_y / 6),
             (5 * resolution_x / 6, 5 * resolution_y / 6),
-            draw(14.into()),
+            paint(14.into()),
         );
 
         render.rect_f(
             (resolution_x / 4, resolution_y / 4),
             (3 * resolution_x / 4, 3 * resolution_y / 4),
-            draw(15.into()),
+            paint(15.into()),
         );
 
         let twist = 4.0 * consts::PI * (consts::FRAC_PI_4 * self.twist).cos();
@@ -92,16 +91,16 @@ impl Root for Twister {
             let y4 = (f64::sin(twist - consts::FRAC_PI_2) * width + center) as i32;
 
             if y1 < y2 {
-                render.line((x, y1), (x, y2), draw(1.into()));
+                render.line((x, y1), (x, y2), paint(1.into()));
             }
             if y2 < y3 {
-                render.line((x, y2), (x, y3), draw(2.into()));
+                render.line((x, y2), (x, y3), paint(2.into()));
             }
             if y3 < y4 {
-                render.line((x, y3), (x, y4), draw(3.into()));
+                render.line((x, y3), (x, y4), paint(3.into()));
             }
             if y4 < y1 {
-                render.line((x, y4), (x, y1), draw(4.into()));
+                render.line((x, y4), (x, y1), paint(4.into()));
             }
         }
 
@@ -113,16 +112,16 @@ impl Root for Twister {
             let x4 = (f64::sin(twist - consts::FRAC_PI_2) * width + center) as i32;
 
             if x1 < x2 {
-                render.line((x1, y), (x2, y), draw(5.into()));
+                render.line((x1, y), (x2, y), paint(5.into()));
             }
             if x2 < x3 {
-                render.line((x2, y), (x3, y), draw(6.into()));
+                render.line((x2, y), (x3, y), paint(6.into()));
             }
             if x3 < x4 {
-                render.line((x3, y), (x4, y), draw(7.into()));
+                render.line((x3, y), (x4, y), paint(7.into()));
             }
             if x4 < x1 {
-                render.line((x4, y), (x1, y), draw(8.into()));
+                render.line((x4, y), (x1, y), paint(8.into()));
             }
         }
     }
@@ -181,18 +180,9 @@ impl From<u8> for FourBits {
     }
 }
 
-impl color::Color for FourBits {
-    fn mix(self, other: Self) -> Self {
-        match other {
-            FourBits::Black => self,
-            value => value,
-        }
-    }
-}
-
 struct Converter;
 
-impl color::Converter for Converter {
+impl devotee_backend::Converter for Converter {
     type Palette = FourBits;
     #[inline]
     fn convert(&self, color: &Self::Palette) -> u32 {

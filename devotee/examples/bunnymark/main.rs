@@ -6,7 +6,6 @@ use devotee::app::input::key_mouse::{KeyMouse, VirtualKeyCode};
 use devotee::app::root::Root;
 use devotee::app::setup;
 use devotee::util::vector::Vector;
-use devotee::visual::color;
 use devotee::visual::prelude::*;
 use devotee::visual::sprite::Sprite;
 use devotee_backend_softbuffer::SoftbufferBackend;
@@ -31,7 +30,7 @@ fn main() {
 
 pub struct Converter;
 
-impl color::Converter for Converter {
+impl devotee_backend::Converter for Converter {
     type Palette = FourBits;
     #[inline]
     fn convert(&self, color: &Self::Palette) -> u32 {
@@ -251,7 +250,7 @@ impl From<u8> for FourBits {
     }
 }
 
-impl color::Color for FourBits {
+impl FourBits {
     fn mix(self, other: Self) -> Self {
         match other {
             FourBits::Black => self,

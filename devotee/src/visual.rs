@@ -1,21 +1,17 @@
 use std::ops::{Deref, DerefMut, RangeInclusive};
 
-use self::color::Color;
 use crate::util::getter::Getter;
 use crate::util::vector::Vector;
 
 /// Image with dimensions unknown at compile-time.
 pub mod canvas;
-/// Color system used in `devotee`.
-pub mod color;
 /// Image with compile-time known dimensions.
 pub mod sprite;
 
 /// Collection of drawing traits and functions compiles in a single prelude.
 pub mod prelude {
-    pub use super::color::Color;
     pub use super::Image;
-    pub use super::{draw, mix, paint, printer, stamp};
+    pub use super::{paint, printer, stamp};
     pub use super::{PaintTarget, Painter};
 }
 
@@ -29,15 +25,6 @@ where
     P: Clone,
 {
     move |_, _, _| value.clone()
-}
-
-/// Helper draw function for pixel value combining.
-/// It mixes original pixel value and provided `value`.
-pub fn draw<P>(value: P) -> impl FnMut(i32, i32, P) -> P
-where
-    P: Clone + Color,
-{
-    move |_, _, pixel| Color::mix(pixel, value.clone())
 }
 
 /// Helper printer mapper for the `Text` trait.
@@ -58,15 +45,6 @@ where
         }
         result
     }
-}
-
-/// Helper mixer mapper for image-to-image mapping.
-/// It just mixes original pixels and pixels of stamped image.
-pub fn mix<P>() -> impl FnMut(i32, i32, P, i32, i32, P) -> P
-where
-    P: Color,
-{
-    move |_, _, pixel, _, _, other| pixel.mix(other)
 }
 
 /// Helper stamper mapper for image-to-image mapping.

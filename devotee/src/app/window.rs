@@ -3,12 +3,11 @@ use devotee_backend::winit::event_loop::EventLoop;
 #[cfg(target_arch = "wasm32")]
 use devotee_backend::winit::platform::web::WindowExtWebSys;
 use devotee_backend::winit::window::{Fullscreen, Window as WinitWindow, WindowBuilder};
-use devotee_backend::{Backend, BackendImage};
+use devotee_backend::{Backend, BackendImage, Converter};
 
 use super::root::Root;
 use super::Setup;
 use crate::util::vector::Vector;
-use crate::visual::color::Converter;
 use crate::visual::Image;
 
 pub use devotee_backend::winit;
@@ -26,7 +25,6 @@ impl Window {
     where
         R: Root,
         R::RenderTarget: Image,
-        R::Converter: Converter,
     {
         let resolution = Vector::new(
             setup.render_target.width() as u32,
@@ -119,7 +117,7 @@ impl Window {
         back.draw_image(image, converter, &self.window, background)
     }
 
-    /// Recalculate raw window position into camera-related.
+    /// Recalculate raw window position into render target-related.
     pub fn window_pos_to_inner<Bck>(
         &self,
         back: &Bck,

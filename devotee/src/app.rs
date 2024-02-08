@@ -3,7 +3,7 @@ use std::time::Duration;
 
 use devotee_backend::winit::event::{Event, StartCause, WindowEvent};
 use devotee_backend::winit::event_loop::{ControlFlow, EventLoop};
-use devotee_backend::{Backend, BackendImage};
+use devotee_backend::{Backend, BackendImage, Converter};
 use instant::Instant;
 
 use self::context::Context;
@@ -11,7 +11,6 @@ use self::input::Input;
 use self::root::{ExitPermission, Root};
 use self::setup::Setup;
 use self::sound_system::SoundSystem;
-use crate::visual::color::Converter;
 use crate::visual::Image;
 
 /// Context provided by the application during the `update`.
