@@ -1,4 +1,4 @@
-use std::ops::{Deref, DerefMut, RangeInclusive};
+use std::ops::{Deref, DerefMut};
 
 use crate::util::getter::Getter;
 use crate::util::vector::Vector;
@@ -53,37 +53,152 @@ pub fn stamp<P>() -> impl FnMut(i32, i32, P, i32, i32, P) -> P {
     move |_, _, _original, _, _, other| other
 }
 
-fn line_scan(from: &Vector<i32>, to: &Vector<i32>, vertical_scan: i32) -> RangeInclusive<i32> {
-    let (from, to) = if from.y() > to.y() {
-        (from, to)
+#[derive(Clone, Copy, Debug)]
+enum Scan<T> {
+    None,
+    Single(T),
+    Inclusive(T, T),
+}
+
+impl<T> Scan<T> {
+    fn rev(self) -> Self {
+        match self {
+            Scan::None => Scan::None,
+            Scan::Single(a) => Scan::Single(a),
+            Scan::Inclusive(a, b) => Scan::Inclusive(b, a),
+        }
+    }
+
+    fn start_unchecked(self) -> T {
+        match self {
+            Scan::None => unimplemented!("There is no start value for Scan with None variant"),
+            Scan::Single(a) => a,
+            Scan::Inclusive(a, _) => a,
+        }
+    }
+
+    fn end_unchecked(self) -> T {
+        match self {
+            Scan::None => unimplemented!("There is no end value for Scan with None variant"),
+            Scan::Single(a) => a,
+            Scan::Inclusive(_, b) => b,
+        }
+    }
+}
+
+impl<T> Scan<T>
+where
+    T: Ord,
+{
+    fn sorted(self) -> Self {
+        if let Scan::Inclusive(a, b) = self {
+            if a > b {
+                Scan::Inclusive(b, a)
+            } else {
+                Scan::Inclusive(a, b)
+            }
+        } else {
+            self
+        }
+    }
+}
+
+impl IntoIterator for Scan<i32> {
+    type Item = i32;
+    type IntoIter = ScanIterator<i32>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        match self {
+            Scan::None => ScanIterator {
+                current: 0,
+                scan: self,
+                exhausted: true,
+            },
+            Scan::Single(a) => ScanIterator {
+                current: a,
+                scan: self,
+                exhausted: false,
+            },
+            Scan::Inclusive(a, b) if a == b => ScanIterator {
+                current: a,
+                scan: Scan::Single(a),
+                exhausted: false,
+            },
+            Scan::Inclusive(a, _) => ScanIterator {
+                current: a,
+                scan: self,
+                exhausted: false,
+            },
+        }
+    }
+}
+
+struct ScanIterator<T> {
+    current: T,
+    scan: Scan<T>,
+    exhausted: bool,
+}
+
+impl Iterator for ScanIterator<i32> {
+    type Item = i32;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.exhausted {
+            None
+        } else {
+            let result = self.current;
+            match self.scan {
+                Scan::None => unreachable!(),
+                Scan::Single(_) => {
+                    self.exhausted = true;
+                }
+                Scan::Inclusive(a, b) => {
+                    self.current += (b - a).signum();
+                    self.exhausted = result == b;
+                }
+            }
+            Some(result)
+        }
+    }
+}
+
+fn scanline_segment_i32(segment: (Vector<i32>, Vector<i32>), scanline: i32) -> Scan<i32> {
+    let (from, to) = if segment.0.y() < segment.1.y() {
+        (segment.0, segment.1)
     } else {
-        (to, from)
+        (segment.1, segment.0)
     };
 
-    let steep = (to.x() - from.x()).abs() <= (to.y() - from.y()).abs();
-    let delta_y = to.y() - from.y();
-    let delta_x = to.x() - from.x();
-    if delta_y == 0 {
-        return from.x().min(to.x())..=from.x().max(to.x());
+    let (delta_x, delta_y) = (to - from).split();
+
+    if scanline < from.y() || scanline > to.y() {
+        return Scan::None;
     }
+    if delta_y == 0 {
+        if scanline == from.y() {
+            return Scan::Inclusive(from.x(), to.x()).sorted();
+        } else {
+            return Scan::None;
+        }
+    }
+
+    let steep = delta_x.abs() < delta_y;
     if steep {
-        // It is one pixel wide
-        let y = vertical_scan;
+        let y = scanline;
         let x = ((delta_x + 1) * (y - from.y())
             + (delta_x - 1) * (y - to.y())
             + (from.x() + to.x()) * delta_y)
             / (delta_y * 2);
 
-        x..=x
+        Scan::Single(x).sorted()
     } else {
-        // It is multiple pixels wide
         let (left, right) = if from.x() < to.x() {
             (from.x(), to.x())
         } else {
             (to.x(), from.x())
         };
 
-        let y = vertical_scan;
+        let y = scanline;
         let center_x = (delta_x + 1) * (y - from.y())
             + (delta_x - 1) * (y - to.y())
             + (from.x() + to.x()) * delta_y;
@@ -97,11 +212,10 @@ fn line_scan(from: &Vector<i32>, to: &Vector<i32>, vertical_scan: i32) -> RangeI
 
         let first_x = (center_x + left_x) / (4 * delta_y);
         let second_x = (center_x + right_x) / (4 * delta_y);
-
         if first_x <= second_x {
-            left.max(first_x)..=right.min(second_x - 1)
+            Scan::Inclusive(left.max(first_x), right.min(second_x - 1))
         } else {
-            left.max(second_x)..=right.min(first_x - 1)
+            Scan::Inclusive(left.max(second_x), right.min(first_x - 1))
         }
     }
 }
@@ -253,8 +367,9 @@ where
         let mut skip = skip;
 
         for y in iter_ref {
-            let mut scan = line_scan(&from, &to, y);
-            let mut scan_rev = scan.clone().rev();
+            let scan = scanline_segment_i32((from, to), y);
+            let mut scan_rev = scan.rev().into_iter();
+            let mut scan = scan.into_iter();
             let scan: &mut dyn Iterator<Item = i32> = if rev { &mut scan_rev } else { &mut scan };
 
             for x in scan {
@@ -366,19 +481,23 @@ where
         let middle = if b.y() == c.y() { b.y() } else { b.y() - 1 };
 
         for y in a.y()..=middle {
-            let left_range = line_scan(&a, &b, y);
-            let right_range = line_scan(&a, &c, y);
-            let left = *left_range.start().min(right_range.start());
-            let right = *left_range.end().max(right_range.end());
+            let left_range = scanline_segment_i32((a, b), y);
+            let right_range = scanline_segment_i32((a, c), y);
+            let left = left_range
+                .start_unchecked()
+                .min(right_range.start_unchecked());
+            let right = left_range.end_unchecked().max(right_range.end_unchecked());
             self.map_horizontal_line_raw(left, right, y, function, 0);
         }
 
         let middle = middle + 1;
         for y in middle..=c.y() {
-            let left_range = line_scan(&a, &c, y);
-            let right_range = line_scan(&b, &c, y);
-            let left = *left_range.start().min(right_range.start());
-            let right = *left_range.end().max(right_range.end());
+            let left_range = scanline_segment_i32((a, c), y);
+            let right_range = scanline_segment_i32((b, c), y);
+            let left = left_range
+                .start_unchecked()
+                .min(right_range.start_unchecked());
+            let right = left_range.end_unchecked().max(right_range.end_unchecked());
             self.map_horizontal_line_raw(left, right, y, function, 0);
         }
     }
@@ -409,7 +528,7 @@ where
             let mut segments = segments
                 .iter()
                 .filter(|(a, b)| (y >= a.y() && y <= b.y()) || (y >= b.y() && y <= a.y()))
-                .map(|(a, b)| (a, b, false, false, line_scan(a, b, y)))
+                .map(|(a, b)| (a, b, false, false, scanline_segment_i32((*a, *b), y)))
                 .collect::<Vec<_>>();
 
             let mut counter = false;
@@ -417,7 +536,7 @@ where
                 let mut should_paint = false;
                 let mut intersections = 0;
                 for (a, b, intersected, was_intersected, scan) in segments.iter_mut() {
-                    if x >= *scan.start() && x <= *scan.end() {
+                    if x >= scan.start_unchecked() && x <= scan.end_unchecked() {
                         should_paint = true;
                         *intersected = true;
                         if !*was_intersected && (y < a.y() || y < b.y()) {
