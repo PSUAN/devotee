@@ -8,7 +8,7 @@ use devotee::visual::canvas::Canvas;
 use devotee::visual::prelude::*;
 use devotee_backend_softbuffer::SoftbufferBackend;
 
-const BOX_BOUNDARIES: (i32, i32) = (16, 128 - 16);
+const BOX_BOUNDARIES: (i32, i32) = (16, 128 - 32);
 const INTERNAL_RADIUS: i32 = 8;
 
 fn main() {
@@ -42,11 +42,11 @@ impl Root for Minimal {
         if let Some(pos) = update.input().mouse().position() {
             *self.position.x_mut() = pos.x().clamp(
                 BOX_BOUNDARIES.0 + INTERNAL_RADIUS,
-                BOX_BOUNDARIES.1 - INTERNAL_RADIUS - 1,
+                BOX_BOUNDARIES.0 + BOX_BOUNDARIES.1 - INTERNAL_RADIUS - 1,
             );
             *self.position.y_mut() = pos.y().clamp(
                 BOX_BOUNDARIES.0 + INTERNAL_RADIUS,
-                BOX_BOUNDARIES.1 - INTERNAL_RADIUS - 1,
+                BOX_BOUNDARIES.0 + BOX_BOUNDARIES.1 - INTERNAL_RADIUS - 1,
             );
         }
     }
