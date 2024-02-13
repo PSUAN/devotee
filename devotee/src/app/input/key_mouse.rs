@@ -82,14 +82,15 @@ impl Keyboard {
 /// Mouse part of the `KeyMouse` input handler.
 #[derive(Clone, Default)]
 pub struct Mouse {
-    position: Option<Vector<i32>>,
+    position: Option<MousePosition>,
     currently_pressed: HashSet<MouseButton>,
     previously_pressed: HashSet<MouseButton>,
 }
 
 impl Mouse {
     /// Get current mouse position if any is present.
-    pub fn position(&self) -> Option<Vector<i32>> {
+    /// Returns `Ok` if position is in bounds, `Err` otherwise.
+    pub fn position(&self) -> Option<MousePosition> {
         self.position
     }
 
@@ -132,9 +133,28 @@ impl Mouse {
         Bck: Backend,
     {
         self.position = Some(match window.window_pos_to_inner(back, position) {
-            Ok(in_bounds) => in_bounds,
-            Err(out_of_bounds) => out_of_bounds,
+            Ok(inside) => MousePosition::Inside(inside),
+            Err(outside) => MousePosition::Outside(outside),
         });
+    }
+}
+
+/// Mouse position
+#[derive(Clone, Copy, Debug)]
+pub enum MousePosition {
+    /// Mouse is inside the render target.
+    Inside(Vector<i32>),
+    /// Mouse is outside the render target.
+    Outside(Vector<i32>),
+}
+
+impl MousePosition {
+    /// Get mouse position value regardless it being inside or outside the render target.
+    pub fn any(self) -> Vector<i32> {
+        match self {
+            MousePosition::Inside(position) => position,
+            MousePosition::Outside(position) => position,
+        }
     }
 }
 

@@ -53,8 +53,6 @@ pub trait Converter {
 }
 
 /// Trait to generalize images to be displayed on the backend.
-///
-/// Currently implemented for `Canvas` and `Sprite`.
 pub trait BackendImage<'a, P: 'a> {
     /// Iterator to produce pixel values of the image, row-by-row.
     type Iterator: Iterator<Item = &'a P>;

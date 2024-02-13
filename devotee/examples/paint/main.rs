@@ -3,7 +3,7 @@ use std::time::Duration;
 
 use devotee::app;
 use devotee::app::context::Context;
-use devotee::app::input::key_mouse::{KeyMouse, MouseButton, VirtualKeyCode};
+use devotee::app::input::key_mouse::{KeyMouse, MouseButton, MousePosition, VirtualKeyCode};
 use devotee::app::root::Root;
 use devotee::app::setup;
 use devotee::util::vector::Vector;
@@ -29,7 +29,7 @@ fn main() {
 struct PaintApp {
     droplets: Vec<Droplet>,
     canvas: Sprite<Palette, 128, 64>,
-    cursor: Option<Vector<i32>>,
+    cursor: Option<MousePosition>,
     converter: Converter,
 }
 
@@ -45,7 +45,7 @@ impl Root for PaintApp {
 
         self.cursor = update.input().mouse().position();
         if update.input().mouse().is_pressed(MouseButton::Left) {
-            if let Some(position) = self.cursor {
+            if let Some(MousePosition::Inside(position)) = self.cursor {
                 self.droplets.push(Droplet {
                     position,
                     wetness_left: 2.0,
@@ -83,7 +83,7 @@ impl Root for PaintApp {
 
         render.image((0, 0), &self.canvas, stamp());
 
-        if let Some(cursor) = self.cursor {
+        if let Some(MousePosition::Inside(cursor)) = self.cursor {
             if let Some(pixel) = render.pixel_mut(cursor) {
                 pixel.value = 1.0;
             }

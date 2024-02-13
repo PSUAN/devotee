@@ -19,8 +19,9 @@ pub trait Root {
     fn render(&self, render: &mut Self::RenderTarget);
 
     /// Handle exit request and optionally forbid it.
+    /// By default permits exiting.
     fn handle_exit_request(&mut self) -> ExitPermission {
-        ExitPermission::Forbid
+        ExitPermission::Allow
     }
 
     /// Provide palette converter.

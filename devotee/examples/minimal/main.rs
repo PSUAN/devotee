@@ -40,6 +40,7 @@ impl Root for Minimal {
         }
 
         if let Some(pos) = update.input().mouse().position() {
+            let pos = pos.any();
             *self.position.x_mut() = pos.x().clamp(
                 BOX_BOUNDARIES.0 + INTERNAL_RADIUS,
                 BOX_BOUNDARIES.0 + BOX_BOUNDARIES.1 - INTERNAL_RADIUS - 1,
