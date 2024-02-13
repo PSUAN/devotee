@@ -1,4 +1,4 @@
-use std::f64::consts;
+use std::f32::consts;
 
 use devotee::app;
 use devotee::app::context::Context;
@@ -15,20 +15,20 @@ fn main() {
         .with_render_target(Sprite::with_color(0.into()))
         .with_input(Default::default())
         .with_root_constructor(|_| Default::default())
-        .with_title("pentacle")
+        .with_title("nine-ray")
         .with_scale(3);
-    let app = app::App::<Pentacle, SoftbufferBackend>::with_setup(init_config).unwrap();
+    let app = app::App::<NineRay, SoftbufferBackend>::with_setup(init_config).unwrap();
 
     app.run();
 }
 
 #[derive(Default)]
-struct Pentacle {
-    rotation: f64,
-    counter: f64,
+struct NineRay {
+    rotation: f32,
+    counter: f32,
 }
 
-impl Root for Pentacle {
+impl Root for NineRay {
     type Converter = Converter;
     type Input = KeyMouse;
     type RenderTarget = Sprite<SummationPalette, 128, 128>;
@@ -37,7 +37,7 @@ impl Root for Pentacle {
         if update.input().keys().just_pressed(VirtualKeyCode::Escape) {
             update.shutdown();
         }
-        let delta = update.delta().as_secs_f64();
+        let delta = update.delta().as_secs_f32();
         if update.input().keys().is_pressed(VirtualKeyCode::Z) {
             self.rotation += delta;
         }
@@ -50,22 +50,18 @@ impl Root for Pentacle {
         render.clear(0.into());
 
         let radius = 48.0 + 8.0 * self.rotation.sin();
-        let center = Vector::new(64, 64);
+        let center = Vector::new(64.0, 64.0);
 
-        render.circle_b((64, 64), radius as i32, draw(2.into()));
-        render.circle_f((64, 64), 32, draw(2.into()));
+        render.circle_b((64.0, 64.0), radius, draw(2.into()));
+        render.circle_f((64.0, 64.0), radius / 4.0, draw(2.into()));
 
         let radius = radius + 8.0;
 
-        let vertices: Vec<_> = (0..5)
+        let vertices: Vec<_> = (0..9)
             .map(|i| {
-                let a = 0.25 * self.rotation + 2.0 / 5.0 * i as f64 * consts::TAU;
+                let a = 0.25 * self.rotation + 4.0 / 9.0 * i as f32 * consts::TAU;
 
-                center
-                    + (
-                        (radius * a.cos()).round() as i32,
-                        (radius * a.sin()).round() as i32,
-                    )
+                center + (radius * a.cos(), radius * a.sin())
             })
             .collect();
 
@@ -74,7 +70,7 @@ impl Root for Pentacle {
             render.polygon_f(&vertices, draw(3.into()));
         }
 
-        render.rect_b((0, 0), (128, 128), draw(2.into()));
+        render.rect_b((0.0, 0.0), (128.0, 128.0), draw(2.into()));
     }
 
     fn converter(&self) -> &Converter {
@@ -119,7 +115,7 @@ impl devotee_backend::Converter for Converter {
         let brightness = color.value.saturating_mul(64);
 
         if brightness > 0x80 {
-            (brightness as u32) << 16
+            brightness as u32
         } else {
             (brightness as u32) << 16 | (brightness as u32) << 8 | brightness as u32
         }

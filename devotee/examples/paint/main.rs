@@ -20,20 +20,20 @@ fn main() {
         .with_title("paint")
         .with_fullscreen(false)
         .with_scale(4);
-    let app = app::App::<Paint, SoftbufferBackend>::with_setup(init_config).unwrap();
+    let app = app::App::<PaintApp, SoftbufferBackend>::with_setup(init_config).unwrap();
 
     app.run();
 }
 
 #[derive(Default)]
-struct Paint {
+struct PaintApp {
     droplets: Vec<Droplet>,
     canvas: Sprite<Palette, 128, 64>,
     cursor: Option<Vector<i32>>,
     converter: Converter,
 }
 
-impl Root for Paint {
+impl Root for PaintApp {
     type Converter = Converter;
     type Input = KeyMouse;
     type RenderTarget = Sprite<Palette, 128, 64>;

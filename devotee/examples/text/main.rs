@@ -7,8 +7,8 @@ use devotee::app::input::key_mouse::{KeyMouse, VirtualKeyCode};
 use devotee::app::root::Root;
 use devotee::app::setup;
 use devotee::util::vector::Vector;
-use devotee::visual::prelude::*;
 use devotee::visual::sprite::Sprite;
+use devotee::visual::{prelude::*, Paint};
 use devotee_backend_softbuffer::SoftbufferBackend;
 
 fn main() {

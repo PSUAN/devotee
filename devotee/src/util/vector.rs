@@ -100,6 +100,20 @@ impl<T> Vector<T> {
     }
 }
 
+impl Vector<i32> {
+    /// Create vector with zero values.
+    pub fn zero() -> Self {
+        Self { x: 0, y: 0 }
+    }
+}
+
+impl Vector<f32> {
+    /// Create vector with zero values.
+    pub fn zero() -> Self {
+        Self { x: 0.0, y: 0.0 }
+    }
+}
+
 impl<T> From<(T, T)> for Vector<T> {
     fn from(source: (T, T)) -> Self {
         Self {

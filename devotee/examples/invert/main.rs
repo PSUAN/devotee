@@ -39,7 +39,7 @@ impl Invert {
         painter.line((31, 0), (0, 31), paint(true));
 
         let mut counter = 0;
-        painter.rect_f((4, 4), (32 - 4, 32 - 4), move |_, _, _| {
+        painter.rect_f((4, 4), (32 - 8, 32 - 8), move |_, _, _| {
             counter += 1;
             counter % 5 == 0 || counter % 7 == 0
         });
@@ -73,19 +73,14 @@ impl Root for Invert {
     }
 
     fn render(&self, render: &mut Canvas<Color>) {
+        render.clear(Color([0, 0, 0]));
+        let dimensions = render.dimensions();
         let mut painter = render.painter();
-        painter.clear(Color([0, 0, 0]));
-        for x in 8..(render.width() - 8) {
-            for y in 8..(render.height() - 8) {
-                // SAFETY: we are iterating in safe range.
-                unsafe {
-                    *Image::unsafe_pixel_mut(render, (x, y).into()) =
-                        Color([2 * x as u8, 2 * y as u8, 0x00]);
-                }
-            }
-        }
 
-        let mut painter = render.painter();
+        painter.rect_f((8, 8).into(), dimensions - (16, 16), |x, y, _| {
+            Color([2 * x as u8, 2 * y as u8, 0x00])
+        });
+
         let (x, y) = (self.position.x() as i32, self.position.y() as i32);
         painter.image((x, y), &self.canvas, |_, _, value, _, _, invert| {
             if invert {

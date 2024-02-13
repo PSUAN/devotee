@@ -6,8 +6,8 @@ use devotee::app::context::Context;
 use devotee::app::input::key_mouse::{KeyMouse, VirtualKeyCode};
 use devotee::app::root::Root;
 use devotee::app::setup;
-use devotee::visual::prelude::*;
 use devotee::visual::sprite::Sprite;
+use devotee::visual::{prelude::*, Paint};
 use devotee_backend_softbuffer::SoftbufferBackend;
 use rodio::source::{SineWave, Source};
 
@@ -69,14 +69,14 @@ impl Root for Twister {
         let center = resolution_y as f64 / 2.0;
 
         render.rect_f(
-            (resolution_x / 6, resolution_y / 6),
-            (5 * resolution_x / 6, 5 * resolution_y / 6),
+            (resolution_x / 8, resolution_y / 8),
+            (3 * resolution_x / 4, 3 * resolution_y / 4),
             paint(14.into()),
         );
 
         render.rect_f(
             (resolution_x / 4, resolution_y / 4),
-            (3 * resolution_x / 4, 3 * resolution_y / 4),
+            (resolution_x / 2, resolution_y / 2),
             paint(15.into()),
         );
 

@@ -60,7 +60,7 @@ impl Root for Minimal {
             render.clear(Color([0x00, 0x00, 0x80]));
         }
 
-        render.rect(
+        render.rect_b(
             (BOX_BOUNDARIES.0, BOX_BOUNDARIES.0),
             (BOX_BOUNDARIES.1, BOX_BOUNDARIES.1),
             paint(Color([0xff, 0xff, 0xff])),
