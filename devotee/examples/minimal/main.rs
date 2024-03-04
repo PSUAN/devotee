@@ -1,120 +1,66 @@
-use devotee::app;
-use devotee::app::context::Context;
-use devotee::app::input::key_mouse::{KeyMouse, VirtualKeyCode};
-use devotee::app::root::{ExitPermission, Root};
-use devotee::app::setup;
+use std::time::Duration;
+
+use devotee::app::root::Root;
+use devotee::app::{App, AppContext};
+use devotee::input::winit_input::Mouse;
 use devotee::util::vector::Vector;
 use devotee::visual::canvas::Canvas;
-use devotee::visual::prelude::*;
-use devotee_backend_softbuffer::SoftbufferBackend;
-
-const BOX_BOUNDARIES: (i32, i32) = (16, 128 - 32);
-const INTERNAL_RADIUS: i32 = 8;
+use devotee::visual::{paint, Image, Paint, PaintTarget};
+use devotee_backend::Converter;
+use devotee_backend_softbuffer::{SoftBackend, SoftMiddleware};
+use winit::event::MouseButton;
 
 fn main() {
-    let init_config = setup::Builder::new()
-        .with_render_target(Canvas::with_resolution(Default::default(), 128, 128))
-        .with_input(Default::default())
-        .with_root_constructor(|_| Default::default())
-        .with_title("minimal")
-        .with_scale(2);
-    let app = app::App::<Minimal, SoftbufferBackend>::with_setup(init_config).unwrap();
-
-    app.run();
+    let backend = SoftBackend::try_new("minimal").unwrap();
+    backend
+        .run::<App<_>, _, u32, _, Mouse>(
+            App::new(Minimal::default()),
+            SoftMiddleware::new(Canvas::with_resolution(0x00000000, 128, 128), Mouse::new())
+                .with_background_color(0xff804000),
+            Duration::from_secs_f32(1.0 / 60.0),
+        )
+        .unwrap();
 }
 
 #[derive(Default)]
 struct Minimal {
-    position: Vector<i32>,
-    exit_was_requested: bool,
+    cursor: Vector<i32>,
 }
 
 impl Root for Minimal {
-    type Converter = Converter;
-    type Input = KeyMouse;
-    type RenderTarget = Canvas<Color>;
+    type Input = Mouse;
+    type Converter = FallThroughConverter;
+    type RenderSurface = Canvas<u32>;
 
-    fn update(&mut self, update: &mut Context<KeyMouse>) {
-        if update.input().keys().just_pressed(VirtualKeyCode::Escape) {
-            update.shutdown();
-        }
-
-        if let Some(pos) = update.input().mouse().position() {
-            let pos = pos.any();
-            *self.position.x_mut() = pos.x().clamp(
-                BOX_BOUNDARIES.0 + INTERNAL_RADIUS,
-                BOX_BOUNDARIES.0 + BOX_BOUNDARIES.1 - INTERNAL_RADIUS - 1,
-            );
-            *self.position.y_mut() = pos.y().clamp(
-                BOX_BOUNDARIES.0 + INTERNAL_RADIUS,
-                BOX_BOUNDARIES.0 + BOX_BOUNDARIES.1 - INTERNAL_RADIUS - 1,
-            );
+    fn update(&mut self, update: AppContext<Mouse>) {
+        let input = update.input();
+        if input.is_pressed(MouseButton::Left) {
+            self.cursor = input.position().any();
         }
     }
 
-    fn render(&self, render: &mut Canvas<Color>) {
-        let mut render = render.painter();
+    fn render(&self, render: &mut Self::RenderSurface) {
+        render.clear(0xffff8000);
 
-        if self.exit_was_requested {
-            render.clear(Color([0x80, 0x00, 0x00]));
-        } else {
-            render.clear(Color([0x00, 0x00, 0x80]));
-        }
-
-        render.rect_b(
-            (BOX_BOUNDARIES.0, BOX_BOUNDARIES.0),
-            (BOX_BOUNDARIES.1, BOX_BOUNDARIES.1),
-            paint(Color([0xff, 0xff, 0xff])),
-        );
-        render.circle_f(
-            self.position,
-            INTERNAL_RADIUS,
-            paint(Color([0x80, 0x80, 0x80])),
-        );
-        render.line(
-            (64, 64).into(),
-            self.position,
-            paint(Color([0xff, 0xff, 0xff])),
-        );
-        render.line(
-            self.position,
-            (64, 64).into(),
-            paint(Color([0x00, 0xff, 0x00])),
-        );
-        render.mod_pixel((64, 64), paint(Color([0xff, 0x00, 0x00])));
-        render.mod_pixel(self.position, paint(Color([0xff, 0x00, 0x00])));
+        let mut painter = render.painter();
+        painter.mod_pixel(self.cursor, paint(0xff4040ff));
     }
 
-    fn handle_exit_request(&mut self) -> ExitPermission {
-        if self.exit_was_requested {
-            ExitPermission::Allow
-        } else {
-            self.exit_was_requested = true;
-            ExitPermission::Forbid
-        }
+    fn converter(&self) -> Self::Converter {
+        FallThroughConverter
     }
 
-    fn converter(&self) -> &Converter {
-        &Converter
-    }
-
-    fn background_color(&self) -> Color {
-        if self.exit_was_requested {
-            Color([0x80, 0x00, 0x00])
-        } else {
-            Color([0x00, 0x00, 0x80])
-        }
+    fn background_color(&self) -> <Self::Converter as devotee_backend::Converter>::Data {
+        0x00ffff80
     }
 }
 
-#[derive(Clone, Copy, Default)]
-struct Color([u8; 3]);
+struct FallThroughConverter;
 
-struct Converter;
+impl Converter for FallThroughConverter {
+    type Data = u32;
 
-impl devotee_backend::Converter for Converter {
-    type Palette = Color;
-    fn convert(&self, color: &Self::Palette) -> u32 {
-        ((color.0[0] as u32) << 16) | ((color.0[1] as u32) << 8) | (color.0[2] as u32)
+    fn convert(&self, _x: usize, _y: usize, data: Self::Data) -> u32 {
+        data
     }
 }

@@ -1,4 +1,3 @@
-use std::mem;
 use std::rc::Rc;
 
 use rodio::source::Source;
@@ -6,10 +5,8 @@ use rodio::{OutputStream, OutputStreamHandle, Sink};
 
 pub use rodio;
 
-/// `rodio`'s `Sink` wrapped in reference counter.
 pub type Sound = Rc<Sink>;
 
-/// `rodio`-based sound system,
 pub struct SoundSystem {
     // We are storing `OutputStream` instance to save it from being dropped and thus stopping sound.
     #[allow(dead_code)]
@@ -33,9 +30,6 @@ impl SoundSystem {
         Sink::try_new(&self.handle).ok()
     }
 
-    /// Play given sound.
-    /// Returns `None` in fail case.
-    /// The returned sink may be used to stop sound.
     pub fn play(&mut self, source: Box<dyn Source<Item = f32> + Send>) -> Option<Rc<Sink>> {
         if let Some(sink) = self.sink() {
             sink.append(source);
@@ -45,13 +39,6 @@ impl SoundSystem {
         } else {
             None
         }
-    }
-
-    pub(super) fn clean_up_sinks(&mut self) {
-        self.sinks = mem::take(&mut self.sinks)
-            .into_iter()
-            .filter(|sink| !sink.empty())
-            .collect();
     }
 
     pub(super) fn pause(&self) {

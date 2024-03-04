@@ -1,97 +1,362 @@
-#![deny(missing_docs)]
+use std::num::TryFromIntError;
+use std::rc::Rc;
+use std::time::{Duration, Instant};
 
-//! [Pixels](https://crates.io/crates/pixels)-based backend for the [devotee](https://crates.io/crates/devotee) project.
+use devotee_backend::{
+    Application, Context, Converter, EventContext, Middleware, RenderSurface, RenderTarget,
+};
+use pixels::{Error as PixelsError, Pixels, PixelsBuilder, SurfaceTexture};
+use winit::dpi::PhysicalSize;
+use winit::error::{EventLoopError, OsError};
+use winit::event::{Event, StartCause, WindowEvent};
+use winit::event_loop::{ControlFlow, EventLoop};
+use winit::window::{Window, WindowBuilder};
 
-use std::num::NonZeroU32;
-
-use devotee_backend::winit::dpi::PhysicalPosition;
-use devotee_backend::winit::window::Window;
-use devotee_backend::{Backend, BackendImage, Converter};
-use pixels::wgpu::{Color, TextureFormat};
-use pixels::{Pixels, PixelsBuilder, SurfaceTexture};
-
-/// [Pixels](https://crates.io/crates/pixels)-based backend.
 pub struct PixelsBackend {
-    pixels: Pixels,
+    window: Rc<Window>,
+    event_loop: EventLoop<()>,
 }
 
-impl Backend for PixelsBackend {
-    fn new(window: &Window, resolution: (u32, u32), _scale: u32) -> Option<Self> {
-        let pixels = {
+impl PixelsBackend {
+    pub fn try_new(title: &str) -> Result<Self, Error> {
+        let event_loop = EventLoop::new()?;
+        let window = Rc::new(WindowBuilder::new().with_title(title).build(&event_loop)?);
+        Ok(Self { window, event_loop })
+    }
+}
+
+impl PixelsBackend {
+    pub fn run<App, Mid, Rend, Data, Conv, Ctx>(
+        self,
+        app: App,
+        middleware: Mid,
+        update_delay: Duration,
+    ) -> Result<(), Error>
+    where
+        App: for<'a> Application<'a, Ctx, Rend, Conv>,
+        Mid: for<'a> Middleware<
+            'a,
+            PixelsControl,
+            Event = WindowEvent,
+            EventContext = &'a Pixels,
+            Surface = &'a mut Pixels,
+            RenderTarget = PixelsRenderTarget<'a, Rend>,
+            Context = Ctx,
+        >,
+        Rend: RenderSurface<Data = Data>,
+        Conv: Converter<Data = Data>,
+    {
+        let mut app = app;
+        let mut middleware = middleware;
+
+        let window = self.window;
+
+        let mut control = PixelsControl {
+            should_quit: false,
+            paused: None,
+            window: window.clone(),
+        };
+        middleware.init(&mut control);
+
+        let mut pixels = {
             let window_size = window.inner_size();
             let surface_texture =
                 SurfaceTexture::new(window_size.width, window_size.height, &window);
-            let builder = PixelsBuilder::new(resolution.0, resolution.1, surface_texture)
-                .texture_format(TextureFormat::Rgba8Unorm)
-                .surface_texture_format(TextureFormat::Bgra8Unorm);
+            PixelsBuilder::new(window_size.width, window_size.height, surface_texture)
+                .enable_vsync(true)
+                .build()?
+        };
 
-            #[cfg(target_arch = "wasm32")]
-            {
-                pollster::block_on(builder.build_async())
+        self.event_loop
+            .set_control_flow(ControlFlow::WaitUntil(Instant::now() + update_delay));
+        self.event_loop.run(move |event, elwt| {
+            let mut control = PixelsControl {
+                should_quit: false,
+                paused: None,
+                window: window.clone(),
+            };
+
+            match event {
+                Event::NewEvents(StartCause::ResumeTimeReached {
+                    requested_resume, ..
+                }) => {
+                    let context = middleware.update(&mut control, update_delay);
+                    app.update(context);
+                    elwt.set_control_flow(ControlFlow::WaitUntil(requested_resume + update_delay));
+                    window.request_redraw();
+                }
+                Event::WindowEvent { event, .. } => {
+                    if let Some(event) = middleware.handle_event(event, &pixels, &mut control) {
+                        match event {
+                            WindowEvent::Resized(size) => {
+                                let width = size.width;
+                                let height = size.height;
+                                let _ = pixels.resize_surface(width, height);
+                            }
+                            WindowEvent::RedrawRequested => {
+                                let mut render_target = middleware.render(&mut pixels);
+                                let surface = <PixelsRenderTarget<'_, Rend> as RenderTarget<
+                                    Conv,
+                                >>::render_surface_mut(
+                                    &mut render_target
+                                );
+                                app.render(surface);
+                                let _ = devotee_backend::RenderTarget::present(
+                                    render_target,
+                                    app.converter(),
+                                );
+                            }
+                            _ => (),
+                        }
+                    }
+                }
+                _ => (),
             }
-            #[cfg(not(target_arch = "wasm32"))]
-            {
-                builder.build()
+
+            if control.should_quit {
+                elwt.exit();
             }
+            if let Some(paused) = control.paused {
+                if paused {
+                    app.pause();
+                } else {
+                    app.resume();
+                }
+            }
+        })?;
+
+        Ok(())
+    }
+}
+
+pub struct PixelsMiddleware<RenderSurface, Input> {
+    render_surface: RenderSurface,
+    input: Input,
+}
+
+impl<RenderSurface, Input> PixelsMiddleware<RenderSurface, Input>
+where
+    RenderSurface: devotee_backend::RenderSurface,
+{
+    pub fn new(render_surface: RenderSurface, input: Input) -> Self {
+        Self {
+            render_surface,
+            input,
         }
-        .ok()?;
+    }
+}
 
-        Some(PixelsBackend { pixels })
+impl<'a, RenderSurface, Input> Middleware<'a, PixelsControl>
+    for PixelsMiddleware<RenderSurface, Input>
+where
+    RenderSurface: devotee_backend::RenderSurface,
+    RenderSurface: 'a,
+    Input: 'a + devotee_backend::Input<'a, PixelsEventContext<'a>, Event = WindowEvent>,
+{
+    type Event = WindowEvent;
+    type EventContext = &'a Pixels;
+    type Surface = &'a mut Pixels;
+    type Context = PixelsContext<'a, Input>;
+    type RenderTarget = PixelsRenderTarget<'a, RenderSurface>;
+
+    fn init(&'a mut self, control: &'a mut PixelsControl) {
+        let size = PhysicalSize::new(
+            self.render_surface.width() as u32,
+            self.render_surface.height() as u32,
+        );
+        control.window.set_min_inner_size(Some(size));
     }
 
-    fn resize(&mut self, width: NonZeroU32, height: NonZeroU32) -> Option<()> {
-        self.pixels.resize_surface(width.into(), height.into()).ok()
+    fn update(&'a mut self, control: &'a mut PixelsControl, delta: Duration) -> Self::Context {
+        let input = &mut self.input;
+        PixelsContext {
+            control,
+            delta,
+            input,
+        }
     }
 
-    fn draw_image<'a, P: 'a, I>(
+    fn handle_event(
         &mut self,
-        image: &'a dyn BackendImage<'a, P, Iterator = I>,
-        converter: &dyn Converter<Palette = P>,
-        _window: &Window,
-        background: u32,
-    ) -> Option<()>
-    where
-        I: Iterator<Item = &'a P>,
-    {
-        let r = (background & 0x00ff0000) >> 16;
-        let g = (background & 0x0000ff00) >> 8;
-        let b = background & 0x000000ff;
+        event: Self::Event,
+        event_context: Self::EventContext,
+        control: &mut PixelsControl,
+    ) -> Option<Self::Event> {
+        let context = PixelsEventContext {
+            pixels: event_context,
+        };
 
-        self.pixels.clear_color(Color {
-            r: r as f64 / 255.0,
-            g: g as f64 / 255.0,
-            b: b as f64 / 255.0,
-            a: 1.0,
-        });
+        if let Some(event) = self.input.handle_event(event, context) {
+            match event {
+                WindowEvent::CloseRequested => {
+                    control.shutdown();
+                }
+                WindowEvent::Focused(gained) => {
+                    control.set_paused(!gained);
+                }
+                _ => {}
+            }
 
-        for (chunk, pixel) in self
+            Some(event)
+        } else {
+            None
+        }
+    }
+
+    fn render(&'a mut self, surface: Self::Surface) -> Self::RenderTarget {
+        PixelsRenderTarget {
+            render_surface: &mut self.render_surface,
+            pixels: surface,
+        }
+    }
+}
+
+pub struct PixelsContext<'a, Input>
+where
+    Input: devotee_backend::Input<'a, PixelsEventContext<'a>>,
+{
+    control: &'a mut PixelsControl,
+    input: &'a mut Input,
+    delta: Duration,
+}
+
+impl<'a, Input> Context<'a, Input> for PixelsContext<'a, Input>
+where
+    Input: devotee_backend::Input<'a, PixelsEventContext<'a>>,
+{
+    fn input(&self) -> &Input {
+        self.input
+    }
+
+    fn delta(&self) -> Duration {
+        self.delta
+    }
+
+    fn shutdown(&mut self) {
+        self.control.shutdown();
+    }
+}
+
+impl<'a, Input> Drop for PixelsContext<'a, Input>
+where
+    Input: devotee_backend::Input<'a, PixelsEventContext<'a>>,
+{
+    fn drop(&mut self) {
+        self.input.tick();
+    }
+}
+
+pub struct PixelsRenderTarget<'a, RenderSurface> {
+    render_surface: &'a mut RenderSurface,
+    pixels: &'a mut Pixels,
+}
+
+impl<'a, RenderSurface, Converter> RenderTarget<Converter> for PixelsRenderTarget<'a, RenderSurface>
+where
+    RenderSurface: devotee_backend::RenderSurface,
+    Converter: devotee_backend::Converter<Data = RenderSurface::Data>,
+{
+    type RenderSurface = RenderSurface;
+    type PresentError = PixelsError;
+
+    fn render_surface(&self) -> &Self::RenderSurface {
+        self.render_surface
+    }
+
+    fn render_surface_mut(&mut self) -> &mut Self::RenderSurface {
+        self.render_surface
+    }
+
+    fn present(self, converter: Converter) -> Result<(), Self::PresentError> {
+        self.pixels.resize_buffer(
+            self.render_surface.width() as u32,
+            self.render_surface.height() as u32,
+        )?;
+
+        for (y, line) in self
             .pixels
             .frame_mut()
-            .chunks_exact_mut(4)
-            .zip(image.pixels())
+            .chunks_exact_mut(self.render_surface.width() * 4)
+            .enumerate()
         {
-            let argb = converter.convert(pixel);
-            let r = ((argb & 0x00ff0000) >> 16) as u8;
-            let g = ((argb & 0x0000ff00) >> 8) as u8;
-            let b = (argb & 0x000000ff) as u8;
-            chunk[0] = r;
-            chunk[1] = g;
-            chunk[2] = b;
-            chunk[3] = 0xff;
+            for (x, pixel) in line.chunks_exact_mut(4).enumerate() {
+                let pixel_color = self.render_surface.data(x, y);
+                let pixel_value = converter.convert(x, y, pixel_color);
+                let rgba = [
+                    ((pixel_value & 0x00_ff_00_00) >> 16) as u8,
+                    ((pixel_value & 0x00_00_ff_00) >> 8) as u8,
+                    (pixel_value & 0x00_00_00_ff) as u8,
+                    0xff,
+                ];
+                pixel.copy_from_slice(&rgba);
+            }
         }
+        self.pixels.render()
+    }
+}
 
-        self.pixels.render().ok()
+pub struct PixelsControl {
+    should_quit: bool,
+    paused: Option<bool>,
+    window: Rc<Window>,
+}
+
+impl PixelsControl {
+    pub fn shutdown(&mut self) -> &mut Self {
+        self.should_quit = true;
+        self
     }
 
-    fn window_pos_to_inner(
+    fn set_paused(&mut self, paused: bool) -> &mut Self {
+        self.paused = Some(paused);
+        self
+    }
+}
+
+pub struct PixelsEventContext<'a> {
+    pixels: &'a Pixels,
+}
+
+impl<'a> EventContext for PixelsEventContext<'a> {
+    fn position_into_render_surface_space(
         &self,
-        position: PhysicalPosition<f64>,
-        _window: &Window,
-        _resolution: (u32, u32),
+        position: (f32, f32),
     ) -> Result<(i32, i32), (i32, i32)> {
         self.pixels
-            .window_pos_to_pixel((position.x as f32, position.y as f32))
-            .map(|(a, b)| (a as i32, b as i32))
-            .map_err(|(a, b)| (a as i32, b as i32))
+            .window_pos_to_pixel(position)
+            .map(|(x, y)| (x as i32, y as i32))
+            .map_err(|(x, y)| (x as i32, y as i32))
+    }
+}
+
+#[derive(Debug)]
+pub enum Error {
+    WinitEventLoopError(EventLoopError),
+    WinitOsError(OsError),
+    PixelsError(PixelsError),
+    WindowResolutionError(TryFromIntError),
+}
+
+impl From<EventLoopError> for Error {
+    fn from(value: EventLoopError) -> Self {
+        Self::WinitEventLoopError(value)
+    }
+}
+
+impl From<OsError> for Error {
+    fn from(value: OsError) -> Self {
+        Self::WinitOsError(value)
+    }
+}
+
+impl From<PixelsError> for Error {
+    fn from(value: PixelsError) -> Self {
+        Self::PixelsError(value)
+    }
+}
+
+impl From<TryFromIntError> for Error {
+    fn from(value: TryFromIntError) -> Self {
+        Self::WindowResolutionError(value)
     }
 }

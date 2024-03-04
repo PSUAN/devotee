@@ -1,11 +1,6 @@
 # devotee
 
-A bit personal visualization engine.
+## Warning
 
-`devotee` is intended for use inside PSUAN's projects.
-However it is not limited to that.
-
-## Work in progress
-
-`devotee` is totally a work in progress.
-We'd suggest to avoid relying on it in a long term yet.
+Devotee is currently in pre-`0.2.0` state.
+Use with caution.

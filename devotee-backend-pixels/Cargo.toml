@@ -17,11 +17,9 @@ categories = ["game-engines"]
 devotee-backend = "0.2.0-alpha"
 
 pixels = "0.13.0"
-
-[target.'cfg(target_arch = "wasm32")'.dependencies]
-pollster = "0.3.0"
+winit = { version = "0.29.11", default-features = false, features = ["rwh_05"] }
 
 [features]
-default = []
-x11 = ["devotee-backend/x11"]
-wayland = ["devotee-backend/wayland"]
+default = ["x11"]
+x11 = ["winit/x11"]
+wayland = ["winit/wayland"]

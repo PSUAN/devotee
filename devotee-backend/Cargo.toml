@@ -4,7 +4,7 @@ version = "0.2.0-alpha"
 edition = "2021"
 publish = true
 authors = ["PSUAN collective", "Hara Red <rtc6fg4.fejg2@gmail.com>"]
-description = "Backend library specification for devotee project"
+description = "Backend library specification for the devotee project"
 repository = "https://github.com/PSUAN/devotee"
 license = "MIT"
 homepage = "https://github.com/PSUAN/devotee"
@@ -13,10 +13,5 @@ readme = "README.md"
 keywords = ["gamedev", "graphics"]
 categories = ["game-engines"]
 
-[dependencies]
-winit = { version = "0.28.7", default-features = false }
-
 [features]
-default = ["x11"]
-x11 = ["winit/x11"]
-wayland = ["winit/wayland"]
+input-context = []
