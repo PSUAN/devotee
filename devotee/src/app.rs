@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use devotee_backend::Application;
 
 use self::sound_system::SoundSystem;
@@ -61,6 +63,10 @@ pub struct AppContext<'a, 'b, Input> {
 }
 
 impl<'a, 'b, Input> AppContext<'a, 'b, Input> {
+    pub fn delta(&self) -> Duration {
+        self.context.delta()
+    }
+
     pub fn input(&self) -> &Input {
         self.context.input()
     }
