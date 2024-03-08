@@ -7,7 +7,7 @@ pub trait Root {
     type Converter: Converter;
     type RenderSurface;
 
-    fn update(&mut self, update: AppContext<'_, Self::Input>);
+    fn update(&mut self, update: AppContext<Self::Input>);
     fn render(&self, render: &mut Self::RenderSurface);
     fn converter(&self) -> Self::Converter;
     fn background_color(&self) -> <Self::Converter as Converter>::Data;

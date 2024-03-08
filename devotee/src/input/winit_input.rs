@@ -9,16 +9,34 @@ use crate::util::vector::Vector;
 pub use winit::event::MouseButton;
 pub use winit::keyboard::KeyCode;
 
-#[derive(Default, Debug)]
+#[derive(Clone, Default, Debug)]
 pub struct Keyboard {
     pressed: HashSet<KeyCode>,
     was_pressed: HashSet<KeyCode>,
 }
 
+impl Keyboard {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn is_pressed(&self, key: KeyCode) -> bool {
+        self.pressed.contains(&key)
+    }
+
+    pub fn just_pressed(&self, key: KeyCode) -> bool {
+        self.pressed.contains(&key) && !self.was_pressed.contains(&key)
+    }
+
+    pub fn just_released(&self, key: KeyCode) -> bool {
+        !self.pressed.contains(&key) && self.was_pressed.contains(&key)
+    }
+}
+
 impl<'a, EventContext> Input<'a, EventContext> for Keyboard {
     type Event = WindowEvent;
 
-    fn handle_event(&mut self, event: Self::Event, _context: EventContext) -> Option<Self::Event> {
+    fn handle_event(&mut self, event: Self::Event, _context: &EventContext) -> Option<Self::Event> {
         if let WindowEvent::KeyboardInput { event, .. } = event {
             if let PhysicalKey::Code(code) = event.physical_key {
                 match event.state {
@@ -52,6 +70,7 @@ impl MousePosition {
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct Mouse {
     position: MousePosition,
     pressed: HashSet<MouseButton>,
@@ -74,6 +93,14 @@ impl Mouse {
         self.pressed.contains(&button)
     }
 
+    pub fn just_pressed(&self, button: MouseButton) -> bool {
+        self.pressed.contains(&button) && !self.was_pressed.contains(&button)
+    }
+
+    pub fn just_released(&self, button: MouseButton) -> bool {
+        !self.pressed.contains(&button) && self.was_pressed.contains(&button)
+    }
+
     pub fn position(&self) -> MousePosition {
         self.position
     }
@@ -85,11 +112,7 @@ where
 {
     type Event = WindowEvent;
 
-    fn handle_event(
-        &mut self,
-        event: Self::Event,
-        event_context: EventContext,
-    ) -> Option<Self::Event> {
+    fn handle_event(&mut self, event: Self::Event, context: &EventContext) -> Option<Self::Event> {
         match event {
             WindowEvent::MouseInput { state, button, .. } => {
                 match state {
@@ -99,7 +122,7 @@ where
                 None
             }
             WindowEvent::CursorMoved { position, .. } => {
-                match event_context
+                match context
                     .position_into_render_surface_space((position.x as f32, position.y as f32))
                 {
                     Ok(inside) => {
@@ -123,5 +146,42 @@ where
 impl Default for Mouse {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct KeyboardMouse {
+    keyboard: Keyboard,
+    mouse: Mouse,
+}
+
+impl KeyboardMouse {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn keyboard(&self) -> &Keyboard {
+        &self.keyboard
+    }
+
+    pub fn mouse(&self) -> &Mouse {
+        &self.mouse
+    }
+}
+
+impl<'a, EventContext> Input<'a, EventContext> for KeyboardMouse
+where
+    EventContext: backend::EventContext,
+{
+    type Event = WindowEvent;
+
+    fn handle_event(&mut self, event: Self::Event, context: &EventContext) -> Option<Self::Event> {
+        let event = self.keyboard.handle_event(event, context)?;
+        self.mouse.handle_event(event, context)
+    }
+
+    fn tick(&mut self) {
+        Input::<'_, EventContext>::tick(&mut self.keyboard);
+        Input::<'_, EventContext>::tick(&mut self.mouse);
     }
 }

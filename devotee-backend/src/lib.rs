@@ -58,7 +58,7 @@ pub trait Input<'a, EventContext> {
     fn handle_event(
         &mut self,
         event: Self::Event,
-        event_context: EventContext,
+        event_context: &EventContext,
     ) -> Option<Self::Event>;
     fn tick(&mut self);
 }

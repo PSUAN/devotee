@@ -212,7 +212,7 @@ where
             ),
         };
 
-        if let Some(event) = self.input.handle_event(event, context) {
+        if let Some(event) = self.input.handle_event(event, &context) {
             match event {
                 WindowEvent::CloseRequested => {
                     control.shutdown();

@@ -1,5 +1,3 @@
-use std::marker::PhantomData;
-
 use devotee_backend::Application;
 
 use self::sound_system::SoundSystem;
@@ -23,16 +21,15 @@ impl<'a, Root, Context, RenderSurface, Converter, In>
     Application<'a, Context, RenderSurface, Converter> for App<Root>
 where
     Root: root::Root<RenderSurface = RenderSurface, Converter = Converter, Input = In>,
-    Context: backend::Context<'a, In>,
+    Context: backend::Context<'a, In> + 'a,
+    In: 'a,
 {
     fn update(&mut self, mut context: Context) {
         let context = &mut context;
-        let input = context.input();
         let sound_system = self.sound_system.as_mut();
         let context = AppContext {
-            input,
             sound_system,
-            _phantom: PhantomData,
+            context,
         };
         self.root.update(context);
     }
@@ -58,18 +55,22 @@ where
     }
 }
 
-pub struct AppContext<'a, Input> {
-    input: &'a Input,
-    sound_system: Option<&'a mut SoundSystem>,
-    _phantom: PhantomData<Input>,
+pub struct AppContext<'a, 'b, Input> {
+    sound_system: Option<&'b mut SoundSystem>,
+    context: &'b mut dyn backend::Context<'a, Input>,
 }
 
-impl<'a, Input> AppContext<'a, Input> {
+impl<'a, 'b, Input> AppContext<'a, 'b, Input> {
     pub fn input(&self) -> &Input {
-        self.input
+        self.context.input()
     }
 
     pub fn try_sound_system_mut(&mut self) -> Option<&mut SoundSystem> {
         self.sound_system.as_deref_mut()
+    }
+
+    pub fn shutdown(&mut self) -> &mut Self {
+        self.context.shutdown();
+        self
     }
 }

@@ -2,21 +2,25 @@ use std::time::Duration;
 
 use devotee::app::root::Root;
 use devotee::app::{App, AppContext};
-use devotee::input::winit_input::Mouse;
+use devotee::input::winit_input::KeyboardMouse;
 use devotee::util::vector::Vector;
 use devotee::visual::canvas::Canvas;
 use devotee::visual::{paint, Image, Paint, PaintTarget};
 use devotee_backend::Converter;
 use devotee_backend_softbuffer::{SoftBackend, SoftMiddleware};
 use winit::event::MouseButton;
+use winit::keyboard::KeyCode;
 
 fn main() {
     let backend = SoftBackend::try_new("minimal").unwrap();
     backend
-        .run::<App<_>, _, u32, _, Mouse>(
+        .run::<App<_>, _, u32, _, KeyboardMouse>(
             App::new(Minimal::default()),
-            SoftMiddleware::new(Canvas::with_resolution(0x00000000, 128, 128), Mouse::new())
-                .with_background_color(0xff804000),
+            SoftMiddleware::new(
+                Canvas::with_resolution(0x00000000, 128, 128),
+                KeyboardMouse::new(),
+            )
+            .with_background_color(0xff804000),
             Duration::from_secs_f32(1.0 / 60.0),
         )
         .unwrap();
@@ -28,14 +32,18 @@ struct Minimal {
 }
 
 impl Root for Minimal {
-    type Input = Mouse;
+    type Input = KeyboardMouse;
     type Converter = FallThroughConverter;
     type RenderSurface = Canvas<u32>;
 
-    fn update(&mut self, update: AppContext<Mouse>) {
+    fn update(&mut self, mut update: AppContext<Self::Input>) {
         let input = update.input();
-        if input.is_pressed(MouseButton::Left) {
-            self.cursor = input.position().any();
+        if input.mouse().is_pressed(MouseButton::Left) {
+            self.cursor = input.mouse().position().any();
+        }
+
+        if input.keyboard().just_pressed(KeyCode::Escape) {
+            update.shutdown();
         }
     }
 
