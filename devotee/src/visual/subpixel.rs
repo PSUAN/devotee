@@ -190,7 +190,7 @@ where
                 .collect::<Vec<_>>();
 
             let mut counter = false;
-            for x in left..=right {
+            for x in (left - 1)..=right {
                 let mut should_paint = false;
                 let mut intersections = 0;
                 for (a, b, intersected, was_intersected, scan) in segments.iter_mut() {
