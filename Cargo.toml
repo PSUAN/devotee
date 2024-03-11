@@ -8,10 +8,3 @@ members = [
     "devotee-backend-softbuffer",
     "devotee-backend-pixels",
 ]
-
-[patch.crates-io]
-
-devotee = { path = "devotee" }
-devotee-backend = { path = "devotee-backend" }
-devotee-backend-pixels = { path = "devotee-backend-pixels" }
-devotee-backend-softbuffer = { path = "devotee-backend-softbuffer" }

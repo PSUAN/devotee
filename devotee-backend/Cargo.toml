@@ -1,6 +1,6 @@
 [package]
 name = "devotee-backend"
-version = "0.2.0-alpha"
+version = "0.2.0-beta"
 edition = "2021"
 publish = true
 authors = ["PSUAN collective", "Hara Red <rtc6fg4.fejg2@gmail.com>"]
