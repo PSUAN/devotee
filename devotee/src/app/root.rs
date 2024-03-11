@@ -1,15 +1,44 @@
-use super::config::Config;
-use super::context::Context;
+use devotee_backend::Converter;
 
-/// Root of a `devotee` app.
-/// Handles update and render logic.
-pub trait Root<Cfg>
-where
-    Cfg: Config,
-{
-    /// Update mutably.
-    fn update(&mut self, update: &mut Context<Cfg>);
+use super::AppContext;
 
-    /// Perform render on provided `RenderTarget`.
-    fn render(&self, render: &mut Cfg::RenderTarget);
+/// App's root trait.
+pub trait Root {
+    /// Input system handled by the root.
+    type Input;
+
+    /// Pixel data converter.
+    type Converter: Converter;
+
+    /// Render surface to render on.
+    type RenderSurface;
+
+    /// Handle update event.
+    fn update(&mut self, context: AppContext<Self::Input>);
+
+    /// Handle rendering on the surface.
+    fn render(&self, surface: &mut Self::RenderSurface);
+
+    /// Get converter to convert Render Surface pixels into `u32` values.
+    fn converter(&self) -> Self::Converter;
+
+    /// Handle pause event.
+    fn pause(&mut self) {}
+
+    /// Handle resume event.
+    fn resume(&mut self) {}
+
+    /// Handle exit request and give optional permission to shut down the App.
+    fn handle_exit_request(&mut self) -> ExitPermission {
+        ExitPermission::Allow
+    }
+}
+
+/// Enumeration of exit permission variants.
+#[derive(Clone, Copy, Debug)]
+pub enum ExitPermission {
+    /// Permit exiting the application.
+    Allow,
+    /// Forbid exiting the application.
+    Forbid,
 }

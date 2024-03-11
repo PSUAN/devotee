@@ -1,10 +1,9 @@
 # devotee
 
-A bit personal visualization engine.
+Simplistic visualization project.
 
-`devotee` is intended for use inside PSUAN's projects.
-However it is not limited to that.
+Check the `devotee` subfolder for details.
 
-## Work in progress
-`devotee` is totally a work in progress.
-We'd suggest to avoid relying on it in a long term yet.
+## License
+
+`devotee` is licensed under the `MIT` license.

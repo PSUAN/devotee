@@ -1,108 +1,47 @@
-use devotee::app;
-use devotee::app::config;
-use devotee::app::context::Context;
-use devotee::app::input::key_mouse::{KeyMouse, VirtualKeyCode};
+use std::time::Duration;
+
 use devotee::app::root::Root;
-use devotee::app::setup;
-use devotee::util::vector::Vector;
+use devotee::app::{App, AppContext};
+use devotee::input::winit_input::NoInput;
 use devotee::visual::canvas::Canvas;
-use devotee::visual::color;
-use devotee::visual::prelude::*;
-use devotee_backend_softbuffer::SoftbufferBackend;
+use devotee_backend::Converter;
+use devotee_backend_softbuffer::{Error, SoftBackend, SoftMiddleware};
 
-const BOX_BOUNDARIES: (i32, i32) = (16, 128 - 16);
-const INTERNAL_RADIUS: i32 = 8;
-
-fn main() {
-    let init_config = setup::Builder::<Config>::new()
-        .with_render_target(Canvas::with_resolution(Default::default(), 128, 128))
-        .with_input(Default::default())
-        .with_root_constructor(|_| Default::default())
-        .with_title("minimal")
-        .with_scale(2);
-    let app = app::App::<_, SoftbufferBackend>::with_setup(init_config).unwrap();
-
-    app.run();
+fn main() -> Result<(), Error> {
+    let backend = SoftBackend::try_new("minimal")?;
+    backend.run(
+        App::new(Minimal),
+        SoftMiddleware::new(Canvas::with_resolution(false, 128, 128), NoInput),
+        Duration::from_secs_f32(1.0 / 60.0),
+    )
 }
 
-struct Config;
+struct Minimal;
 
-impl config::Config for Config {
-    type Root = Minimal;
-    type Converter = Converter;
-    type Input = KeyMouse;
-    type RenderTarget = Canvas<Color>;
+impl Root for Minimal {
+    type Input = NoInput;
+    type Converter = BlackWhiteConverter;
+    type RenderSurface = Canvas<bool>;
 
-    fn converter() -> Self::Converter {
-        Converter
-    }
+    fn update(&mut self, _: AppContext<Self::Input>) {}
 
-    fn background_color() -> Color {
-        Color([0x00, 0x00, 0x80])
+    fn render(&self, _: &mut Self::RenderSurface) {}
+
+    fn converter(&self) -> Self::Converter {
+        BlackWhiteConverter
     }
 }
 
-#[derive(Default)]
-struct Minimal {
-    position: Vector<i32>,
-}
+struct BlackWhiteConverter;
 
-impl Root<Config> for Minimal {
-    fn update(&mut self, update: &mut Context<Config>) {
-        if update.input().keys().just_pressed(VirtualKeyCode::Escape) {
-            update.shutdown();
+impl Converter for BlackWhiteConverter {
+    type Data = bool;
+
+    fn convert(&self, _: usize, _: usize, data: Self::Data) -> u32 {
+        if data {
+            0xffffffff
+        } else {
+            0xff000000
         }
-
-        if let Some(pos) = update.input().mouse().position() {
-            *self.position.x_mut() = pos.x().clamp(
-                BOX_BOUNDARIES.0 + INTERNAL_RADIUS,
-                BOX_BOUNDARIES.1 - INTERNAL_RADIUS - 1,
-            );
-            *self.position.y_mut() = pos.y().clamp(
-                BOX_BOUNDARIES.0 + INTERNAL_RADIUS,
-                BOX_BOUNDARIES.1 - INTERNAL_RADIUS - 1,
-            );
-        }
-    }
-
-    fn render(&self, render: &mut Canvas<Color>) {
-        let mut render = render.painter();
-
-        render.clear(Color([0x00, 0x00, 0x80]));
-
-        render.rect(
-            (BOX_BOUNDARIES.0, BOX_BOUNDARIES.0),
-            (BOX_BOUNDARIES.1, BOX_BOUNDARIES.1),
-            paint(Color([0xff, 0xff, 0xff])),
-        );
-        render.circle_f(
-            self.position,
-            INTERNAL_RADIUS,
-            paint(Color([0x80, 0x80, 0x80])),
-        );
-        render.line(
-            (64, 64).into(),
-            self.position,
-            paint(Color([0xff, 0xff, 0xff])),
-        );
-        render.line(
-            self.position,
-            (64, 64).into(),
-            paint(Color([0x00, 0xff, 0x00])),
-        );
-        render.mod_pixel((64, 64), paint(Color([0xff, 0x00, 0x00])));
-        render.mod_pixel(self.position, paint(Color([0xff, 0x00, 0x00])));
-    }
-}
-
-#[derive(Clone, Copy, Default)]
-struct Color([u8; 3]);
-
-struct Converter;
-
-impl color::Converter for Converter {
-    type Palette = Color;
-    fn convert(&self, color: &Self::Palette) -> u32 {
-        ((color.0[0] as u32) << 16) | ((color.0[1] as u32) << 8) | (color.0[2] as u32)
     }
 }

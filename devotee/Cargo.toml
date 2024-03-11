@@ -1,6 +1,6 @@
 [package]
 name = "devotee"
-version = "0.1.47"
+version = "0.2.0-beta"
 edition = "2021"
 publish = true
 authors = ["PSUAN collective", "Hara Red <rtc6fg4.fejg2@gmail.com>"]
@@ -14,20 +14,24 @@ keywords = ["gamedev", "graphics"]
 categories = ["game-engines"]
 
 [features]
+default = ["winit-input"]
+wav = ["rodio/wav"]
+mp3 = ["rodio/mp3"]
+winit-input = ["winit", "devotee-backend/input-context"]
 
 [dependencies]
-devotee-backend = "0.1.0"
-instant = "0.1.12"
+devotee-backend = "0.2.0-beta"
+
+winit = { version = "0.29.11", default-features = false, optional = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-rodio = { version = "0.17.1", default-features = false, features = ["wav"] }
+rodio = { version = "0.17.1", default-features = false }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 rodio = { version = "0.17.1", default-features = false, features = [
-    "wav",
     "wasm-bindgen",
 ] }
-web-sys = "0.3.64"
 
 [dev-dependencies]
-devotee-backend-softbuffer = { version = "0.1.1" }
+devotee-backend-softbuffer = { version = "0.2.0-beta" }
+devotee-backend-pixels = { version = "0.2.0-beta" }

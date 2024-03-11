@@ -1,6 +1,6 @@
 [package]
 name = "devotee-backend-softbuffer"
-version = "0.1.1"
+version = "0.2.0-beta"
 edition = "2021"
 publish = true
 authors = ["PSUAN collective", "Hara Red <rtc6fg4.fejg2@gmail.com>"]
@@ -14,6 +14,12 @@ keywords = ["gamedev", "graphics"]
 categories = ["game-engines"]
 
 [dependencies]
-devotee-backend = "0.1.0"
+devotee-backend = "0.2.0-beta"
 
-softbuffer = "0.3.1"
+softbuffer = "0.4.1"
+winit = { version = "0.29.11", default-features = false, features = ["rwh_06"] }
+
+[features]
+default = ["x11"]
+x11 = ["winit/x11"]
+wayland = ["winit/wayland"]

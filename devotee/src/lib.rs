@@ -1,16 +1,17 @@
 #![deny(missing_docs)]
 
-//! `devotee` is small visualization engine based on [winit](https://crates.io/crates/winit) and [rodio](https://crates.io/crates/rodio).
-//! It aims to provide minimalist visualization capabilities.
-//!
-//! To use `devotee` specify `Config`, create `Setup`, initialize `App` and `run` it.
+//! Devotee is a simple visualization engine.
 
-pub use devotee_backend::winit;
+extern crate devotee_backend as backend;
 
-/// Application is the visualization core.
-/// It provides basic event loop handling.
+/// Default application implementation for the devotee project.
 pub mod app;
-/// Set of random useful stuff.
+
+/// Input implementations.
+pub mod input;
+
+/// Various utility.
 pub mod util;
-/// Set of visualization primitives.
+
+/// Visual-related module.
 pub mod visual;
