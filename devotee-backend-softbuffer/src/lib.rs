@@ -1,3 +1,7 @@
+#![deny(missing_docs)]
+
+//! [Softbuffer](https://crates.io/crates/softbuffer)-based backend for the devotee project.
+
 use std::num::TryFromIntError;
 use std::rc::Rc;
 use std::time::{Duration, Instant};
@@ -14,12 +18,14 @@ use winit::window::{Window, WindowBuilder};
 
 type Buf<'a> = Buffer<'a, Rc<Window>, Rc<Window>>;
 
+/// Backend based on the [Softbuffer](https://crates.io/crates/softbuffer) project.
 pub struct SoftBackend {
     window: Rc<Window>,
     event_loop: EventLoop<()>,
 }
 
 impl SoftBackend {
+    /// Create new backend instance with desired window title.
     pub fn try_new(title: &str) -> Result<Self, Error> {
         let event_loop = EventLoop::new()?;
         let window = Rc::new(WindowBuilder::new().with_title(title).build(&event_loop)?);
@@ -28,6 +34,7 @@ impl SoftBackend {
 }
 
 impl SoftBackend {
+    /// Run this backend to completion.
     pub fn run<App, Mid, Rend, Data, Conv>(
         self,
         app: App,
@@ -125,6 +132,7 @@ impl SoftBackend {
     }
 }
 
+/// Default Middleware for the Softbuffer backend.
 pub struct SoftMiddleware<RenderSurface, Input> {
     background_color: u32,
     buffer_dimensions: (usize, usize),
@@ -137,6 +145,7 @@ impl<RenderSurface, Input> SoftMiddleware<RenderSurface, Input>
 where
     RenderSurface: devotee_backend::RenderSurface,
 {
+    /// Create new middleware instance with desired render surface and input handler.
     pub fn new(render_surface: RenderSurface, input: Input) -> Self {
         let buffer_dimensions = (render_surface.width(), render_surface.height());
         let background_color = 0;
@@ -150,6 +159,7 @@ where
         }
     }
 
+    /// Set default scale for the window.
     pub fn with_default_scale(self, default_scale: u32) -> Self {
         Self {
             default_scale,
@@ -157,6 +167,7 @@ where
         }
     }
 
+    /// Set background color for the unoccupied space.
     pub fn with_background_color(self, background_color: u32) -> Self {
         Self {
             background_color,
@@ -250,6 +261,7 @@ where
     }
 }
 
+/// Default Context for the Softbuffer backend.
 pub struct SoftContext<'a, Input>
 where
     Input: devotee_backend::Input<'a, SoftEventContext<'a>>,
@@ -285,6 +297,7 @@ where
     }
 }
 
+/// Default Render Target for the Softbuffer backend.
 pub struct SoftRenderTarget<'a, RenderSurface> {
     background_color: u32,
     buffer_dimensions: (usize, usize),
@@ -340,22 +353,26 @@ where
     }
 }
 
+/// Default Control instance for the Softbuffer backend.
 pub struct SoftControl {
     should_quit: bool,
     window: Rc<Window>,
 }
 
 impl SoftControl {
+    /// Tell backend to shut down.
     pub fn shutdown(&mut self) -> &mut Self {
         self.should_quit = true;
         self
     }
 
+    /// Get instance to the underlying window.
     pub fn window_ref(&mut self) -> &Window {
         &self.window
     }
 }
 
+/// Default Event Context for the Softbuffer backend.
 pub struct SoftEventContext<'a> {
     window: &'a Window,
     resolution: (u32, u32),
@@ -397,11 +414,19 @@ impl<'a> EventContext for SoftEventContext<'a> {
     }
 }
 
+/// Softbuffer backend error enumeration.
 #[derive(Debug)]
 pub enum Error {
+    /// Winit event loop error.
     WinitEventLoopError(EventLoopError),
+
+    /// Winit OS error.
     WinitOsError(OsError),
+
+    /// Softbuffer render error.
     SoftbufferError(SoftBufferError),
+
+    /// Window resolution retrieval error.
     WindowResolutionError(TryFromIntError),
 }
 

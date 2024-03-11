@@ -1,3 +1,7 @@
+#![deny(missing_docs)]
+
+//! [Pixels](https://crates.io/crates/pixels)-based backend for the devotee project.
+
 use std::num::TryFromIntError;
 use std::rc::Rc;
 use std::time::{Duration, Instant};
@@ -12,12 +16,14 @@ use winit::event::{Event, StartCause, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop};
 use winit::window::{Window, WindowBuilder};
 
+/// Backend based on the [Pixels](https://crates.io/crates/pixels) project.
 pub struct PixelsBackend {
     window: Rc<Window>,
     event_loop: EventLoop<()>,
 }
 
 impl PixelsBackend {
+    /// Create new backend instance with desired window title.
     pub fn try_new(title: &str) -> Result<Self, Error> {
         let event_loop = EventLoop::new()?;
         let window = Rc::new(WindowBuilder::new().with_title(title).build(&event_loop)?);
@@ -26,6 +32,7 @@ impl PixelsBackend {
 }
 
 impl PixelsBackend {
+    /// Run this backend to completion.
     pub fn run<App, Mid, Rend, Data, Conv>(
         self,
         app: App,
@@ -128,6 +135,7 @@ impl PixelsBackend {
     }
 }
 
+/// Default Middleware for the Pixels backend.
 pub struct PixelsMiddleware<RenderSurface, Input> {
     render_surface: RenderSurface,
     input: Input,
@@ -137,6 +145,7 @@ impl<RenderSurface, Input> PixelsMiddleware<RenderSurface, Input>
 where
     RenderSurface: devotee_backend::RenderSurface,
 {
+    /// Create new middleware instance with desired render surface and input handler.
     pub fn new(render_surface: RenderSurface, input: Input) -> Self {
         Self {
             render_surface,
@@ -210,6 +219,7 @@ where
     }
 }
 
+/// Default Context for the Pixels backend.
 pub struct PixelsContext<'a, Input>
 where
     Input: devotee_backend::Input<'a, PixelsEventContext<'a>>,
@@ -245,6 +255,7 @@ where
     }
 }
 
+/// Default Render Target for the Pixels backend.
 pub struct PixelsRenderTarget<'a, RenderSurface> {
     render_surface: &'a mut RenderSurface,
     pixels: &'a mut Pixels,
@@ -294,6 +305,7 @@ where
     }
 }
 
+/// Default Control instance for the Pixels backend.
 pub struct PixelsControl {
     should_quit: bool,
     paused: Option<bool>,
@@ -301,6 +313,7 @@ pub struct PixelsControl {
 }
 
 impl PixelsControl {
+    /// Tell backend to shut down.
     pub fn shutdown(&mut self) -> &mut Self {
         self.should_quit = true;
         self
@@ -312,6 +325,7 @@ impl PixelsControl {
     }
 }
 
+/// Default Event Context for the Pixels backend.
 pub struct PixelsEventContext<'a> {
     pixels: &'a Pixels,
 }
@@ -328,11 +342,19 @@ impl<'a> EventContext for PixelsEventContext<'a> {
     }
 }
 
+/// Pixels backend error enumeration.
 #[derive(Debug)]
 pub enum Error {
+    /// Winit event loop error.
     WinitEventLoopError(EventLoopError),
+
+    /// Winit OS error.
     WinitOsError(OsError),
+
+    /// Pixels render error.
     PixelsError(PixelsError),
+
+    /// Window resolution retrieval error.
     WindowResolutionError(TryFromIntError),
 }
 
