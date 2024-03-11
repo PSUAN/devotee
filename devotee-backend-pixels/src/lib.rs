@@ -26,14 +26,14 @@ impl PixelsBackend {
 }
 
 impl PixelsBackend {
-    pub fn run<App, Mid, Rend, Data, Conv, Ctx>(
+    pub fn run<App, Mid, Rend, Data, Conv>(
         self,
         app: App,
         middleware: Mid,
         update_delay: Duration,
     ) -> Result<(), Error>
     where
-        App: for<'a> Application<'a, Ctx, Rend, Conv>,
+        App: for<'a> Application<'a, <Mid as Middleware<'a, PixelsControl>>::Context, Rend, Conv>,
         Mid: for<'a> Middleware<
             'a,
             PixelsControl,
@@ -41,7 +41,6 @@ impl PixelsBackend {
             EventContext = &'a Pixels,
             Surface = &'a mut Pixels,
             RenderTarget = PixelsRenderTarget<'a, Rend>,
-            Context = Ctx,
         >,
         Rend: RenderSurface<Data = Data>,
         Conv: Converter<Data = Data>,

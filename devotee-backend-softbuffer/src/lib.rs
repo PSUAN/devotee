@@ -28,17 +28,24 @@ impl SoftBackend {
 }
 
 impl SoftBackend {
-    pub fn run<App, Rend, Data, Conv, In>(
+    pub fn run<App, Mid, Rend, Data, Conv>(
         self,
         app: App,
-        middleware: SoftMiddleware<Rend, In>,
+        middleware: Mid,
         update_delay: Duration,
     ) -> Result<(), Error>
     where
-        App: for<'a> Application<'a, SoftContext<'a, In>, Rend, Conv>,
+        App: for<'a> Application<'a, <Mid as Middleware<'a, SoftControl>>::Context, Rend, Conv>,
+        Mid: for<'a> Middleware<
+            'a,
+            SoftControl,
+            Event = WindowEvent,
+            EventContext = &'a Window,
+            Surface = Buf<'a>,
+            RenderTarget = SoftRenderTarget<'a, Rend>,
+        >,
         Rend: RenderSurface<Data = Data>,
         Conv: Converter<Data = Data>,
-        In: for<'a> devotee_backend::Input<'a, SoftEventContext<'a>, Event = WindowEvent>,
     {
         let mut app = app;
         let mut middleware = middleware;
