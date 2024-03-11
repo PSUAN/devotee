@@ -4,15 +4,20 @@ use devotee_backend::Application;
 
 use self::sound_system::SoundSystem;
 
+/// Application root specification.
 pub mod root;
+
+/// Sound system specification.
 pub mod sound_system;
 
+/// Default Application implementation.
 pub struct App<Root> {
     root: Root,
     sound_system: Option<SoundSystem>,
 }
 
 impl<Root> App<Root> {
+    /// Create new App with passed root.
     pub fn new(root: Root) -> Self {
         let sound_system = SoundSystem::try_new();
         Self { root, sound_system }
@@ -57,24 +62,29 @@ where
     }
 }
 
+/// Context passed to the Root instance during update call.
 pub struct AppContext<'a, 'b, Input> {
     sound_system: Option<&'b mut SoundSystem>,
     context: &'b mut dyn backend::Context<'a, Input>,
 }
 
 impl<'a, 'b, Input> AppContext<'a, 'b, Input> {
+    /// Get simulation time passed since the previous update.
     pub fn delta(&self) -> Duration {
         self.context.delta()
     }
 
+    /// Get reference to the input.
     pub fn input(&self) -> &Input {
         self.context.input()
     }
 
-    pub fn try_sound_system_mut(&mut self) -> Option<&mut SoundSystem> {
+    /// Get optional mutable reference to the Sound System.
+    pub fn sound_system(&mut self) -> Option<&mut SoundSystem> {
         self.sound_system.as_deref_mut()
     }
 
+    /// Tell the application to shut down.
     pub fn shutdown(&mut self) -> &mut Self {
         self.context.shutdown();
         self

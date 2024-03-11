@@ -9,6 +9,7 @@ use crate::util::vector::Vector;
 pub use winit::event::MouseButton;
 pub use winit::keyboard::KeyCode;
 
+/// Keyboard-related input system.
 #[derive(Clone, Default, Debug)]
 pub struct Keyboard {
     pressed: HashSet<KeyCode>,
@@ -16,20 +17,34 @@ pub struct Keyboard {
 }
 
 impl Keyboard {
+    /// Create new Keyboard input system instance.
     pub fn new() -> Self {
         Self::default()
     }
 
+    /// Check if the key is pressed.
     pub fn is_pressed(&self, key: KeyCode) -> bool {
         self.pressed.contains(&key)
     }
 
+    /// Check if the key was pressed during the previous tick and not before.
     pub fn just_pressed(&self, key: KeyCode) -> bool {
         self.pressed.contains(&key) && !self.was_pressed.contains(&key)
     }
 
+    /// Check if the key was released during the previous tick.
     pub fn just_released(&self, key: KeyCode) -> bool {
         !self.pressed.contains(&key) && self.was_pressed.contains(&key)
+    }
+
+    /// Check if any key is pressed.
+    pub fn is_pressed_any(&self) -> bool {
+        !self.pressed.is_empty()
+    }
+
+    /// Check if any key was pressed during the previous tick.
+    pub fn just_pressed_any(&self) -> bool {
+        self.pressed.difference(&self.was_pressed).any(|_| true)
     }
 }
 
@@ -55,13 +70,18 @@ impl<'a, EventContext> Input<'a, EventContext> for Keyboard {
     }
 }
 
+/// Mouse position representation.
 #[derive(Clone, Copy, Debug)]
 pub enum MousePosition {
+    /// The mouse is inside the render surface.
     Inside(Vector<i32>),
+
+    /// The mouse is outside the render surface.
     Outside(Vector<i32>),
 }
 
 impl MousePosition {
+    /// Get the mouse position regardless the mouse being inside or outside the render surface.
     pub fn any(self) -> Vector<i32> {
         match self {
             MousePosition::Inside(inside) => inside,
@@ -70,6 +90,7 @@ impl MousePosition {
     }
 }
 
+/// Mouse-related input system.
 #[derive(Clone, Debug)]
 pub struct Mouse {
     position: MousePosition,
@@ -78,6 +99,7 @@ pub struct Mouse {
 }
 
 impl Mouse {
+    /// Create new Mouse input system instance.
     pub fn new() -> Self {
         let position = MousePosition::Inside((0, 0).into());
         let pressed = Default::default();
@@ -89,18 +111,22 @@ impl Mouse {
         }
     }
 
+    /// Check if the button is pressed.
     pub fn is_pressed(&self, button: MouseButton) -> bool {
         self.pressed.contains(&button)
     }
 
+    /// Check if the button was pressed during the previous tick and not before.
     pub fn just_pressed(&self, button: MouseButton) -> bool {
         self.pressed.contains(&button) && !self.was_pressed.contains(&button)
     }
 
+    /// Check if the button was released during the previous tick.
     pub fn just_released(&self, button: MouseButton) -> bool {
         !self.pressed.contains(&button) && self.was_pressed.contains(&button)
     }
 
+    /// Get mouse position.
     pub fn position(&self) -> MousePosition {
         self.position
     }
@@ -149,6 +175,7 @@ impl Default for Mouse {
     }
 }
 
+/// Keyboard and mouse input systems union.
 #[derive(Clone, Debug, Default)]
 pub struct KeyboardMouse {
     keyboard: Keyboard,
@@ -156,14 +183,17 @@ pub struct KeyboardMouse {
 }
 
 impl KeyboardMouse {
+    /// Create new input system instance.
     pub fn new() -> Self {
         Self::default()
     }
 
+    /// Get keyboard subsystem instance reference.
     pub fn keyboard(&self) -> &Keyboard {
         &self.keyboard
     }
 
+    /// Get mouse subsystem instance reference.
     pub fn mouse(&self) -> &Mouse {
         &self.mouse
     }
@@ -184,4 +214,21 @@ where
         Input::<'_, EventContext>::tick(&mut self.keyboard);
         Input::<'_, EventContext>::tick(&mut self.mouse);
     }
+}
+
+/// Cheap input system handling no input event.
+#[derive(Debug, Clone, Copy)]
+pub struct NoInput;
+
+impl<'a, EventContext> Input<'a, EventContext> for NoInput
+where
+    EventContext: backend::EventContext,
+{
+    type Event = WindowEvent;
+
+    fn handle_event(&mut self, event: Self::Event, _: &EventContext) -> Option<Self::Event> {
+        Some(event)
+    }
+
+    fn tick(&mut self) {}
 }

@@ -3,13 +3,12 @@ use std::time::Duration;
 
 use devotee::app::root::Root;
 use devotee::app::{App, AppContext};
-use devotee::input::winit_input::KeyboardMouse;
+use devotee::input::winit_input::{KeyCode, KeyboardMouse};
 use devotee::util::vector::Vector;
 use devotee::visual::canvas::Canvas;
 use devotee::visual::{paint, Paint, PaintTarget, Painter};
 use devotee_backend::Converter;
 use devotee_backend_softbuffer::{Error, SoftBackend, SoftMiddleware};
-use winit::keyboard::KeyCode;
 
 fn main() -> Result<(), Error> {
     let backend = SoftBackend::try_new("gears")?;
@@ -70,10 +69,6 @@ impl Root for Gears {
 
     fn converter(&self) -> Self::Converter {
         TwoConverter
-    }
-
-    fn background_color(&self) -> bool {
-        false
     }
 }
 

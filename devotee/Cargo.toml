@@ -35,7 +35,3 @@ rodio = { version = "0.17.1", default-features = false, features = [
 [dev-dependencies]
 devotee-backend-softbuffer = { version = "0.2.0-alpha" }
 devotee-backend-pixels = { version = "0.2.0-alpha" }
-
-[[example]]
-name = "minimal"
-required-features = ["winit-input"]

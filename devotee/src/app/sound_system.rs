@@ -5,8 +5,10 @@ use rodio::{OutputStream, OutputStreamHandle, Sink};
 
 pub use rodio;
 
+/// Reference-counted rodio sink.
 pub type Sound = Rc<Sink>;
 
+/// Simple sound system implementation.
 pub struct SoundSystem {
     // We are storing `OutputStream` instance to save it from being dropped and thus stopping sound.
     #[allow(dead_code)]
@@ -30,7 +32,8 @@ impl SoundSystem {
         Sink::try_new(&self.handle).ok()
     }
 
-    pub fn play(&mut self, source: Box<dyn Source<Item = f32> + Send>) -> Option<Rc<Sink>> {
+    /// Play passed source and get `Sound` instance if playback start was successful.
+    pub fn play(&mut self, source: Box<dyn Source<Item = f32> + Send>) -> Option<Sound> {
         if let Some(sink) = self.sink() {
             sink.append(source);
             let sink = Rc::new(sink);
