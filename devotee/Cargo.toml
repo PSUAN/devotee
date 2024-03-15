@@ -1,6 +1,6 @@
 [package]
 name = "devotee"
-version = "0.2.0-beta"
+version = "0.2.0-beta.1"
 edition = "2021"
 publish = true
 authors = ["PSUAN collective", "Hara Red <rtc6fg4.fejg2@gmail.com>"]
@@ -14,9 +14,8 @@ keywords = ["gamedev", "graphics"]
 categories = ["game-engines"]
 
 [features]
-default = ["winit-input"]
-wav = ["rodio/wav"]
-mp3 = ["rodio/mp3"]
+default = ["winit-input", "rodio-sound-system"]
+rodio-sound-system = ["rodio"]
 winit-input = ["winit", "devotee-backend/input-context"]
 
 [dependencies]
@@ -25,12 +24,12 @@ devotee-backend = "0.2.0-beta"
 winit = { version = "0.29.11", optional = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-rodio = { version = "0.17.1", default-features = false }
+rodio = { version = "0.17.1", default-features = false, optional = true }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 rodio = { version = "0.17.1", default-features = false, features = [
     "wasm-bindgen",
-] }
+], optional = true }
 
 [dev-dependencies]
 devotee-backend-softbuffer = { version = "0.2.0-beta" }

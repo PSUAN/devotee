@@ -2,25 +2,21 @@ use std::time::Duration;
 
 use devotee_backend::Application;
 
-use self::sound_system::SoundSystem;
-
 /// Application root specification.
 pub mod root;
 
-/// Sound system specification.
+/// Sound system implementations.
 pub mod sound_system;
 
 /// Default Application implementation.
 pub struct App<Root> {
     root: Root,
-    sound_system: Option<SoundSystem>,
 }
 
 impl<Root> App<Root> {
     /// Create new App with passed root.
     pub fn new(root: Root) -> Self {
-        let sound_system = SoundSystem::try_new();
-        Self { root, sound_system }
+        Self { root }
     }
 }
 
@@ -33,11 +29,7 @@ where
 {
     fn update(&mut self, mut context: Context) {
         let context = &mut context;
-        let sound_system = self.sound_system.as_mut();
-        let context = AppContext {
-            sound_system,
-            context,
-        };
+        let context = AppContext { context };
         self.root.update(context);
     }
 
@@ -50,22 +42,17 @@ where
     }
 
     fn pause(&mut self) {
-        if let Some(s) = self.sound_system.as_mut() {
-            s.pause()
-        };
+        self.root.pause();
     }
 
     fn resume(&mut self) {
-        if let Some(s) = self.sound_system.as_mut() {
-            s.resume()
-        }
+        self.root.resume();
     }
 }
 
 /// Context passed to the Root instance during update call.
 pub struct AppContext<'a, 'b, Input> {
-    sound_system: Option<&'b mut SoundSystem>,
-    context: &'b mut dyn backend::Context<'a, Input>,
+    context: &'a mut dyn backend::Context<'b, Input>,
 }
 
 impl<'a, 'b, Input> AppContext<'a, 'b, Input> {
@@ -77,11 +64,6 @@ impl<'a, 'b, Input> AppContext<'a, 'b, Input> {
     /// Get reference to the input.
     pub fn input(&self) -> &Input {
         self.context.input()
-    }
-
-    /// Get optional mutable reference to the Sound System.
-    pub fn sound_system(&mut self) -> Option<&mut SoundSystem> {
-        self.sound_system.as_deref_mut()
     }
 
     /// Tell the application to shut down.
