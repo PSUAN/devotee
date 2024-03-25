@@ -16,6 +16,8 @@ use winit::event::{Event, StartCause, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop};
 use winit::window::{Window, WindowBuilder};
 
+pub use winit;
+
 type Buf<'a> = Buffer<'a, Rc<Window>, Rc<Window>>;
 
 /// Backend based on the [Softbuffer](https://crates.io/crates/softbuffer) project.
@@ -42,7 +44,13 @@ impl SoftBackend {
         update_delay: Duration,
     ) -> Result<(), Error>
     where
-        App: for<'a> Application<'a, <Mid as Middleware<'a, SoftControl>>::Context, Rend, Conv>,
+        App: for<'a> Application<
+            'a,
+            <Mid as Middleware<'a, SoftControl>>::Init,
+            <Mid as Middleware<'a, SoftControl>>::Context,
+            Rend,
+            Conv,
+        >,
         Mid: for<'a> Middleware<
             'a,
             SoftControl,
@@ -66,7 +74,8 @@ impl SoftBackend {
             should_quit: false,
             window: window.clone(),
         };
-        middleware.init(&mut control);
+        let init = middleware.init(&mut control);
+        app.init(init);
 
         surface.resize(
             window.inner_size().width.try_into()?,
@@ -185,10 +194,11 @@ where
     type Event = WindowEvent;
     type EventContext = &'a Window;
     type Surface = Buf<'a>;
+    type Init = SoftInit<'a>;
     type Context = SoftContext<'a, Input>;
     type RenderTarget = SoftRenderTarget<'a, RenderSurface>;
 
-    fn init(&'a mut self, control: &'a mut SoftControl) {
+    fn init(&'a mut self, control: &'a mut SoftControl) -> Self::Init {
         let dimensions = (
             self.render_surface.width() as u32,
             self.render_surface.height() as u32,
@@ -205,6 +215,8 @@ where
             actual_dimensions.width as usize,
             actual_dimensions.height as usize,
         );
+
+        SoftInit { control }
     }
 
     fn update(&'a mut self, control: &'a mut SoftControl, delta: Duration) -> Self::Context {
@@ -261,6 +273,23 @@ where
     }
 }
 
+/// Default Init for the Softbuffer backend.
+pub struct SoftInit<'a> {
+    control: &'a mut SoftControl,
+}
+
+impl<'a> SoftInit<'a> {
+    /// Get reference to `SoftControl`.
+    pub fn control(&self) -> &SoftControl {
+        self.control
+    }
+
+    /// Get mutable reference to `SoftControl`.
+    pub fn control_mut(&mut self) -> &mut SoftControl {
+        self.control
+    }
+}
+
 /// Default Context for the Softbuffer backend.
 pub struct SoftContext<'a, Input>
 where
@@ -269,6 +298,21 @@ where
     control: &'a mut SoftControl,
     input: &'a mut Input,
     delta: Duration,
+}
+
+impl<'a, Input> SoftContext<'a, Input>
+where
+    Input: devotee_backend::Input<'a, SoftEventContext<'a>>,
+{
+    /// Get reference to `SoftControl`.
+    pub fn control(&self) -> &SoftControl {
+        self.control
+    }
+
+    /// Get mutable reference to `SoftControl`.
+    pub fn control_mut(&mut self) -> &mut SoftControl {
+        self.control
+    }
 }
 
 impl<'a, Input> Context<'a, Input> for SoftContext<'a, Input>
@@ -366,8 +410,8 @@ impl SoftControl {
         self
     }
 
-    /// Get instance to the underlying window.
-    pub fn window_ref(&mut self) -> &Window {
+    /// Get reference to the underlying window.
+    pub fn window_ref(&self) -> &Window {
         &self.window
     }
 }

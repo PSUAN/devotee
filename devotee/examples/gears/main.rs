@@ -2,23 +2,21 @@ use std::f32::consts::{self, PI};
 use std::time::Duration;
 
 use devotee::app::root::Root;
-use devotee::app::{App, AppContext};
-use devotee::input::winit_input::{KeyCode, KeyboardMouse};
+use devotee::app::App;
+use devotee::input::winit_input::{KeyCode, Keyboard};
 use devotee::util::vector::Vector;
 use devotee::visual::canvas::Canvas;
 use devotee::visual::{paint, Paint, PaintTarget, Painter};
-use devotee_backend::Converter;
-use devotee_backend_softbuffer::{Error, SoftBackend, SoftMiddleware};
+use devotee_backend::{Context, Converter};
+use devotee_backend_softbuffer::{Error, SoftBackend, SoftContext, SoftInit, SoftMiddleware};
+use winit::window::Fullscreen;
 
 fn main() -> Result<(), Error> {
     let backend = SoftBackend::try_new("gears")?;
     backend.run(
         App::new(Gears::new()),
-        SoftMiddleware::new(
-            Canvas::with_resolution(false, 320, 240),
-            KeyboardMouse::new(),
-        )
-        .with_background_color(0xff000000),
+        SoftMiddleware::new(Canvas::with_resolution(false, 320, 240), Keyboard::new())
+            .with_background_color(0xff000000),
         Duration::from_secs_f32(1.0 / 60.0),
     )
 }
@@ -41,13 +39,21 @@ impl Gears {
     }
 }
 
-impl Root for Gears {
+impl Root<SoftInit<'_>, SoftContext<'_, Keyboard>> for Gears {
     type Converter = TwoConverter;
-    type Input = KeyboardMouse;
     type RenderSurface = Canvas<bool>;
 
-    fn update(&mut self, mut context: AppContext<Self::Input>) {
-        let keyboard = context.input().keyboard();
+    fn init(&mut self, init: &mut SoftInit) {
+        init.control()
+            .window_ref()
+            .set_fullscreen(Some(Fullscreen::Borderless(None)));
+
+        self.driven_gear.angle =
+            -self.drive_gear.angle / 3.0 + PI / self.driven_gear.teeth_count as f32;
+    }
+
+    fn update(&mut self, context: &mut SoftContext<Keyboard>) {
+        let keyboard = context.input();
 
         if keyboard.is_pressed(KeyCode::Space) {
             self.drive_gear.angle += PI * context.delta().as_secs_f32() / 4.0;

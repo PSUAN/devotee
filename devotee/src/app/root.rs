@@ -1,20 +1,18 @@
 use devotee_backend::Converter;
 
-use super::AppContext;
-
 /// App's root trait.
-pub trait Root {
-    /// Input system handled by the root.
-    type Input;
-
+pub trait Root<Init, Context> {
     /// Pixel data converter.
     type Converter: Converter;
 
     /// Render surface to render on.
     type RenderSurface;
 
+    /// Handle initialization event.
+    fn init(&mut self, init: &mut Init);
+
     /// Handle update event.
-    fn update(&mut self, context: AppContext<Self::Input>);
+    fn update(&mut self, context: &mut Context);
 
     /// Handle rendering on the surface.
     fn render(&self, surface: &mut Self::RenderSurface);

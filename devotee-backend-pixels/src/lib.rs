@@ -16,6 +16,8 @@ use winit::event::{Event, StartCause, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop};
 use winit::window::{Window, WindowBuilder};
 
+pub use winit;
+
 /// Backend based on the [Pixels](https://crates.io/crates/pixels) project.
 pub struct PixelsBackend {
     window: Rc<Window>,
@@ -40,7 +42,13 @@ impl PixelsBackend {
         update_delay: Duration,
     ) -> Result<(), Error>
     where
-        App: for<'a> Application<'a, <Mid as Middleware<'a, PixelsControl>>::Context, Rend, Conv>,
+        App: for<'a> Application<
+            'a,
+            <Mid as Middleware<'a, PixelsControl>>::Init,
+            <Mid as Middleware<'a, PixelsControl>>::Context,
+            Rend,
+            Conv,
+        >,
         Mid: for<'a> Middleware<
             'a,
             PixelsControl,
@@ -62,7 +70,8 @@ impl PixelsBackend {
             paused: None,
             window: window.clone(),
         };
-        middleware.init(&mut control);
+        let init = middleware.init(&mut control);
+        app.init(init);
 
         let mut pixels = {
             let window_size = window.inner_size();
@@ -164,15 +173,18 @@ where
     type Event = WindowEvent;
     type EventContext = &'a Pixels;
     type Surface = &'a mut Pixels;
+    type Init = PixelsInit<'a>;
     type Context = PixelsContext<'a, Input>;
     type RenderTarget = PixelsRenderTarget<'a, RenderSurface>;
 
-    fn init(&'a mut self, control: &'a mut PixelsControl) {
+    fn init(&'a mut self, control: &'a mut PixelsControl) -> Self::Init {
         let size = PhysicalSize::new(
             self.render_surface.width() as u32,
             self.render_surface.height() as u32,
         );
         control.window.set_min_inner_size(Some(size));
+
+        PixelsInit { control }
     }
 
     fn update(&'a mut self, control: &'a mut PixelsControl, delta: Duration) -> Self::Context {
@@ -219,6 +231,23 @@ where
     }
 }
 
+/// Default Init for the Pixels backend.
+pub struct PixelsInit<'a> {
+    control: &'a mut PixelsControl,
+}
+
+impl<'a> PixelsInit<'a> {
+    /// Get reference to `PixelsControl`
+    pub fn control(&self) -> &PixelsControl {
+        self.control
+    }
+
+    /// Get mutable reference to `PixelsControl`
+    pub fn control_mut(&mut self) -> &mut PixelsControl {
+        self.control
+    }
+}
+
 /// Default Context for the Pixels backend.
 pub struct PixelsContext<'a, Input>
 where
@@ -227,6 +256,21 @@ where
     control: &'a mut PixelsControl,
     input: &'a mut Input,
     delta: Duration,
+}
+
+impl<'a, Input> PixelsContext<'a, Input>
+where
+    Input: devotee_backend::Input<'a, PixelsEventContext<'a>>,
+{
+    /// Get reference to `PixelsControl`
+    pub fn control(&mut self) -> &PixelsControl {
+        self.control
+    }
+
+    /// Get mutable reference to `PixelsControl`
+    pub fn control_mut(&mut self) -> &mut PixelsControl {
+        self.control
+    }
 }
 
 impl<'a, Input> Context<'a, Input> for PixelsContext<'a, Input>
@@ -322,6 +366,11 @@ impl PixelsControl {
     fn set_paused(&mut self, paused: bool) -> &mut Self {
         self.paused = Some(paused);
         self
+    }
+
+    /// Get reference to the window.
+    pub fn windown_ref(&self) -> &Window {
+        &self.window
     }
 }
 

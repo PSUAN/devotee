@@ -1,6 +1,6 @@
 [package]
 name = "devotee-backend-pixels"
-version = "0.2.0-beta"
+version = "0.2.0-beta.1"
 edition = "2021"
 publish = true
 authors = ["PSUAN collective", "Hara Red <rtc6fg4.fejg2@gmail.com>"]
@@ -14,7 +14,7 @@ keywords = ["gamedev", "graphics"]
 categories = ["game-engines"]
 
 [dependencies]
-devotee-backend = { version = "0.2.0-beta", features = ["input-context"] }
+devotee-backend = { version = "0.2.0-beta.1", features = ["input-context"] }
 
 pixels = "0.13.0"
 winit = { version = "0.29.11", default-features = false, features = ["rwh_05"] }

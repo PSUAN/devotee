@@ -1,5 +1,3 @@
-use std::time::Duration;
-
 use devotee_backend::Application;
 
 /// Application root specification.
@@ -20,16 +18,17 @@ impl<Root> App<Root> {
     }
 }
 
-impl<'a, Root, Context, RenderSurface, Converter, In>
-    Application<'a, Context, RenderSurface, Converter> for App<Root>
+impl<'a, Root, Init, Context, RenderSurface, Converter>
+    Application<'a, Init, Context, RenderSurface, Converter> for App<Root>
 where
-    Root: root::Root<RenderSurface = RenderSurface, Converter = Converter, Input = In>,
-    Context: backend::Context<'a, In> + 'a,
-    In: 'a,
+    Root: root::Root<Init, Context, RenderSurface = RenderSurface, Converter = Converter>,
 {
+    fn init(&mut self, mut init: Init) {
+        self.root.init(&mut init);
+    }
+
     fn update(&mut self, mut context: Context) {
         let context = &mut context;
-        let context = AppContext { context };
         self.root.update(context);
     }
 
@@ -47,28 +46,5 @@ where
 
     fn resume(&mut self) {
         self.root.resume();
-    }
-}
-
-/// Context passed to the Root instance during update call.
-pub struct AppContext<'a, 'b, Input> {
-    context: &'a mut dyn backend::Context<'b, Input>,
-}
-
-impl<'a, 'b, Input> AppContext<'a, 'b, Input> {
-    /// Get simulation time passed since the previous update.
-    pub fn delta(&self) -> Duration {
-        self.context.delta()
-    }
-
-    /// Get reference to the input.
-    pub fn input(&self) -> &Input {
-        self.context.input()
-    }
-
-    /// Tell the application to shut down.
-    pub fn shutdown(&mut self) -> &mut Self {
-        self.context.shutdown();
-        self
     }
 }

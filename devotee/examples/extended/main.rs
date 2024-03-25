@@ -5,8 +5,8 @@ use devotee::app::App;
 use devotee::input::winit_input::{KeyCode, Keyboard};
 use devotee::visual::canvas::Canvas;
 use devotee::visual::{paint, Image, Paint, PaintTarget};
-use devotee_backend::Converter;
-use devotee_backend_softbuffer::{Error, SoftBackend, SoftMiddleware};
+use devotee_backend::{Context, Converter};
+use devotee_backend_softbuffer::{Error, SoftBackend, SoftContext, SoftInit, SoftMiddleware};
 
 fn main() -> Result<(), Error> {
     let backend = SoftBackend::try_new("extended")?;
@@ -22,12 +22,13 @@ struct Extended {
     counter: f32,
 }
 
-impl Root for Extended {
-    type Input = Keyboard;
+impl Root<SoftInit<'_>, SoftContext<'_, Keyboard>> for Extended {
     type Converter = BlackWhiteConverter;
     type RenderSurface = Canvas<bool>;
 
-    fn update(&mut self, mut context: devotee::app::AppContext<Self::Input>) {
+    fn init(&mut self, _: &mut SoftInit) {}
+
+    fn update(&mut self, context: &mut SoftContext<Keyboard>) {
         if context.input().just_pressed(KeyCode::Escape) {
             context.shutdown();
         }

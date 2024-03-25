@@ -20,6 +20,9 @@ pub trait Middleware<'a, Control> {
     /// Surface to render to.
     type Surface;
 
+    /// Initialization context to be passed to the application.
+    type Init;
+
     /// Context to be passed to the application.
     type Context;
 
@@ -27,7 +30,7 @@ pub trait Middleware<'a, Control> {
     type RenderTarget;
 
     /// Initialize during startup.
-    fn init(&'a mut self, control: &'a mut Control);
+    fn init(&'a mut self, control: &'a mut Control) -> Self::Init;
 
     /// Provide context for the application update process.
     fn update(&'a mut self, control: &'a mut Control, delta: Duration) -> Self::Context;
@@ -45,7 +48,10 @@ pub trait Middleware<'a, Control> {
 }
 
 /// Application trait.
-pub trait Application<'a, Context, RenderSurface, Converter> {
+pub trait Application<'a, Init, Context, RenderSurface, Converter> {
+    /// Initialize the application.
+    fn init(&mut self, init: Init);
+
     /// Handle update logic.
     fn update(&mut self, context: Context);
 

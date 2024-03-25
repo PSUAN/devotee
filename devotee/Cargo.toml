@@ -1,6 +1,6 @@
 [package]
 name = "devotee"
-version = "0.2.0-beta.1"
+version = "0.2.0-beta.2"
 edition = "2021"
 publish = true
 authors = ["PSUAN collective", "Hara Red <rtc6fg4.fejg2@gmail.com>"]
@@ -19,7 +19,7 @@ rodio-sound-system = ["rodio"]
 winit-input = ["winit", "devotee-backend/input-context"]
 
 [dependencies]
-devotee-backend = "0.2.0-beta"
+devotee-backend = "0.2.0-beta.1"
 
 winit = { version = "0.29.11", optional = true }
 
@@ -32,4 +32,4 @@ rodio = { version = "0.17.1", default-features = false, features = [
 ], optional = true }
 
 [dev-dependencies]
-devotee-backend-softbuffer = { version = "0.2.0-beta" }
+devotee-backend-softbuffer = { version = "0.2.0-beta.1" }
