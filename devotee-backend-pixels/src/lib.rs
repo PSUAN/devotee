@@ -369,7 +369,7 @@ impl PixelsControl {
     }
 
     /// Get reference to the window.
-    pub fn windown_ref(&self) -> &Window {
+    pub fn window_ref(&self) -> &Window {
         &self.window
     }
 }
