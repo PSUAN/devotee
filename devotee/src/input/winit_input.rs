@@ -66,7 +66,7 @@ impl<'a, EventContext> Input<'a, EventContext> for Keyboard {
     }
 
     fn tick(&mut self) {
-        self.was_pressed = self.pressed.clone()
+        self.was_pressed.clone_from(&self.pressed)
     }
 }
 
@@ -165,7 +165,7 @@ where
     }
 
     fn tick(&mut self) {
-        self.was_pressed = self.pressed.clone();
+        self.was_pressed.clone_from(&self.pressed)
     }
 }
 
