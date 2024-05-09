@@ -169,7 +169,11 @@ where
     }
 
     /// Set default scale for the window.
+    ///
+    /// # Panics
+    /// Panics if `default_scale` is zero.
     pub fn with_default_scale(self, default_scale: u32) -> Self {
+        assert_ne!(default_scale, 0, "Default scale can't be zero");
         Self {
             default_scale,
             ..self
