@@ -148,6 +148,7 @@ impl PixelsBackend {
 pub struct PixelsMiddleware<RenderSurface, Input> {
     render_surface: RenderSurface,
     input: Input,
+    default_scale: u32,
 }
 
 impl<RenderSurface, Input> PixelsMiddleware<RenderSurface, Input>
@@ -156,9 +157,23 @@ where
 {
     /// Create new middleware instance with desired render surface and input handler.
     pub fn new(render_surface: RenderSurface, input: Input) -> Self {
+        let default_scale = 1;
         Self {
             render_surface,
             input,
+            default_scale,
+        }
+    }
+
+    /// Set default scale for the window.
+    ///
+    /// # Panics
+    /// Panics if `default_scale` is zero.
+    pub fn with_default_scale(self, default_scale: u32) -> Self {
+        assert_ne!(default_scale, 0, "Default scale can't be zero");
+        Self {
+            default_scale,
+            ..self
         }
     }
 }
@@ -178,11 +193,15 @@ where
     type RenderTarget = PixelsRenderTarget<'a, RenderSurface>;
 
     fn init(&'a mut self, control: &'a mut PixelsControl) -> Self::Init {
-        let size = PhysicalSize::new(
+        let dimensions = PhysicalSize::new(
             self.render_surface.width() as u32,
             self.render_surface.height() as u32,
         );
-        control.window.set_min_inner_size(Some(size));
+        control.window.set_min_inner_size(Some(dimensions));
+        let _ = control.window.request_inner_size(PhysicalSize::new(
+            dimensions.width * self.default_scale,
+            dimensions.height * self.default_scale,
+        ));
 
         PixelsInit { control }
     }
