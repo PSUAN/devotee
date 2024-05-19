@@ -232,8 +232,6 @@ where
         let rs = radius.powi(2);
         let determine_x = |y: f32| (rs - (y - center.y()).powi(2)).sqrt();
 
-        let center = center.map(round_to_i32);
-
         let mut top_x = determine_x(top as f32 - 0.5);
 
         for scanline in top..=bottom {
@@ -241,26 +239,24 @@ where
             match (top_x, current_x) {
                 (a, b) if a.is_nan() && b.is_nan() => (),
                 (a, b) if a.is_nan() || b > a => {
-                    let b = round_to_i32(b);
                     self.map_horizontal_line_raw(
-                        center.x() - b,
-                        center.x() + b,
+                        round_to_i32(center.x() - b),
+                        round_to_i32(center.x() + b),
                         scanline,
                         function,
                         0,
                     );
                 }
                 (a, b) if b.is_nan() || a >= b => {
-                    let a = round_to_i32(a);
                     self.map_horizontal_line_raw(
-                        center.x() - a,
-                        center.x() + a,
+                        round_to_i32(center.x() - a),
+                        round_to_i32(center.x() + a),
                         scanline,
                         function,
                         0,
                     );
                 }
-                (_, _) => unreachable!(),
+                (_, _) => (),
             }
             top_x = current_x;
         }
@@ -279,8 +275,6 @@ where
         let rs = radius.powi(2);
         let determine_x = |y: f32| (rs - (y - center.y()).powi(2)).sqrt();
 
-        let center = center.map(round_to_i32);
-
         let mut top_x = determine_x(top as f32 - 0.5);
 
         for scanline in top..=bottom {
@@ -288,56 +282,50 @@ where
             match (top_x, current_x) {
                 (a, b) if a.is_nan() && b.is_nan() => (),
                 (a, b) if a.is_nan() => {
-                    let b = round_to_i32(b);
                     self.map_horizontal_line_raw(
-                        center.x() - b,
-                        center.x() + b,
+                        round_to_i32(center.x() - b),
+                        round_to_i32(center.x() + b),
                         scanline,
                         function,
                         0,
                     );
                 }
                 (a, b) if b.is_nan() => {
-                    let a = round_to_i32(a);
                     self.map_horizontal_line_raw(
-                        center.x() - a,
-                        center.x() + a,
+                        round_to_i32(center.x() - a),
+                        round_to_i32(center.x() + a),
                         scanline,
                         function,
                         0,
                     );
                 }
                 (a, b) if a > b => {
-                    let a = round_to_i32(a);
-                    let b = round_to_i32(b);
                     self.map_horizontal_line_raw(
-                        center.x() - a,
-                        center.x() - b,
+                        round_to_i32(center.x() - a),
+                        round_to_i32(center.x() - b),
                         scanline,
                         function,
                         0,
                     );
                     self.map_horizontal_line_raw(
-                        center.x() + b,
-                        center.x() + a,
+                        round_to_i32(center.x() + b),
+                        round_to_i32(center.x() + a),
                         scanline,
                         function,
                         0,
                     );
                 }
                 (a, b) => {
-                    let a = round_to_i32(a);
-                    let b = round_to_i32(b);
                     self.map_horizontal_line_raw(
-                        center.x() - b,
-                        center.x() - a,
+                        round_to_i32(center.x() - b),
+                        round_to_i32(center.x() - a),
                         scanline,
                         function,
                         0,
                     );
                     self.map_horizontal_line_raw(
-                        center.x() + a,
-                        center.x() + b,
+                        round_to_i32(center.x() + a),
+                        round_to_i32(center.x() + b),
                         scanline,
                         function,
                         0,

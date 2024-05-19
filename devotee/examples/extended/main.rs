@@ -3,6 +3,7 @@ use std::time::Duration;
 use devotee::app::root::Root;
 use devotee::app::App;
 use devotee::input::winit_input::{KeyCode, Keyboard};
+use devotee::util::vector::Vector;
 use devotee::visual::canvas::Canvas;
 use devotee::visual::{paint, Image, Paint, PaintTarget};
 use devotee_backend::{Context, Converter};
@@ -38,13 +39,15 @@ impl Root<SoftInit<'_>, SoftContext<'_, Keyboard>> for Extended {
 
     fn render(&self, surface: &mut Self::RenderSurface) {
         surface.clear(false);
-        let center = surface.dimensions().map(|a| a as f32) / 2.0;
+        let center = surface.dimensions().map(|a| a as f32) / 2.0
+            + Vector::new(self.counter.cos(), -self.counter.sin()) * 8.0;
 
         let mut painter = surface.painter();
-        let radius = 48.0 + 16.0 * self.counter.sin();
+        let radius = 16.0 + 16.0 * self.counter.sin();
 
         painter.circle_f(center, radius, paint(true));
-        painter.circle_f(center, radius / 2.0, |x, y, _| (x + y) % 2 == 0)
+        painter.circle_f(center, radius / 2.0, |x, y, _| (x + y) % 2 == 0);
+        painter.circle_b(center, radius + 3.0, paint(true));
     }
 
     fn converter(&self) -> Self::Converter {
