@@ -14,9 +14,11 @@ keywords = ["gamedev", "graphics"]
 categories = ["game-engines"]
 
 [features]
-default = ["winit-input", "rodio-sound-system"]
+default = ["rodio-sound-system", "winit-input", "winit-x11"]
 rodio-sound-system = ["rodio"]
 winit-input = ["winit", "devotee-backend/input-context"]
+winit-x11 = ["winit/x11"]
+winit-wayland = ["winit/wayland"]
 
 [dependencies]
 devotee-backend = "0.2.0-beta.1"
