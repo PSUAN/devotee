@@ -159,8 +159,18 @@ where
         vertices: &[Vector<f32>],
         function: &mut F,
     ) {
+        enum FlipType {
+            Opening,
+            Closing,
+            Singular,
+        }
+        struct Flip {
+            edge_type: FlipType,
+            position: i32,
+        }
+
         // SAFETY: we do believe that there are at least 3 points in `vertices`.
-        let ((left, top), (right, bottom)) = vertices[1..].iter().fold(
+        let ((left, top), (_right, bottom)) = vertices[..].iter().fold(
             (vertices[0].split(), vertices[0].split()),
             |((left, top), (right, bottom)), value| {
                 let left = left.min(value.x());
@@ -171,7 +181,8 @@ where
             },
         );
         let (top, bottom) = (round_to_i32(top), round_to_i32(bottom));
-        let (left, right) = (round_to_i32(left), round_to_i32(right));
+        let left = round_to_i32(left);
+        let offset = self.offset.map(round_to_i32);
 
         let mut segments = vertices
             .windows(2)
@@ -180,40 +191,55 @@ where
         // SAFETY: we do believe that there are at least 3 points in `vertices`.
         segments.push((*vertices.last().unwrap(), vertices[0]));
         for y in top..=bottom {
-            let mut segments = segments
+            let intersections = segments
                 .iter()
                 .filter(|(a, b)| {
-                    (y >= a.y().round() as i32 && y <= b.y().round() as i32)
-                        || (y >= b.y().round() as i32 && y <= a.y().round() as i32)
+                    (y >= a.y().round() as i32 && y < b.y().round() as i32)
+                        || (y >= b.y().round() as i32 && y < a.y().round() as i32)
                 })
-                .map(|(a, b)| (a, b, false, false, scanline_segment_f32((*a, *b), y)))
-                .collect::<Vec<_>>();
+                .map(|(a, b)| scanline_segment_f32((*a, *b), y))
+                .filter(|scan| !matches!(*scan, Scan::None));
 
-            let mut counter = false;
-            for x in (left - 1)..=right {
-                let mut should_paint = false;
-                let mut intersections = 0;
-                for (a, b, intersected, was_intersected, scan) in segments.iter_mut() {
-                    if x >= scan.start_unchecked() && x <= scan.end_unchecked() {
-                        should_paint = true;
-                        *intersected = true;
-                        if !*was_intersected
-                            && (y < a.y().round() as i32 || y < b.y().round() as i32)
-                        {
-                            intersections += 1;
-                        }
-                    } else {
-                        *intersected = false;
+            let mut flips = Vec::new();
+            for intersection in intersections {
+                match intersection {
+                    Scan::Single(a) => flips.push(Flip {
+                        edge_type: FlipType::Singular,
+                        position: a,
+                    }),
+                    Scan::Inclusive(a, b) => {
+                        flips.push(Flip {
+                            edge_type: FlipType::Opening,
+                            position: a,
+                        });
+                        flips.push(Flip {
+                            edge_type: FlipType::Closing,
+                            position: b,
+                        });
                     }
-                    *was_intersected = *intersected;
+                    Scan::None => {}
                 }
+            }
+            flips.sort_by(|a, b| a.position.cmp(&b.position));
 
-                if intersections % 2 == 1 {
-                    counter = !counter;
+            let mut counter = 0;
+            let mut current_left = left;
+            for flip in flips {
+                if counter % 2 == 1 || counter / 2 % 2 == 1 {
+                    self.map_horizontal_line_raw(
+                        current_left + offset.x(),
+                        flip.position + offset.x(),
+                        y + offset.y(),
+                        function,
+                        0,
+                    );
                 }
+                current_left = flip.position;
 
-                if should_paint || counter {
-                    self.map_on_pixel_raw(self.offset.map(round_to_i32) + (x, y), function);
+                match flip.edge_type {
+                    FlipType::Opening => counter += 1,
+                    FlipType::Closing => counter += 1,
+                    FlipType::Singular => counter += 2,
                 }
             }
         }
