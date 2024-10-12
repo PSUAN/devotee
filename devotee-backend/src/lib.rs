@@ -56,7 +56,7 @@ pub trait Application<'a, Init, Context, RenderSurface, Converter> {
     fn update(&mut self, context: Context);
 
     /// Render on the surface passed by the Middleware.
-    fn render(&self, render_surface: &mut RenderSurface);
+    fn render(&mut self, render_surface: &mut RenderSurface);
 
     /// Provide converter to convert data on the surface into `u32` values.
     fn converter(&self) -> Converter;
