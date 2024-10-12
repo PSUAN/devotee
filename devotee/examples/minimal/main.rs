@@ -26,7 +26,7 @@ impl Root<SoftInit<'_>, SoftContext<'_, NoInput>> for Minimal {
 
     fn update(&mut self, _: &mut SoftContext<NoInput>) {}
 
-    fn render(&self, _: &mut Self::RenderSurface) {}
+    fn render(&mut self, _: &mut Self::RenderSurface) {}
 
     fn converter(&self) -> Self::Converter {
         BlackWhiteConverter

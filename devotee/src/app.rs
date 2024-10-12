@@ -32,7 +32,7 @@ where
         self.root.update(context);
     }
 
-    fn render(&self, render_surface: &mut RenderSurface) {
+    fn render(&mut self, render_surface: &mut RenderSurface) {
         self.root.render(render_surface);
     }
 

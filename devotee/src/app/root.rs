@@ -15,7 +15,7 @@ pub trait Root<Init, Context> {
     fn update(&mut self, context: &mut Context);
 
     /// Handle rendering on the surface.
-    fn render(&self, surface: &mut Self::RenderSurface);
+    fn render(&mut self, surface: &mut Self::RenderSurface);
 
     /// Get converter to convert Render Surface pixels into `u32` values.
     fn converter(&self) -> Self::Converter;

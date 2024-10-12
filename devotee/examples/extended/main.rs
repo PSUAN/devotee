@@ -37,7 +37,7 @@ impl Root<SoftInit<'_>, SoftContext<'_, Keyboard>> for Extended {
         self.counter += context.delta().as_secs_f32();
     }
 
-    fn render(&self, surface: &mut Self::RenderSurface) {
+    fn render(&mut self, surface: &mut Self::RenderSurface) {
         surface.clear(false);
         let center = surface.dimensions().map(|a| a as f32) / 2.0
             + Vector::new(self.counter.cos(), -self.counter.sin()) * 8.0;

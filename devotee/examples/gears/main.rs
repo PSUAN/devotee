@@ -66,7 +66,7 @@ impl Root<SoftInit<'_>, SoftContext<'_, Keyboard>> for Gears {
         }
     }
 
-    fn render(&self, render: &mut Self::RenderSurface) {
+    fn render(&mut self, render: &mut Self::RenderSurface) {
         let mut render = render.painter();
         render.clear(false);
         self.drive_gear.render(&mut render);
