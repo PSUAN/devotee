@@ -1,8 +1,8 @@
-use std::slice::Iter;
+use std::ops::RangeInclusive;
 
 use devotee_backend::RenderSurface;
 
-use super::{Image, PixelsIterator};
+use super::{FastHorizontalWriter, Image};
 use crate::util::vector::Vector;
 
 /// Canvas based on box slice of pixel data.
@@ -87,13 +87,9 @@ where
     fn clear(&mut self, color: P) {
         self.data = vec![color; self.width * self.height].into_boxed_slice();
     }
-}
 
-impl<'a, P: 'a> PixelsIterator<'a, P> for Canvas<P> {
-    type Iterator = Iter<'a, P>;
-
-    fn pixels(&'a self) -> Self::Iterator {
-        self.data.iter()
+    fn fast_horizontal_writer(&mut self) -> Option<impl FastHorizontalWriter<Self>> {
+        Some(CanvasFastHorizontalWriter { canvas: self })
     }
 }
 
@@ -113,5 +109,41 @@ where
 
     fn data(&self, x: usize, y: usize) -> P {
         unsafe { self.unsafe_pixel(Vector::new(x as i32, y as i32)).clone() }
+    }
+}
+
+struct CanvasFastHorizontalWriter<'a, P> {
+    canvas: &'a mut Canvas<P>,
+}
+
+impl<'a, P> FastHorizontalWriter<Canvas<P>> for CanvasFastHorizontalWriter<'a, P>
+where
+    P: Clone,
+{
+    fn write_line<F: FnMut(i32, i32, P) -> P>(
+        &mut self,
+        x: RangeInclusive<i32>,
+        y: i32,
+        function: &mut F,
+    ) {
+        if y < 0 || y >= Image::height(self.canvas) {
+            return;
+        }
+        let width = Image::width(self.canvas);
+        let start_x = (*x.start()).clamp(0, width - 1);
+        let end_x = (*x.end()).clamp(0, width - 1);
+        let start = start_x + width * y;
+        let end = end_x + width * y;
+
+        let s = start.min(end) as usize;
+        let e = start.max(end) as usize;
+
+        self.canvas.data[s..=e]
+            .iter_mut()
+            .enumerate()
+            .for_each(|(x, pixel)| {
+                let x = start_x + x as i32;
+                *pixel = function(x, y, pixel.clone());
+            });
     }
 }

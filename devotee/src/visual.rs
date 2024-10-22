@@ -1,4 +1,4 @@
-use std::ops::{Deref, DerefMut};
+use std::ops::{Deref, DerefMut, RangeInclusive};
 
 use crate::util::vector::Vector;
 
@@ -203,6 +203,11 @@ pub trait Image {
     fn dimensions(&self) -> Vector<i32> {
         Vector::new(self.width(), self.height())
     }
+
+    /// Get optional `FastHorizontalWriter` for faster horizontal line drawing.
+    fn fast_horizontal_writer(&mut self) -> Option<impl FastHorizontalWriter<Self>> {
+        None::<FastHorizontalWriterPlaceholder>
+    }
 }
 
 /// Something that can be painted on.
@@ -317,6 +322,23 @@ where
         for y in iter_ref.skip(skip) {
             let pose = (x, y);
             self.map_on_pixel_raw(pose.into(), function);
+        }
+    }
+
+    fn map_fast_horizontal_line_raw<F: FnMut(i32, i32, P) -> P>(
+        &mut self,
+        from_x: i32,
+        to_x: i32,
+        y: i32,
+        function: &mut F,
+    ) {
+        if self
+            .target
+            .fast_horizontal_writer()
+            .map(|mut fast| fast.write_line(from_x..=to_x, y, function))
+            .is_none()
+        {
+            self.map_horizontal_line_raw(from_x, to_x, y, function, 0);
         }
     }
 
@@ -436,19 +458,32 @@ where
         F: FnMut(i32, i32, P) -> P;
 }
 
-/// Pixel iterator provider.
-pub trait PixelsIterator<'a, P: 'a> {
-    /// Specific iterator to be produced.
-    type Iterator: Iterator<Item = &'a P>;
-
-    /// Produce pixels iterator.
-    fn pixels(&'a self) -> Self::Iterator;
+/// A helper utility for writing horizontal lines faster.
+pub trait FastHorizontalWriter<I>
+where
+    I: Image + ?Sized,
+{
+    /// Apply provided function to all pixels in a horizontal line.
+    fn write_line<F: FnMut(i32, i32, I::Pixel) -> I::Pixel>(
+        &mut self,
+        x: RangeInclusive<i32>,
+        y: i32,
+        function: &mut F,
+    );
 }
 
-impl<'a, P: 'a, I: PixelsIterator<'a, P> + ?Sized> PixelsIterator<'a, P> for Box<I> {
-    type Iterator = I::Iterator;
+struct FastHorizontalWriterPlaceholder;
 
-    fn pixels(&'a self) -> Self::Iterator {
-        I::pixels(self)
+impl<I> FastHorizontalWriter<I> for FastHorizontalWriterPlaceholder
+where
+    I: Image + ?Sized,
+{
+    fn write_line<F: FnMut(i32, i32, I::Pixel) -> I::Pixel>(
+        &mut self,
+        _: RangeInclusive<i32>,
+        _: i32,
+        _: &mut F,
+    ) {
+        unreachable!()
     }
 }

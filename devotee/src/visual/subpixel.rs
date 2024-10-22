@@ -116,12 +116,11 @@ where
         // We are on a horizontal line.
         if a.y() == c.y() {
             vertex_i32.sort_by(|a, b| a.x().cmp(b.x_ref()));
-            self.map_horizontal_line_raw(
+            self.map_fast_horizontal_line_raw(
                 vertex_i32[0].x(),
                 vertex_i32[2].x(),
                 vertex_i32[0].y(),
                 function,
-                0,
             );
             return;
         }
@@ -139,7 +138,7 @@ where
                 .start_unchecked()
                 .min(right_range.start_unchecked());
             let right = left_range.end_unchecked().max(right_range.end_unchecked());
-            self.map_horizontal_line_raw(left, right, y, function, 0);
+            self.map_fast_horizontal_line_raw(left, right, y, function);
         }
 
         let middle = middle + 1;
@@ -150,7 +149,7 @@ where
                 .start_unchecked()
                 .min(right_range.start_unchecked());
             let right = left_range.end_unchecked().max(right_range.end_unchecked());
-            self.map_horizontal_line_raw(left, right, y, function, 0);
+            self.map_fast_horizontal_line_raw(left, right, y, function);
         }
     }
 
@@ -226,12 +225,11 @@ where
             let mut current_left = left;
             for flip in flips {
                 if counter % 2 == 1 || counter / 2 % 2 == 1 {
-                    self.map_horizontal_line_raw(
+                    self.map_fast_horizontal_line_raw(
                         current_left + offset.x(),
                         flip.position + offset.x(),
                         y + offset.y(),
                         function,
-                        0,
                     );
                 }
                 current_left = flip.position;
@@ -265,21 +263,19 @@ where
             match (top_x, current_x) {
                 (a, b) if a.is_nan() && b.is_nan() => (),
                 (a, b) if a.is_nan() || b > a => {
-                    self.map_horizontal_line_raw(
+                    self.map_fast_horizontal_line_raw(
                         round_to_i32(center.x() - b),
                         round_to_i32(center.x() + b),
                         scanline,
                         function,
-                        0,
                     );
                 }
                 (a, b) if b.is_nan() || a >= b => {
-                    self.map_horizontal_line_raw(
+                    self.map_fast_horizontal_line_raw(
                         round_to_i32(center.x() - a),
                         round_to_i32(center.x() + a),
                         scanline,
                         function,
-                        0,
                     );
                 }
                 (_, _) => (),
@@ -308,53 +304,47 @@ where
             match (top_x, current_x) {
                 (a, b) if a.is_nan() && b.is_nan() => (),
                 (a, b) if a.is_nan() => {
-                    self.map_horizontal_line_raw(
+                    self.map_fast_horizontal_line_raw(
                         round_to_i32(center.x() - b),
                         round_to_i32(center.x() + b),
                         scanline,
                         function,
-                        0,
                     );
                 }
                 (a, b) if b.is_nan() => {
-                    self.map_horizontal_line_raw(
+                    self.map_fast_horizontal_line_raw(
                         round_to_i32(center.x() - a),
                         round_to_i32(center.x() + a),
                         scanline,
                         function,
-                        0,
                     );
                 }
                 (a, b) if a > b => {
-                    self.map_horizontal_line_raw(
+                    self.map_fast_horizontal_line_raw(
                         round_to_i32(center.x() - a),
                         round_to_i32(center.x() - b),
                         scanline,
                         function,
-                        0,
                     );
-                    self.map_horizontal_line_raw(
+                    self.map_fast_horizontal_line_raw(
                         round_to_i32(center.x() + b),
                         round_to_i32(center.x() + a),
                         scanline,
                         function,
-                        0,
                     );
                 }
                 (a, b) => {
-                    self.map_horizontal_line_raw(
+                    self.map_fast_horizontal_line_raw(
                         round_to_i32(center.x() - b),
                         round_to_i32(center.x() - a),
                         scanline,
                         function,
-                        0,
                     );
-                    self.map_horizontal_line_raw(
+                    self.map_fast_horizontal_line_raw(
                         round_to_i32(center.x() + a),
                         round_to_i32(center.x() + b),
                         scanline,
                         function,
-                        0,
                     );
                 }
             }

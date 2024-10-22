@@ -126,7 +126,12 @@ where
         // We are on a horizontal line.
         if a.y() == c.y() {
             vertex.sort_by(|a, b| a.x().cmp(b.x_ref()));
-            self.map_horizontal_line_raw(vertex[0].x(), vertex[2].x(), vertex[0].y(), function, 0);
+            self.map_fast_horizontal_line_raw(
+                vertex[0].x(),
+                vertex[2].x(),
+                vertex[0].y(),
+                function,
+            );
             return;
         }
 
@@ -139,7 +144,7 @@ where
                 .start_unchecked()
                 .min(right_range.start_unchecked());
             let right = left_range.end_unchecked().max(right_range.end_unchecked());
-            self.map_horizontal_line_raw(left, right, y, function, 0);
+            self.map_fast_horizontal_line_raw(left, right, y, function);
         }
 
         let middle = middle + 1;
@@ -150,7 +155,7 @@ where
                 .start_unchecked()
                 .min(right_range.start_unchecked());
             let right = left_range.end_unchecked().max(right_range.end_unchecked());
-            self.map_horizontal_line_raw(left, right, y, function, 0);
+            self.map_fast_horizontal_line_raw(left, right, y, function);
         }
     }
 
@@ -220,12 +225,11 @@ where
             let mut current_left = left;
             for flip in flips {
                 if counter % 2 == 1 || counter / 2 % 2 == 1 {
-                    self.map_horizontal_line_raw(
+                    self.map_fast_horizontal_line_raw(
                         current_left + self.offset.x(),
                         flip.position + self.offset.x(),
                         y + self.offset.y(),
                         function,
-                        0,
                     );
                 }
                 current_left = flip.position;
@@ -246,12 +250,11 @@ where
         function: &mut F,
     ) {
         let center = center + self.offset;
-        self.map_horizontal_line_raw(
+        self.map_fast_horizontal_line_raw(
             center.x() - radius,
             center.x() + radius,
             center.y(),
             function,
-            0,
         );
 
         let mut x = 0;
@@ -262,19 +265,17 @@ where
 
         while x < y {
             if decision > 0 {
-                self.map_horizontal_line_raw(
+                self.map_fast_horizontal_line_raw(
                     center.x() - x,
                     center.x() + x,
                     center.y() + y,
                     function,
-                    0,
                 );
-                self.map_horizontal_line_raw(
+                self.map_fast_horizontal_line_raw(
                     center.x() - x,
                     center.x() + x,
                     center.y() - y,
                     function,
-                    0,
                 );
                 y -= 1;
                 checker_y += 2;
@@ -284,19 +285,17 @@ where
                 checker_x += 2;
                 decision += checker_x;
 
-                self.map_horizontal_line_raw(
+                self.map_fast_horizontal_line_raw(
                     center.x() - y,
                     center.x() + y,
                     center.y() + x,
                     function,
-                    0,
                 );
-                self.map_horizontal_line_raw(
+                self.map_fast_horizontal_line_raw(
                     center.x() - y,
                     center.x() + y,
                     center.y() - x,
                     function,
-                    0,
                 );
             }
         }

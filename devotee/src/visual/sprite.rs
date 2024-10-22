@@ -1,4 +1,6 @@
-use super::{Image, PixelsIterator};
+use backend::RenderSurface;
+
+use super::Image;
 use crate::util::vector::Vector;
 
 /// Sprite of fixed dimensions.
@@ -86,36 +88,21 @@ where
     }
 }
 
-impl<'a, P: 'a, const W: usize, const H: usize> PixelsIterator<'a, P> for Sprite<P, W, H>
+impl<P, const W: usize, const H: usize> RenderSurface for Sprite<P, W, H>
 where
     P: Copy,
 {
-    type Iterator = SpriteIter<'a, P, W, H>;
+    type Data = P;
 
-    fn pixels(&'a self) -> Self::Iterator {
-        SpriteIter {
-            sprite: self,
-            index: 0,
-        }
+    fn width(&self) -> usize {
+        W
     }
-}
 
-/// An Iterator over pixels in a sprite, left to right, top to bottom.
-pub struct SpriteIter<'a, P, const W: usize, const H: usize> {
-    sprite: &'a Sprite<P, W, H>,
-    index: usize,
-}
+    fn height(&self) -> usize {
+        H
+    }
 
-impl<'a, P, const W: usize, const H: usize> Iterator for SpriteIter<'a, P, W, H> {
-    type Item = &'a P;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        let current = self.index;
-        if current < W * H {
-            self.index += 1;
-            Some(&self.sprite.data[current / W][current % W])
-        } else {
-            None
-        }
+    fn data(&self, x: usize, y: usize) -> P {
+        unsafe { *self.unsafe_pixel(Vector::new(x as i32, y as i32)) }
     }
 }
