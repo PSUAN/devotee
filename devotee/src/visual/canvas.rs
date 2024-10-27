@@ -131,14 +131,14 @@ where
         }
         let width = Image::width(self.canvas);
         let start_x = (*x.start()).clamp(0, width - 1);
-        let end_x = (*x.end()).clamp(0, width - 1);
+        let end_x = (*x.end() + 1).clamp(0, width - 1);
         let start = start_x + width * y;
         let end = end_x + width * y;
 
         let s = start.min(end) as usize;
         let e = start.max(end) as usize;
 
-        self.canvas.data[s..=e]
+        self.canvas.data[s..e]
             .iter_mut()
             .enumerate()
             .for_each(|(x, pixel)| {

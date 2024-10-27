@@ -29,9 +29,9 @@ struct Gears {
 impl Gears {
     fn new() -> Self {
         let mut drive_gear = Gear::new_gear(128.0, 20);
-        drive_gear.center = Vector::new(0.0, 240.0);
+        drive_gear.center = Vector::new(0.0, 32.0);
         let mut driven_gear = Gear::new_gear(384.0, 60);
-        driven_gear.center = Vector::new(256.0, 240.0);
+        driven_gear.center = Vector::new(256.0, 32.0);
         Self {
             drive_gear,
             driven_gear,

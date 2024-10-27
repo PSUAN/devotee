@@ -468,25 +468,22 @@ where
         F: FnMut(i32, i32, P) -> P,
     {
         let mut function = function;
-        let skip = if vertices.len() > 2 {
+        if vertices.len() > 2 {
             self.map_on_subline_offset(
                 // SAFETY: we have checked that `vertices` contain at least 3 elements.
                 vertices.last().unwrap().clone().into(),
                 vertices[0].clone().into(),
                 &mut function,
-                1,
+                0,
             );
-            1
-        } else {
-            0
-        };
+        }
 
         for window in vertices.windows(2) {
             self.map_on_subline_offset(
                 window[0].clone().into(),
                 window[1].clone().into(),
                 &mut function,
-                skip,
+                0,
             );
         }
     }
