@@ -2,6 +2,7 @@ use std::ops::{Deref, DerefMut};
 
 use crate::util::getter::Getter;
 use crate::util::vector::Vector;
+use crate::visual::util::AngleIterator;
 
 use super::{Image, Paint, Painter, Scan};
 
@@ -172,6 +173,7 @@ where
         struct Flip {
             edge_type: FlipType,
             position: i32,
+            smooth: Option<bool>,
         }
 
         // SAFETY: we do believe that there are at least 3 points in `vertices`.
@@ -186,34 +188,39 @@ where
             },
         );
 
-        let mut segments = vertices
-            .windows(2)
-            .map(|v| (v[0], v[1]))
-            .collect::<Vec<_>>();
-        // SAFETY: we do believe that there are at least 3 points in `vertices`.
-        segments.push((*vertices.last().unwrap(), vertices[0]));
         for y in top..=bottom {
+            let segments = AngleIterator::new(vertices);
+
             let intersections = segments
-                .iter()
-                .filter(|(a, b)| (y >= a.y() && y < b.y()) || (y >= b.y() && y < a.y()))
-                .map(|(a, b)| scanline_segment_i32((*a, *b), y))
-                .filter(|scan| !matches!(*scan, Scan::None));
+                .map(|(a, b, c)| {
+                    (scanline_segment_i32((*a, *b), y), {
+                        if b.y() == y {
+                            Some((b.y() > a.y()) == (b.y() < c.y()))
+                        } else {
+                            None
+                        }
+                    })
+                })
+                .filter(|(scan, _)| !matches!(*scan, Scan::None));
 
             let mut flips = Vec::new();
-            for intersection in intersections {
+            for (intersection, smooth) in intersections {
                 match intersection {
                     Scan::Single(a) => flips.push(Flip {
                         edge_type: FlipType::Singular,
                         position: a,
+                        smooth,
                     }),
                     Scan::Inclusive(a, b) => {
                         flips.push(Flip {
                             edge_type: FlipType::Opening,
                             position: a,
+                            smooth,
                         });
                         flips.push(Flip {
                             edge_type: FlipType::Closing,
                             position: b,
+                            smooth,
                         });
                     }
                     Scan::None => {}
@@ -234,11 +241,13 @@ where
                 }
                 current_left = flip.position;
 
-                match flip.edge_type {
-                    FlipType::Opening => counter += 1,
-                    FlipType::Closing => counter += 1,
-                    FlipType::Singular => counter += 2,
-                }
+                counter += match (flip.edge_type, flip.smooth) {
+                    (FlipType::Singular, Some(false)) => 2,
+                    (FlipType::Opening, None) => 1,
+                    (FlipType::Closing, None) => 1,
+                    (FlipType::Singular, None) => 2,
+                    _ => 0,
+                };
             }
         }
     }

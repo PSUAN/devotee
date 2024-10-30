@@ -12,6 +12,8 @@ pub mod pixel;
 /// Subpixel-perfect operations implementation.
 pub mod subpixel;
 
+mod util;
+
 /// Collection of drawing traits and functions compiles in a single prelude.
 pub mod prelude {
     pub use super::{paint, printer, stamp};
