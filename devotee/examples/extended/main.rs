@@ -5,7 +5,7 @@ use devotee::app::App;
 use devotee::input::winit_input::{KeyCode, Keyboard};
 use devotee::util::vector::Vector;
 use devotee::visual::canvas::Canvas;
-use devotee::visual::{paint, Image, Paint, PaintTarget};
+use devotee::visual::prelude::*;
 use devotee_backend::{Context, Converter};
 use devotee_backend_softbuffer::{Error, SoftBackend, SoftContext, SoftInit, SoftMiddleware};
 

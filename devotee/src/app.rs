@@ -18,8 +18,8 @@ impl<Root> App<Root> {
     }
 }
 
-impl<'a, Root, Init, Context, RenderSurface, Converter>
-    Application<'a, Init, Context, RenderSurface, Converter> for App<Root>
+impl<Root, Init, Context, RenderSurface, Converter>
+    Application<'_, Init, Context, RenderSurface, Converter> for App<Root>
 where
     Root: root::Root<Init, Context, RenderSurface = RenderSurface, Converter = Converter>,
 {

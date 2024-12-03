@@ -2,7 +2,8 @@ use std::ops::RangeInclusive;
 
 use devotee_backend::RenderSurface;
 
-use super::{FastHorizontalWriter, Image};
+use super::image::{DesignatorMut, DesignatorRef};
+use super::{FastHorizontalWriter, Image, ImageMut};
 use crate::util::vector::Vector;
 
 /// Canvas based on box slice of pixel data.
@@ -29,13 +30,16 @@ where
     }
 }
 
+impl<'a, P> DesignatorRef<'a> for Canvas<P> {
+    type PixelRef = &'a P;
+}
+
 impl<P> Image for Canvas<P>
 where
     P: Clone,
 {
     type Pixel = P;
-    type PixelRef<'a> = &'a P where P:'a;
-    type PixelMut<'a> = &'a mut P where P:'a;
+
     fn pixel(&self, position: Vector<i32>) -> Option<&P> {
         if position.x() < 0 || position.y() < 0 {
             return None;
@@ -48,6 +52,31 @@ where
         }
     }
 
+    /// Get reference to pixel.
+    /// # Safety
+    /// - `position` must be in range `[0, width-1]` by `x` and `[0, height-1]` by `y`.
+    unsafe fn unsafe_pixel(&self, position: Vector<i32>) -> &P {
+        let (x, y) = (position.x() as usize, position.y() as usize);
+        &self.data[x + self.width * y]
+    }
+
+    fn width(&self) -> i32 {
+        self.width as i32
+    }
+
+    fn height(&self) -> i32 {
+        self.height as i32
+    }
+}
+
+impl<'a, P> DesignatorMut<'a> for Canvas<P> {
+    type PixelMut = &'a mut P;
+}
+
+impl<P> ImageMut for Canvas<P>
+where
+    P: Clone,
+{
     fn pixel_mut(&mut self, position: Vector<i32>) -> Option<&mut P> {
         if position.x() < 0 || position.y() < 0 {
             return None;
@@ -60,28 +89,12 @@ where
         }
     }
 
-    /// Get reference to pixel.
-    /// # Safety
-    /// - `position` must be in range `[0, width-1]` by `x` and `[0, height-1]` by `y`.
-    unsafe fn unsafe_pixel(&self, position: Vector<i32>) -> &P {
-        let (x, y) = (position.x() as usize, position.y() as usize);
-        &self.data[x + self.width * y]
-    }
-
     /// Get mutable reference to pixel.
     /// # Safety
     /// - `position` must be in range `[0, width-1]` by `x` and `[0, height-1]` by `y`.
     unsafe fn unsafe_pixel_mut(&mut self, position: Vector<i32>) -> &mut P {
         let (x, y) = (position.x() as usize, position.y() as usize);
         &mut self.data[x + self.width * y]
-    }
-
-    fn width(&self) -> i32 {
-        self.width as i32
-    }
-
-    fn height(&self) -> i32 {
-        self.height as i32
     }
 
     fn clear(&mut self, color: P) {
@@ -116,7 +129,7 @@ struct CanvasFastHorizontalWriter<'a, P> {
     canvas: &'a mut Canvas<P>,
 }
 
-impl<'a, P> FastHorizontalWriter<Canvas<P>> for CanvasFastHorizontalWriter<'a, P>
+impl<P> FastHorizontalWriter<Canvas<P>> for CanvasFastHorizontalWriter<'_, P>
 where
     P: Clone,
 {

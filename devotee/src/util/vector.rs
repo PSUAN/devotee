@@ -1,7 +1,7 @@
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};
 
 /// Generic two-dimensional vector.
-#[derive(Clone, Copy, Debug, Default, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct Vector<T> {
     x: T,
     y: T,
@@ -76,6 +76,30 @@ impl<T> Vector<T> {
             x: self.x.into(),
             y: self.y.into(),
         }
+    }
+
+    /// Get vector with each individual element calculated as a min of corresponding elements of `self` and `other`.
+    pub fn individual_min<I>(self, other: I) -> Self
+    where
+        I: Into<Self>,
+        T: Ord,
+    {
+        let other = other.into();
+        let x = self.x.min(other.x);
+        let y = self.y.min(other.y);
+        Self { x, y }
+    }
+
+    /// Get vector with each individual element calculated as a max of corresponding elements of `self` and `other`.
+    pub fn individual_max<I>(self, other: I) -> Self
+    where
+        I: Into<Self>,
+        T: Ord,
+    {
+        let other = other.into();
+        let x = self.x.max(other.x);
+        let y = self.y.max(other.y);
+        Self { x, y }
     }
 }
 

@@ -4,7 +4,8 @@ use crate::util::getter::Getter;
 use crate::util::vector::Vector;
 use crate::visual::util::AngleIterator;
 
-use super::{Image, Paint, Painter, Scan};
+use super::image::{DesignatorMut, DesignatorRef, PixelMut, PixelRef};
+use super::{Image, ImageMut, Paint, Painter, Scan};
 
 fn scanline_segment_i32(segment: (Vector<i32>, Vector<i32>), scanline: i32) -> Scan<i32> {
     let (from, to) = if segment.0.y() < segment.1.y() {
@@ -60,14 +61,14 @@ fn scanline_segment_i32(segment: (Vector<i32>, Vector<i32>), scanline: i32) -> S
     }
 }
 
-impl<'a, T, P> Painter<'a, T, i32>
+impl<T> Painter<'_, T, i32>
 where
-    T: Image<Pixel = P>,
-    <T as Image>::Pixel: Clone,
-    for<'b> <T as Image>::PixelRef<'b>: Deref<Target = <T as Image>::Pixel>,
-    for<'b> <T as Image>::PixelMut<'b>: DerefMut<Target = <T as Image>::Pixel>,
+    T: ImageMut,
+    T::Pixel: Clone,
+    for<'a> <T as DesignatorRef<'a>>::PixelRef: Deref<Target = T::Pixel>,
+    for<'a> <T as DesignatorMut<'a>>::PixelMut: DerefMut<Target = T::Pixel>,
 {
-    fn map_on_line_offset<F: FnMut(i32, i32, P) -> P>(
+    fn map_on_line_offset<F: FnMut(i32, i32, T::Pixel) -> T::Pixel>(
         &mut self,
         from: Vector<i32>,
         to: Vector<i32>,
@@ -115,7 +116,7 @@ where
         }
     }
 
-    fn map_on_filled_triangle_offset<F: FnMut(i32, i32, P) -> P>(
+    fn map_on_filled_triangle_offset<F: FnMut(i32, i32, T::Pixel) -> T::Pixel>(
         &mut self,
         vertices: [Vector<i32>; 3],
         function: &mut F,
@@ -160,7 +161,7 @@ where
         }
     }
 
-    fn map_on_filled_sane_polygon_offset<F: FnMut(i32, i32, P) -> P>(
+    fn map_on_filled_sane_polygon_offset<F: FnMut(i32, i32, T::Pixel) -> T::Pixel>(
         &mut self,
         vertices: &[Vector<i32>],
         function: &mut F,
@@ -252,7 +253,7 @@ where
         }
     }
 
-    fn map_on_filled_circle_offset<F: FnMut(i32, i32, P) -> P>(
+    fn map_on_filled_circle_offset<F: FnMut(i32, i32, T::Pixel) -> T::Pixel>(
         &mut self,
         center: Vector<i32>,
         radius: i32,
@@ -310,7 +311,7 @@ where
         }
     }
 
-    fn map_on_circle_offset<F: FnMut(i32, i32, P) -> P>(
+    fn map_on_circle_offset<F: FnMut(i32, i32, T::Pixel) -> T::Pixel>(
         &mut self,
         center: Vector<i32>,
         radius: i32,
@@ -362,17 +363,16 @@ where
     }
 
     fn zip_map_images_offset<
-        'b,
         O: Clone,
-        F: FnMut(i32, i32, P, i32, i32, O) -> P,
-        U: 'b + Image<Pixel = O> + ?Sized,
+        F: FnMut(i32, i32, T::Pixel, i32, i32, O) -> T::Pixel,
+        U: Image<Pixel = O> + ?Sized,
     >(
         &mut self,
         at: Vector<i32>,
-        image: &'b U,
+        image: &U,
         function: &mut F,
     ) where
-        <U as Image>::PixelRef<'b>: Deref<Target = O>,
+        for<'b> <U as DesignatorRef<'b>>::PixelRef: Deref<Target = O>,
     {
         let at = at + self.offset;
         let image_start_x = if at.x() < 0 { -at.x() } else { 0 };
@@ -409,25 +409,25 @@ where
     }
 }
 
-impl<'a, T, P, I> Paint<T, i32, P, I> for Painter<'a, T, i32>
+impl<T, I> Paint<T, i32, I> for Painter<'_, T, i32>
 where
-    T: Image<Pixel = P>,
-    <T as Image>::Pixel: Clone,
-    for<'b> <T as Image>::PixelRef<'b>: Deref<Target = <T as Image>::Pixel>,
-    for<'b> <T as Image>::PixelMut<'b>: DerefMut<Target = <T as Image>::Pixel>,
+    T: ImageMut,
+    T::Pixel: Clone,
+    for<'a> <T as DesignatorRef<'a>>::PixelRef: Deref<Target = T::Pixel>,
+    for<'a> <T as DesignatorMut<'a>>::PixelMut: DerefMut<Target = <T as Image>::Pixel>,
     I: Clone + Into<Vector<i32>>,
 {
-    fn pixel(&self, position: I) -> Option<T::PixelRef<'_>> {
+    fn pixel(&self, position: I) -> Option<PixelRef<'_, T>> {
         Image::pixel(self.target, position.into() + self.offset)
     }
 
-    fn pixel_mut(&mut self, position: I) -> Option<T::PixelMut<'_>> {
-        Image::pixel_mut(self.target, position.into() + self.offset)
+    fn pixel_mut(&mut self, position: I) -> Option<PixelMut<'_, T>> {
+        ImageMut::pixel_mut(self.target, position.into() + self.offset)
     }
 
     fn mod_pixel<F>(&mut self, position: I, function: F)
     where
-        F: FnMut(i32, i32, P) -> P,
+        F: FnMut(i32, i32, T::Pixel) -> T::Pixel,
     {
         let mut function = function;
         let position = position.into();
@@ -438,7 +438,7 @@ where
 
     fn line<F>(&mut self, from: I, to: I, function: F)
     where
-        F: FnMut(i32, i32, P) -> P,
+        F: FnMut(i32, i32, T::Pixel) -> T::Pixel,
     {
         let (from, to) = (from.into(), to.into());
         let mut function = function;
@@ -447,7 +447,7 @@ where
 
     fn rect_f<F>(&mut self, from: I, dimensions: I, function: F)
     where
-        F: FnMut(i32, i32, P) -> P,
+        F: FnMut(i32, i32, T::Pixel) -> T::Pixel,
     {
         let mut function = function;
         let (from, dimensions) = (from.into() + self.offset, dimensions.into());
@@ -457,7 +457,7 @@ where
 
     fn rect_b<F>(&mut self, from: I, dimensions: I, function: F)
     where
-        F: FnMut(i32, i32, P) -> P,
+        F: FnMut(i32, i32, T::Pixel) -> T::Pixel,
     {
         let (from, dimensions) = (from.into(), dimensions.into());
         let (from, to) = (from + self.offset, from + dimensions + self.offset - (1, 1));
@@ -470,7 +470,7 @@ where
 
     fn triangle_f<F>(&mut self, vertices: [I; 3], function: F)
     where
-        F: FnMut(i32, i32, P) -> P,
+        F: FnMut(i32, i32, T::Pixel) -> T::Pixel,
     {
         let vertex = vertices.map(Into::into);
         let mut function = function;
@@ -479,7 +479,7 @@ where
 
     fn triangle_b<F>(&mut self, vertices: [I; 3], function: F)
     where
-        F: FnMut(i32, i32, P) -> P,
+        F: FnMut(i32, i32, T::Pixel) -> T::Pixel,
     {
         let [a, b, c] = vertices.map(Into::into);
         let mut function = function;
@@ -490,7 +490,7 @@ where
 
     fn polygon_f<F>(&mut self, vertices: &[I], function: F)
     where
-        F: FnMut(i32, i32, P) -> P,
+        F: FnMut(i32, i32, T::Pixel) -> T::Pixel,
     {
         let mut function = function;
         let vertices = vertices.iter().cloned().map(Into::into).collect::<Vec<_>>();
@@ -504,7 +504,7 @@ where
 
     fn polygon_b<F>(&mut self, vertices: &[I], function: F)
     where
-        F: FnMut(i32, i32, P) -> P,
+        F: FnMut(i32, i32, T::Pixel) -> T::Pixel,
     {
         let mut function = function;
         let skip = if vertices.len() > 2 {
@@ -532,7 +532,7 @@ where
 
     fn circle_f<F>(&mut self, center: I, radius: i32, function: F)
     where
-        F: FnMut(i32, i32, P) -> P,
+        F: FnMut(i32, i32, T::Pixel) -> T::Pixel,
     {
         let center = center.into();
         let mut function = function;
@@ -541,7 +541,7 @@ where
 
     fn circle_b<F>(&mut self, center: I, radius: i32, function: F)
     where
-        F: FnMut(i32, i32, P) -> P,
+        F: FnMut(i32, i32, T::Pixel) -> T::Pixel,
     {
         let center = center.into();
         let mut function = function;
@@ -549,18 +549,18 @@ where
     }
 }
 
-impl<'a, T, P> Painter<'a, T, i32>
+impl<T> Painter<'_, T, i32>
 where
-    T: Image<Pixel = P>,
-    <T as Image>::Pixel: Clone,
-    for<'b> <T as Image>::PixelRef<'b>: Deref<Target = <T as Image>::Pixel>,
-    for<'b> <T as Image>::PixelMut<'b>: DerefMut<Target = <T as Image>::Pixel>,
+    T: ImageMut,
+    T::Pixel: Clone,
+    for<'a> <T as DesignatorRef<'a>>::PixelRef: Deref<Target = T::Pixel>,
+    for<'a> <T as DesignatorMut<'a>>::PixelMut: DerefMut<Target = <T as Image>::Pixel>,
 {
     /// Get reference to pixel.
     ///
     /// # Safety
     /// - `position + self.offset` must be in the `[0, (width, height))` range.
-    pub unsafe fn pixel_unsafe<I>(&self, position: I) -> T::PixelRef<'_>
+    pub unsafe fn pixel_unsafe<I>(&self, position: I) -> PixelRef<'_, T>
     where
         I: Into<Vector<i32>>,
     {
@@ -571,21 +571,21 @@ where
     ///
     /// # Safety
     /// - `position + self.offset` must be in the `[0, (width, height))` range.
-    pub unsafe fn pixel_mut_unsafe<I>(&mut self, position: I) -> T::PixelMut<'_>
+    pub unsafe fn pixel_mut_unsafe<I>(&mut self, position: I) -> PixelMut<'_, T>
     where
         I: Into<Vector<i32>>,
     {
-        Image::unsafe_pixel_mut(self.target, position.into() + self.offset)
+        ImageMut::unsafe_pixel_mut(self.target, position.into() + self.offset)
     }
 
     /// Use provided function and given image on this drawable.
-    pub fn image<'b, I, F, O, U>(&mut self, at: I, image: &'b U, function: F)
+    pub fn image<I, F, O, U>(&mut self, at: I, image: &U, function: F)
     where
         I: Into<Vector<i32>>,
-        U: 'b + Image<Pixel = O> + ?Sized,
+        U: Image<Pixel = O> + ?Sized,
         O: Clone,
-        F: FnMut(i32, i32, P, i32, i32, O) -> P,
-        <U as Image>::PixelRef<'b>: Deref<Target = O>,
+        F: FnMut(i32, i32, T::Pixel, i32, i32, O) -> T::Pixel,
+        for<'b> <U as DesignatorRef<'b>>::PixelRef: Deref<Target = O>,
     {
         let at = at.into();
         let mut function = function;
@@ -593,20 +593,20 @@ where
     }
 
     /// Use provided spatial mapper, font and mapper function to draw text.
-    pub fn text<'b, I, M, U, O, F>(
+    pub fn text<I, M, U, O, F>(
         &mut self,
         at: I,
         mapper: M,
-        font: &'b dyn Getter<Index = char, Item = U>,
+        font: &dyn Getter<Index = char, Item = U>,
         text: &str,
         function: F,
     ) where
         I: Into<Vector<i32>>,
         M: FnMut(char, &U) -> Vector<i32>,
-        U: 'b + Image<Pixel = O>,
+        U: Image<Pixel = O>,
         O: Clone,
-        F: FnMut(i32, i32, P, i32, i32, O) -> P,
-        <U as Image>::PixelRef<'b>: Deref<Target = O>,
+        F: FnMut(i32, i32, T::Pixel, i32, i32, O) -> T::Pixel,
+        for<'b> <U as DesignatorRef<'b>>::PixelRef: Deref<Target = O>,
     {
         let at = at.into();
         let mut mapper = mapper;

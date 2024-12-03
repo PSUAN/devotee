@@ -4,7 +4,8 @@ use std::ops::{Deref, DerefMut};
 use crate::util::vector::Vector;
 use crate::visual::util::AngleIterator;
 
-use super::{Image, Paint, Painter, Scan};
+use super::image::{DesignatorMut, DesignatorRef, PixelMut, PixelRef};
+use super::{Image, ImageMut, Paint, Painter, Scan};
 
 fn scanline_segment_f32(segment: (Vector<f32>, Vector<f32>), scanline: i32) -> Scan<i32> {
     let (from, to) = if segment.0.y() < segment.1.y() {
@@ -58,12 +59,12 @@ fn round_to_i32(value: f32) -> i32 {
     value.round() as i32
 }
 
-impl<'a, T, P> Painter<'a, T, f32>
+impl<T, P> Painter<'_, T, f32>
 where
-    T: Image<Pixel = P>,
-    <T as Image>::Pixel: Clone,
-    for<'b> <T as Image>::PixelRef<'b>: Deref<Target = <T as Image>::Pixel>,
-    for<'b> <T as Image>::PixelMut<'b>: DerefMut<Target = <T as Image>::Pixel>,
+    T: ImageMut<Pixel = P>,
+    T::Pixel: Clone,
+    for<'a> <T as DesignatorRef<'a>>::PixelRef: Deref<Target = T::Pixel>,
+    for<'a> <T as DesignatorMut<'a>>::PixelMut: DerefMut<Target = T::Pixel>,
 {
     fn map_on_subline_offset<F: FnMut(i32, i32, P) -> P>(
         &mut self,
@@ -366,23 +367,23 @@ where
     }
 }
 
-impl<'a, T, P, I> Paint<T, f32, P, I> for Painter<'a, T, f32>
+impl<T, P, I> Paint<T, f32, I> for Painter<'_, T, f32>
 where
-    T: Image<Pixel = P>,
-    <T as Image>::Pixel: Clone,
-    for<'b> <T as Image>::PixelRef<'b>: Deref<Target = <T as Image>::Pixel>,
-    for<'b> <T as Image>::PixelMut<'b>: DerefMut<Target = <T as Image>::Pixel>,
+    T: ImageMut<Pixel = P>,
+    T::Pixel: Clone,
+    for<'a> <T as DesignatorRef<'a>>::PixelRef: Deref<Target = T::Pixel>,
+    for<'a> <T as DesignatorMut<'a>>::PixelMut: DerefMut<Target = T::Pixel>,
     I: Clone + Into<Vector<f32>>,
 {
-    fn pixel(&self, position: I) -> Option<<T as Image>::PixelRef<'_>> {
+    fn pixel(&self, position: I) -> Option<PixelRef<'_, T>> {
         Image::pixel(
             self.target,
             (position.into() + self.offset).map(round_to_i32),
         )
     }
 
-    fn pixel_mut(&mut self, position: I) -> Option<<T as Image>::PixelMut<'_>> {
-        Image::pixel_mut(
+    fn pixel_mut(&mut self, position: I) -> Option<PixelMut<'_, T>> {
+        ImageMut::pixel_mut(
             self.target,
             (position.into() + self.offset).map(round_to_i32),
         )

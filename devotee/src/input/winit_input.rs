@@ -48,7 +48,7 @@ impl Keyboard {
     }
 }
 
-impl<'a, EventContext> Input<'a, EventContext> for Keyboard {
+impl<EventContext> Input<'_, EventContext> for Keyboard {
     type Event = WindowEvent;
 
     fn handle_event(&mut self, event: Self::Event, _context: &EventContext) -> Option<Self::Event> {
@@ -132,7 +132,7 @@ impl Mouse {
     }
 }
 
-impl<'a, EventContext> Input<'a, EventContext> for Mouse
+impl<EventContext> Input<'_, EventContext> for Mouse
 where
     EventContext: backend::EventContext,
 {
@@ -199,7 +199,7 @@ impl KeyboardMouse {
     }
 }
 
-impl<'a, EventContext> Input<'a, EventContext> for KeyboardMouse
+impl<EventContext> Input<'_, EventContext> for KeyboardMouse
 where
     EventContext: backend::EventContext,
 {
@@ -220,7 +220,7 @@ where
 #[derive(Debug, Clone, Copy)]
 pub struct NoInput;
 
-impl<'a, EventContext> Input<'a, EventContext> for NoInput
+impl<EventContext> Input<'_, EventContext> for NoInput
 where
     EventContext: backend::EventContext,
 {

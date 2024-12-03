@@ -1,11 +1,19 @@
 use std::ops::{Deref, DerefMut, RangeInclusive};
 
+use image::{DesignatorMut, DesignatorRef, Image, ImageMut, PixelMut, PixelRef};
+
 use crate::util::vector::Vector;
+
+/// General image-related traits.
+pub mod image;
 
 /// Image with dimensions unknown at compile-time.
 pub mod canvas;
 /// Image with compile-time known dimensions.
 pub mod sprite;
+
+/// A view into some image.
+pub mod view;
 
 /// Pixel-perfect operations implementation.
 pub mod pixel;
@@ -14,10 +22,12 @@ pub mod subpixel;
 
 mod util;
 
-/// Collection of drawing traits and functions compiles in a single prelude.
+/// Collection of drawing traits and functions in a single prelude.
 pub mod prelude {
+    pub use super::image::{Image, ImageMut};
+    pub use super::view::View;
+    pub use super::Paint;
     pub use super::{paint, printer, stamp};
-    pub use super::{Image, Paint};
     pub use super::{PaintTarget, Painter};
 }
 
@@ -168,50 +178,6 @@ impl Iterator for ScanIterator<i32> {
     }
 }
 
-/// General image trait.
-pub trait Image {
-    /// Pixel type of this image.
-    type Pixel;
-    /// Reference to pixel.
-    type PixelRef<'a>
-    where
-        Self: 'a;
-    /// Mutable reference to pixel.
-    type PixelMut<'a>
-    where
-        Self: 'a;
-    /// Get specific pixel reference.
-    fn pixel(&self, position: Vector<i32>) -> Option<Self::PixelRef<'_>>;
-    /// Get specific pixel mutable reference.
-    fn pixel_mut(&mut self, position: Vector<i32>) -> Option<Self::PixelMut<'_>>;
-    /// Get specific pixel reference without bounds check.
-    ///
-    /// # Safety
-    /// - position must be in range [(0, 0), [width - 1, height - 1]]
-    unsafe fn unsafe_pixel(&self, position: Vector<i32>) -> Self::PixelRef<'_>;
-    /// Get specific pixel mutable reference without bounds check.
-    ///
-    /// # Safety
-    /// - position must be in range [(0, 0), [width - 1, height - 1]]
-    unsafe fn unsafe_pixel_mut(&mut self, position: Vector<i32>) -> Self::PixelMut<'_>;
-    /// Get width of this image.
-    fn width(&self) -> i32;
-    /// Get height of this image.
-    fn height(&self) -> i32;
-    /// Clear this image with color provided.
-    fn clear(&mut self, color: Self::Pixel);
-
-    /// Get dimensions of this image.
-    fn dimensions(&self) -> Vector<i32> {
-        Vector::new(self.width(), self.height())
-    }
-
-    /// Get optional `FastHorizontalWriter` for faster horizontal line drawing.
-    fn fast_horizontal_writer(&mut self) -> Option<impl FastHorizontalWriter<Self>> {
-        None::<FastHorizontalWriterPlaceholder>
-    }
-}
-
 /// Something that can be painted on.
 pub trait PaintTarget<T> {
     /// Get painter for painting.
@@ -230,16 +196,16 @@ impl<T> PaintTarget<T> for T {
 }
 
 /// Painter to draw on encapsulated target.
-pub struct Painter<'a, I, C> {
-    target: &'a mut I,
+pub struct Painter<'image, I, C> {
+    target: &'image mut I,
     offset: Vector<C>,
 }
 
-impl<'a, I, C> Painter<'a, I, C>
+impl<'image, I, C> Painter<'image, I, C>
 where
     C: Clone + Default,
 {
-    fn new(target: &'a mut I) -> Self {
+    fn new(target: &'image mut I) -> Self {
         Self {
             target,
             offset: Default::default(),
@@ -268,12 +234,10 @@ where
     }
 }
 
-impl<'a, T, P, C> Painter<'a, T, C>
+impl<T, C> Painter<'_, T, C>
 where
-    T: Image<Pixel = P>,
-    <T as Image>::Pixel: Clone,
-    for<'b> <T as Image>::PixelRef<'b>: Deref<Target = <T as Image>::Pixel>,
-    for<'b> <T as Image>::PixelMut<'b>: DerefMut<Target = <T as Image>::Pixel>,
+    T: ImageMut,
+    T::Pixel: Clone,
 {
     /// Get target's width.
     pub fn width(&self) -> i32 {
@@ -286,28 +250,32 @@ where
     }
 
     /// Clear the target with provided color.
-    pub fn clear(&mut self, clear_color: P) {
-        Image::clear(self.target, clear_color)
+    pub fn clear(&mut self, clear_color: T::Pixel) {
+        ImageMut::clear(self.target, clear_color)
     }
 
-    fn map_on_pixel_raw<F: FnMut(i32, i32, P) -> P>(
+    fn map_on_pixel_raw<F: FnMut(i32, i32, T::Pixel) -> T::Pixel>(
         &mut self,
         point: Vector<i32>,
         function: &mut F,
-    ) {
+    ) where
+        for<'a> <T as DesignatorMut<'a>>::PixelMut: DerefMut<Target = T::Pixel>,
+    {
         if let Some(mut pixel) = self.target.pixel_mut(point) {
             *pixel = function(point.x(), point.y(), pixel.clone());
         }
     }
 
-    fn map_vertical_line_raw<F: FnMut(i32, i32, P) -> P>(
-        &mut self,
+    fn map_vertical_line_raw<'this, 'pixel, F: FnMut(i32, i32, T::Pixel) -> T::Pixel>(
+        &'this mut self,
         x: i32,
         from_y: i32,
         to_y: i32,
         function: &mut F,
         skip: usize,
-    ) {
+    ) where
+        for<'a> <T as DesignatorMut<'a>>::PixelMut: DerefMut<Target = T::Pixel>,
+    {
         if x < 0 || x >= self.target.width() {
             return;
         }
@@ -327,13 +295,15 @@ where
         }
     }
 
-    fn map_fast_horizontal_line_raw<F: FnMut(i32, i32, P) -> P>(
+    fn map_fast_horizontal_line_raw<F: FnMut(i32, i32, T::Pixel) -> T::Pixel>(
         &mut self,
         from_x: i32,
         to_x: i32,
         y: i32,
         function: &mut F,
-    ) {
+    ) where
+        for<'a> <T as DesignatorMut<'a>>::PixelMut: DerefMut<Target = T::Pixel>,
+    {
         if self
             .target
             .fast_horizontal_writer()
@@ -344,14 +314,16 @@ where
         }
     }
 
-    fn map_horizontal_line_raw<F: FnMut(i32, i32, P) -> P>(
+    fn map_horizontal_line_raw<F: FnMut(i32, i32, T::Pixel) -> T::Pixel>(
         &mut self,
         from_x: i32,
         to_x: i32,
         y: i32,
         function: &mut F,
         skip: usize,
-    ) {
+    ) where
+        for<'a> <T as DesignatorMut<'a>>::PixelMut: DerefMut<Target = T::Pixel>,
+    {
         if y < 0 || y >= self.target.height() {
             return;
         }
@@ -371,12 +343,15 @@ where
         }
     }
 
-    fn map_on_filled_rect_raw<F: FnMut(i32, i32, P) -> P>(
-        &mut self,
+    fn map_on_filled_rect_raw<'this, F: FnMut(i32, i32, T::Pixel) -> T::Pixel>(
+        &'this mut self,
         from: Vector<i32>,
         to: Vector<i32>,
         function: &mut F,
-    ) {
+    ) where
+        for<'a> <T as DesignatorRef<'a>>::PixelRef: Deref<Target = T::Pixel>,
+        for<'a> <T as DesignatorMut<'a>>::PixelMut: DerefMut<Target = T::Pixel>,
+    {
         let start_x = from.x().max(0);
         let start_y = from.y().max(0);
         let end_x = (to.x()).min(self.target.width());
@@ -385,7 +360,7 @@ where
         for x in start_x..end_x {
             for y in start_y..end_y {
                 let step = (x, y).into();
-                // SAFETY: we start and end values are in proper bounds.
+                // SAFETY: we believe that start and end values are in proper bounds.
                 unsafe {
                     let pixel = function(x, y, self.target.unsafe_pixel(step).clone());
                     *self.target.unsafe_pixel_mut(step) = pixel;
@@ -396,74 +371,74 @@ where
 }
 
 /// Painter trait to generalize pixel-perfect and subpixel paint routines.
-pub trait Paint<T, C, P, I>
+pub trait Paint<T, C, I>
 where
-    T: Image<Pixel = P>,
+    T: ImageMut,
     I: Into<Vector<C>>,
 {
     /// Get reference to pixel.
-    fn pixel(&self, position: I) -> Option<T::PixelRef<'_>>;
+    fn pixel(&self, position: I) -> Option<PixelRef<'_, T>>;
 
     /// Get mutable reference to pixel.
-    fn pixel_mut(&mut self, position: I) -> Option<T::PixelMut<'_>>;
+    fn pixel_mut(&mut self, position: I) -> Option<PixelMut<'_, T>>;
 
     /// Use passed function on a pixel at the given position.
     fn mod_pixel<F>(&mut self, position: I, function: F)
     where
-        F: FnMut(i32, i32, P) -> P;
+        F: FnMut(i32, i32, T::Pixel) -> T::Pixel;
 
     /// Use passed function on each pixel in line.
     fn line<F>(&mut self, from: I, to: I, function: F)
     where
-        F: FnMut(i32, i32, P) -> P;
+        F: FnMut(i32, i32, T::Pixel) -> T::Pixel;
 
     /// Use passed function on each pixel in filled rectangle.
     /// The `dimensions` determine size of the rectangle, zero or negative value produces no rectangle.
     fn rect_f<F>(&mut self, from: I, dimensions: I, function: F)
     where
-        F: FnMut(i32, i32, P) -> P;
+        F: FnMut(i32, i32, T::Pixel) -> T::Pixel;
 
     /// Use passed function on each pixel of rectangle bounds.
     /// The `dimensions` determine size of the rectangle, zero or negative value produces no rectangle.
     fn rect_b<F>(&mut self, from: I, dimensions: I, function: F)
     where
-        F: FnMut(i32, i32, P) -> P;
+        F: FnMut(i32, i32, T::Pixel) -> T::Pixel;
 
     /// Use passed function on each pixel in triangle.
     fn triangle_f<F>(&mut self, vertices: [I; 3], function: F)
     where
-        F: FnMut(i32, i32, P) -> P;
+        F: FnMut(i32, i32, T::Pixel) -> T::Pixel;
 
     /// Use passed function on each pixel of triangle bounds.
     fn triangle_b<F>(&mut self, vertices: [I; 3], function: F)
     where
-        F: FnMut(i32, i32, P) -> P;
+        F: FnMut(i32, i32, T::Pixel) -> T::Pixel;
 
     /// Use passed function on each pixel of polygon.
     fn polygon_f<F>(&mut self, vertices: &[I], function: F)
     where
-        F: FnMut(i32, i32, P) -> P;
+        F: FnMut(i32, i32, T::Pixel) -> T::Pixel;
 
     /// Use passed function on each pixel of polygon bounds.
     fn polygon_b<F>(&mut self, vertices: &[I], function: F)
     where
-        F: FnMut(i32, i32, P) -> P;
+        F: FnMut(i32, i32, T::Pixel) -> T::Pixel;
 
     /// Use passed function on each pixel in circle.
     fn circle_f<F>(&mut self, center: I, radius: C, function: F)
     where
-        F: FnMut(i32, i32, P) -> P;
+        F: FnMut(i32, i32, T::Pixel) -> T::Pixel;
 
     /// Use passed function on each pixel of circle bounds.
     fn circle_b<F>(&mut self, center: I, radius: C, function: F)
     where
-        F: FnMut(i32, i32, P) -> P;
+        F: FnMut(i32, i32, T::Pixel) -> T::Pixel;
 }
 
 /// A helper utility for writing horizontal lines faster.
 pub trait FastHorizontalWriter<I>
 where
-    I: Image + ?Sized,
+    I: ImageMut + ?Sized,
 {
     /// Apply provided function to all pixels in a horizontal line.
     fn write_line<F: FnMut(i32, i32, I::Pixel) -> I::Pixel>(
@@ -472,20 +447,4 @@ where
         y: i32,
         function: &mut F,
     );
-}
-
-struct FastHorizontalWriterPlaceholder;
-
-impl<I> FastHorizontalWriter<I> for FastHorizontalWriterPlaceholder
-where
-    I: Image + ?Sized,
-{
-    fn write_line<F: FnMut(i32, i32, I::Pixel) -> I::Pixel>(
-        &mut self,
-        _: RangeInclusive<i32>,
-        _: i32,
-        _: &mut F,
-    ) {
-        unreachable!()
-    }
 }
