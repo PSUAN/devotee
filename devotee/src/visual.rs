@@ -371,66 +371,65 @@ where
 }
 
 /// Painter trait to generalize pixel-perfect and subpixel paint routines.
-pub trait Paint<T, C, I>
+pub trait Paint<T, C>
 where
     T: ImageMut,
-    I: Into<Vector<C>>,
 {
     /// Get reference to pixel.
-    fn pixel(&self, position: I) -> Option<PixelRef<'_, T>>;
+    fn pixel(&self, position: Vector<C>) -> Option<PixelRef<'_, T>>;
 
     /// Get mutable reference to pixel.
-    fn pixel_mut(&mut self, position: I) -> Option<PixelMut<'_, T>>;
+    fn pixel_mut(&mut self, position: Vector<C>) -> Option<PixelMut<'_, T>>;
 
     /// Use passed function on a pixel at the given position.
-    fn mod_pixel<F>(&mut self, position: I, function: F)
+    fn mod_pixel<F>(&mut self, position: Vector<C>, function: F)
     where
         F: FnMut(i32, i32, T::Pixel) -> T::Pixel;
 
     /// Use passed function on each pixel in line.
-    fn line<F>(&mut self, from: I, to: I, function: F)
+    fn line<F>(&mut self, from: Vector<C>, to: Vector<C>, function: F)
     where
         F: FnMut(i32, i32, T::Pixel) -> T::Pixel;
 
     /// Use passed function on each pixel in filled rectangle.
     /// The `dimensions` determine size of the rectangle, zero or negative value produces no rectangle.
-    fn rect_f<F>(&mut self, from: I, dimensions: I, function: F)
+    fn rect_f<F>(&mut self, from: Vector<C>, dimensions: Vector<C>, function: F)
     where
         F: FnMut(i32, i32, T::Pixel) -> T::Pixel;
 
     /// Use passed function on each pixel of rectangle bounds.
     /// The `dimensions` determine size of the rectangle, zero or negative value produces no rectangle.
-    fn rect_b<F>(&mut self, from: I, dimensions: I, function: F)
+    fn rect_b<F>(&mut self, from: Vector<C>, dimensions: Vector<C>, function: F)
     where
         F: FnMut(i32, i32, T::Pixel) -> T::Pixel;
 
     /// Use passed function on each pixel in triangle.
-    fn triangle_f<F>(&mut self, vertices: [I; 3], function: F)
+    fn triangle_f<F>(&mut self, vertices: [Vector<C>; 3], function: F)
     where
         F: FnMut(i32, i32, T::Pixel) -> T::Pixel;
 
     /// Use passed function on each pixel of triangle bounds.
-    fn triangle_b<F>(&mut self, vertices: [I; 3], function: F)
+    fn triangle_b<F>(&mut self, vertices: [Vector<C>; 3], function: F)
     where
         F: FnMut(i32, i32, T::Pixel) -> T::Pixel;
 
     /// Use passed function on each pixel of polygon.
-    fn polygon_f<F>(&mut self, vertices: &[I], function: F)
+    fn polygon_f<F>(&mut self, vertices: &[Vector<C>], function: F)
     where
         F: FnMut(i32, i32, T::Pixel) -> T::Pixel;
 
     /// Use passed function on each pixel of polygon bounds.
-    fn polygon_b<F>(&mut self, vertices: &[I], function: F)
+    fn polygon_b<F>(&mut self, vertices: &[Vector<C>], function: F)
     where
         F: FnMut(i32, i32, T::Pixel) -> T::Pixel;
 
     /// Use passed function on each pixel in circle.
-    fn circle_f<F>(&mut self, center: I, radius: C, function: F)
+    fn circle_f<F>(&mut self, center: Vector<C>, radius: C, function: F)
     where
         F: FnMut(i32, i32, T::Pixel) -> T::Pixel;
 
     /// Use passed function on each pixel of circle bounds.
-    fn circle_b<F>(&mut self, center: I, radius: C, function: F)
+    fn circle_b<F>(&mut self, center: Vector<C>, radius: C, function: F)
     where
         F: FnMut(i32, i32, T::Pixel) -> T::Pixel;
 }

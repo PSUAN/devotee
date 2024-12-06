@@ -165,8 +165,12 @@ impl Gear {
                 .collect::<Vec<_>>();
             painter.polygon_f(&tooth, paint(true));
         }
-        painter.circle_f((0.0, 0.0), self.internal_radius, paint(true));
-        painter.circle_b((0.0, 0.0), self.separation_diameter / 2.0, |_, _, p| !p);
+        painter.circle_f(Vector::<f32>::zero(), self.internal_radius, paint(true));
+        painter.circle_b(
+            Vector::<f32>::zero(),
+            self.separation_diameter / 2.0,
+            |_, _, p| !p,
+        );
         for i in 0..3 {
             let angle = PI * 2.0 * i as f32 / 3.0;
             painter.circle_f(
@@ -175,7 +179,11 @@ impl Gear {
                 |x, y, _| (x + y) % 2 == 0,
             );
         }
-        painter.circle_f((0.0, 0.0), self.internal_radius / 2.0, paint(false));
+        painter.circle_f(
+            Vector::<f32>::zero(),
+            self.internal_radius / 2.0,
+            paint(false),
+        );
     }
 }
 
