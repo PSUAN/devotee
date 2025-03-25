@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 
-use devotee_backend::Input;
+use backend::middling::{self, InputHandler};
+use winit::dpi::PhysicalPosition;
 use winit::event::{ElementState, WindowEvent};
 use winit::keyboard::PhysicalKey;
 
@@ -48,10 +49,8 @@ impl Keyboard {
     }
 }
 
-impl<EventContext> Input<'_, EventContext> for Keyboard {
-    type Event = WindowEvent;
-
-    fn handle_event(&mut self, event: Self::Event, _context: &EventContext) -> Option<Self::Event> {
+impl<Context> InputHandler<WindowEvent, Context> for Keyboard {
+    fn handle_event(&mut self, event: WindowEvent, _context: &Context) -> Option<WindowEvent> {
         if let WindowEvent::KeyboardInput { event, .. } = event {
             if let PhysicalKey::Code(code) = event.physical_key {
                 match event.state {
@@ -65,30 +64,13 @@ impl<EventContext> Input<'_, EventContext> for Keyboard {
         }
     }
 
-    fn tick(&mut self) {
+    fn update(&mut self) {
         self.was_pressed.clone_from(&self.pressed)
     }
 }
 
 /// Mouse position representation.
-#[derive(Clone, Copy, Debug)]
-pub enum MousePosition {
-    /// The mouse is inside the render surface.
-    Inside(Vector<i32>),
-
-    /// The mouse is outside the render surface.
-    Outside(Vector<i32>),
-}
-
-impl MousePosition {
-    /// Get the mouse position regardless the mouse being inside or outside the render surface.
-    pub fn any(self) -> Vector<i32> {
-        match self {
-            MousePosition::Inside(inside) => inside,
-            MousePosition::Outside(outside) => outside,
-        }
-    }
-}
+pub type MousePosition = Option<Vector<i32>>;
 
 /// Mouse-related input system.
 #[derive(Clone, Debug)]
@@ -101,7 +83,7 @@ pub struct Mouse {
 impl Mouse {
     /// Create new Mouse input system instance.
     pub fn new() -> Self {
-        let position = MousePosition::Inside((0, 0).into());
+        let position = None;
         let pressed = Default::default();
         let was_pressed = Default::default();
         Self {
@@ -132,13 +114,15 @@ impl Mouse {
     }
 }
 
-impl<EventContext> Input<'_, EventContext> for Mouse
+impl<EventContext, SurfaceSpace> InputHandler<WindowEvent, EventContext> for Mouse
 where
-    EventContext: backend::EventContext,
+    EventContext: middling::EventContext<
+        PhysicalPosition<f64>,
+        SurfaceSpace = Option<PhysicalPosition<SurfaceSpace>>,
+    >,
+    SurfaceSpace: TryInto<i32>,
 {
-    type Event = WindowEvent;
-
-    fn handle_event(&mut self, event: Self::Event, context: &EventContext) -> Option<Self::Event> {
+    fn handle_event(&mut self, event: WindowEvent, context: &EventContext) -> Option<WindowEvent> {
         match event {
             WindowEvent::MouseInput { state, button, .. } => {
                 match state {
@@ -148,23 +132,22 @@ where
                 None
             }
             WindowEvent::CursorMoved { position, .. } => {
-                match context
-                    .position_into_render_surface_space((position.x as f32, position.y as f32))
+                fn convert<SurfaceSpace>(
+                    PhysicalPosition { x, y }: PhysicalPosition<SurfaceSpace>,
+                ) -> Option<Vector<i32>>
+                where
+                    SurfaceSpace: TryInto<i32>,
                 {
-                    Ok(inside) => {
-                        self.position = MousePosition::Inside(inside.into());
-                    }
-                    Err(outside) => {
-                        self.position = MousePosition::Outside(outside.into());
-                    }
+                    Some(Vector::new(x.try_into().ok()?, y.try_into().ok()?))
                 }
+                self.position = context.estimate_surface_space(position).and_then(convert);
                 None
             }
             _ => Some(event),
         }
     }
 
-    fn tick(&mut self) {
+    fn update(&mut self) {
         self.was_pressed.clone_from(&self.pressed)
     }
 }
@@ -199,36 +182,33 @@ impl KeyboardMouse {
     }
 }
 
-impl<EventContext> Input<'_, EventContext> for KeyboardMouse
+impl<EventContext, SurfaceSpace> InputHandler<WindowEvent, EventContext> for KeyboardMouse
 where
-    EventContext: backend::EventContext,
+    EventContext: middling::EventContext<
+        PhysicalPosition<f64>,
+        SurfaceSpace = Option<PhysicalPosition<SurfaceSpace>>,
+    >,
+    SurfaceSpace: TryInto<i32>,
 {
-    type Event = WindowEvent;
-
-    fn handle_event(&mut self, event: Self::Event, context: &EventContext) -> Option<Self::Event> {
+    fn handle_event(&mut self, event: WindowEvent, context: &EventContext) -> Option<WindowEvent> {
         let event = self.keyboard.handle_event(event, context)?;
         self.mouse.handle_event(event, context)
     }
 
-    fn tick(&mut self) {
-        Input::<'_, EventContext>::tick(&mut self.keyboard);
-        Input::<'_, EventContext>::tick(&mut self.mouse);
+    fn update(&mut self) {
+        InputHandler::<WindowEvent, EventContext>::update(&mut self.keyboard);
+        InputHandler::<WindowEvent, EventContext>::update(&mut self.mouse);
     }
 }
 
-/// Cheap input system handling no input event.
+/// Cheap input system that handles no input event.
 #[derive(Debug, Clone, Copy)]
 pub struct NoInput;
 
-impl<EventContext> Input<'_, EventContext> for NoInput
-where
-    EventContext: backend::EventContext,
-{
-    type Event = WindowEvent;
-
-    fn handle_event(&mut self, event: Self::Event, _: &EventContext) -> Option<Self::Event> {
+impl<Event, EventContext> InputHandler<Event, EventContext> for NoInput {
+    fn handle_event(&mut self, event: Event, _: &EventContext) -> Option<Event> {
         Some(event)
     }
 
-    fn tick(&mut self) {}
+    fn update(&mut self) {}
 }

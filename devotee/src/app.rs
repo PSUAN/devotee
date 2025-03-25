@@ -1,4 +1,4 @@
-use devotee_backend::Application;
+use backend::middling::Application;
 
 /// Application root specification.
 pub mod root;
@@ -12,39 +12,25 @@ pub struct App<Root> {
 }
 
 impl<Root> App<Root> {
-    /// Create new App with passed root.
+    /// Create a new App instance.
     pub fn new(root: Root) -> Self {
         Self { root }
     }
 }
 
-impl<Root, Init, Context, RenderSurface, Converter>
-    Application<'_, Init, Context, RenderSurface, Converter> for App<Root>
+impl<Root, Init, Context, Input, Surface> Application<Init, Context, Input, Surface> for App<Root>
 where
-    Root: root::Root<Init, Context, RenderSurface = RenderSurface, Converter = Converter>,
+    Root: root::Root<Init, Context, Input, Surface>,
 {
-    fn init(&mut self, mut init: Init) {
-        self.root.init(&mut init);
+    fn init(&mut self, init: &mut Init) {
+        self.root.init(init);
     }
 
-    fn update(&mut self, mut context: Context) {
-        let context = &mut context;
-        self.root.update(context);
+    fn update(&mut self, context: &mut Context, input: &Input) {
+        self.root.update(context, input);
     }
 
-    fn render(&mut self, render_surface: &mut RenderSurface) {
-        self.root.render(render_surface);
-    }
-
-    fn converter(&self) -> Converter {
-        self.root.converter()
-    }
-
-    fn pause(&mut self) {
-        self.root.pause();
-    }
-
-    fn resume(&mut self) {
-        self.root.resume();
+    fn render(&mut self, surface: &mut Surface) {
+        self.root.render(surface);
     }
 }

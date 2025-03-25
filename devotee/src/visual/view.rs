@@ -2,8 +2,40 @@ use std::ops::DerefMut;
 
 use crate::util::vector::Vector;
 
-use super::image::{DesignatorMut, DesignatorRef, PixelMut, PixelRef};
+use super::image::{DesignatorMut, DesignatorRef, Dimensions, PixelMut, PixelRef};
 use super::{FastHorizontalWriter, Image, ImageMut};
+
+/// Trait that provides an immutable two-dimensional view.
+pub trait ViewProvider {
+    /// Get an immutable view into `Self`.
+    /// Resulting `View`'s origin and dimensions are cropped to the image automatically.
+    fn view(&self, origin: Vector<i32>, dimensions: Vector<i32>) -> View<&Self>;
+}
+
+impl<I> ViewProvider for I
+where
+    I: Image,
+{
+    fn view(&self, origin: Vector<i32>, dimensions: Vector<i32>) -> View<&Self> {
+        View::<&Self>::new(self, origin, dimensions)
+    }
+}
+
+/// Trait that provides a mutable two-dimensional view.
+pub trait ViewMutProvider {
+    /// Get a mutable view into this `Image`.
+    /// Resulting `View`'s origin and dimensions are cropped to the image automatically.
+    fn view_mut(&mut self, origin: Vector<i32>, dimensions: Vector<i32>) -> View<&mut Self>;
+}
+
+impl<I> ViewMutProvider for I
+where
+    I: ImageMut,
+{
+    fn view_mut(&mut self, origin: Vector<i32>, dimensions: Vector<i32>) -> View<&mut Self> {
+        View::<&mut Self>::new(self, origin, dimensions)
+    }
+}
 
 #[derive(Clone, Copy, Debug)]
 struct Zone {

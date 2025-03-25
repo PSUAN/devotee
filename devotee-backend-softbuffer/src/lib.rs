@@ -2,480 +2,324 @@
 
 //! [Softbuffer](https://crates.io/crates/softbuffer)-based backend for the devotee project.
 
-use std::num::TryFromIntError;
 use std::rc::Rc;
 use std::time::{Duration, Instant};
 
-use devotee_backend::{
-    Application, Context, Converter, EventContext, Middleware, RenderSurface, RenderTarget,
-};
-use softbuffer::{Buffer, SoftBufferError, Surface};
-use winit::dpi::PhysicalSize;
+use devotee_backend::Middleware;
+use devotee_backend::middling::EventContext;
+use winit::application::ApplicationHandler;
+use winit::dpi::{PhysicalPosition, PhysicalSize};
 use winit::error::{EventLoopError, OsError};
-use winit::event::{Event, StartCause, WindowEvent};
-use winit::event_loop::{ControlFlow, EventLoop};
-use winit::window::{Window, WindowBuilder};
+use winit::event::{StartCause, WindowEvent};
+use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
+use winit::window::{Window, WindowAttributes, WindowId};
 
-pub use winit;
+use surface::ScaleMode;
 
-type Buf<'a> = Buffer<'a, Rc<Window>, Rc<Window>>;
+pub use surface::SoftSurface;
 
-/// Backend based on the [Softbuffer](https://crates.io/crates/softbuffer) project.
-pub struct SoftBackend {
-    window: Rc<Window>,
-    event_loop: EventLoop<()>,
+mod surface;
+
+/// [Softbuffer](https://crates.io/crates/softbuffer)-based backend implementation for the devotee project.
+pub struct SoftBackend<M> {
+    middleware: M,
+    internal: Option<Internal>,
+    settings: Settings,
+    last: Instant,
 }
 
-impl SoftBackend {
-    /// Create new backend instance with desired window title.
-    pub fn try_new(title: &str) -> Result<Self, Error> {
-        let event_loop = EventLoop::new()?;
-        let window = Rc::new(WindowBuilder::new().with_title(title).build(&event_loop)?);
-        Ok(Self { window, event_loop })
+impl<M> SoftBackend<M> {
+    /// Create new backend instance.
+    pub fn new(middleware: M) -> Self {
+        let internal = None;
+        let last = Instant::now();
+        let settings = Settings {
+            render_window_size: PhysicalSize::new(32, 32),
+            border_color: 0,
+            scale_mode: ScaleMode::Auto,
+        };
+        Self {
+            middleware,
+            internal,
+            settings,
+            last,
+        }
     }
 }
 
-impl SoftBackend {
+impl<M> SoftBackend<M>
+where
+    for<'init, 'context, 'surface, 'event_context> M: Middleware<
+            SoftInit<'init>,
+            SoftContext<'context>,
+            SoftSurface<'surface>,
+            SoftEvent,
+            SoftEventContext<'event_context>,
+            (),
+        >,
+{
     /// Run this backend to completion.
-    pub fn run<App, Mid, Rend, Data, Conv>(
-        self,
-        app: App,
-        middleware: Mid,
-        update_delay: Duration,
-    ) -> Result<(), Error>
-    where
-        App: for<'a> Application<
-            'a,
-            <Mid as Middleware<'a, SoftControl>>::Init,
-            <Mid as Middleware<'a, SoftControl>>::Context,
-            Rend,
-            Conv,
-        >,
-        Mid: for<'a> Middleware<
-            'a,
-            SoftControl,
-            Event = WindowEvent,
-            EventContext = &'a Window,
-            Surface = Buf<'a>,
-            RenderTarget = SoftRenderTarget<'a, Rend>,
-        >,
-        Rend: RenderSurface<Data = Data>,
-        Conv: Converter<Data = Data>,
-    {
-        let mut app = app;
-        let mut middleware = middleware;
+    pub fn run(&mut self) -> Result<(), Error> {
+        let event_loop = EventLoop::new()?;
 
-        let window = self.window;
-
-        let context = softbuffer::Context::new(window.clone())?;
-        let mut surface = Surface::new(&context, window.clone())?;
-
-        let mut control = SoftControl {
-            should_quit: false,
-            window: window.clone(),
-        };
-        let init = middleware.init(&mut control);
-        app.init(init);
-
-        surface.resize(
-            window.inner_size().width.try_into()?,
-            window.inner_size().height.try_into()?,
-        )?;
-
-        self.event_loop
-            .set_control_flow(ControlFlow::WaitUntil(Instant::now() + update_delay));
-        self.event_loop.run(move |event, elwt| {
-            let mut control = SoftControl {
-                should_quit: false,
-                window: window.clone(),
-            };
-
-            match event {
-                Event::NewEvents(StartCause::ResumeTimeReached {
-                    requested_resume, ..
-                }) => {
-                    let context = middleware.update(&mut control, update_delay);
-                    app.update(context);
-                    elwt.set_control_flow(ControlFlow::WaitUntil(requested_resume + update_delay));
-                    window.request_redraw();
-                }
-                Event::WindowEvent { event, .. } => {
-                    if let Some(event) = middleware.handle_event(event, &window, &mut control) {
-                        match event {
-                            WindowEvent::Resized(size) => {
-                                let width = size.width.try_into();
-                                let height = size.height.try_into();
-                                if let (Ok(width), Ok(height)) = (width, height) {
-                                    let _ = surface.resize(width, height);
-                                }
-                            }
-                            WindowEvent::RedrawRequested => {
-                                if let Ok(buf) = surface.buffer_mut() {
-                                    let mut render_target = middleware.render(buf);
-                                    let surface = <SoftRenderTarget<'_, Rend> as RenderTarget<
-                                        Conv,
-                                    >>::render_surface_mut(
-                                        &mut render_target
-                                    );
-                                    app.render(surface);
-                                    let _ = devotee_backend::RenderTarget::present(
-                                        render_target,
-                                        app.converter(),
-                                    );
-                                }
-                                window.request_redraw();
-                            }
-                            _ => (),
-                        }
-                    }
-                }
-                _ => (),
-            }
-
-            if control.should_quit {
-                elwt.exit();
-            }
-        })?;
+        event_loop.set_control_flow(ControlFlow::WaitUntil(
+            Instant::now() + Duration::from_secs_f32(1.0 / 60.0),
+        ));
+        event_loop.run_app(self)?;
 
         Ok(())
     }
-}
 
-/// Default Middleware for the Softbuffer backend.
-pub struct SoftMiddleware<RenderSurface, Input> {
-    background_color: u32,
-    buffer_dimensions: (usize, usize),
-    render_surface: RenderSurface,
-    input: Input,
-    default_scale: u32,
-}
+    fn init(&mut self, event_loop: &ActiveEventLoop) -> Result<(), Error> {
+        let window = Rc::new(event_loop.create_window(WindowAttributes::default())?);
 
-impl<RenderSurface, Input> SoftMiddleware<RenderSurface, Input>
-where
-    RenderSurface: devotee_backend::RenderSurface,
-{
-    /// Create new middleware instance with desired render surface and input handler.
-    pub fn new(render_surface: RenderSurface, input: Input) -> Self {
-        let buffer_dimensions = (render_surface.width(), render_surface.height());
-        let background_color = 0;
-        let default_scale = 1;
-        Self {
-            background_color,
-            buffer_dimensions,
-            render_surface,
-            input,
-            default_scale,
-        }
-    }
-
-    /// Set default scale for the window.
-    ///
-    /// # Panics
-    /// Panics if `default_scale` is zero.
-    pub fn with_default_scale(self, default_scale: u32) -> Self {
-        assert_ne!(default_scale, 0, "Default scale can't be zero");
-        Self {
-            default_scale,
-            ..self
-        }
-    }
-
-    /// Set background color for the unoccupied space.
-    pub fn with_background_color(self, background_color: u32) -> Self {
-        Self {
-            background_color,
-            ..self
-        }
-    }
-}
-
-impl<'a, RenderSurface, Input> Middleware<'a, SoftControl> for SoftMiddleware<RenderSurface, Input>
-where
-    RenderSurface: devotee_backend::RenderSurface,
-    RenderSurface: 'a,
-    Input: 'a + devotee_backend::Input<'a, SoftEventContext<'a>, Event = WindowEvent>,
-{
-    type Event = WindowEvent;
-    type EventContext = &'a Window;
-    type Surface = Buf<'a>;
-    type Init = SoftInit<'a>;
-    type Context = SoftContext<'a, Input>;
-    type RenderTarget = SoftRenderTarget<'a, RenderSurface>;
-
-    fn init(&'a mut self, control: &'a mut SoftControl) -> Self::Init {
-        let dimensions = (
-            self.render_surface.width() as u32,
-            self.render_surface.height() as u32,
-        );
-        control
-            .window
-            .set_min_inner_size(Some(PhysicalSize::new(dimensions.0, dimensions.1)));
-        let _ = control.window.request_inner_size(PhysicalSize::new(
-            dimensions.0 * self.default_scale,
-            dimensions.1 * self.default_scale,
-        ));
-        let actual_dimensions = control.window.inner_size();
-        self.buffer_dimensions = (
-            actual_dimensions.width as usize,
-            actual_dimensions.height as usize,
-        );
-
-        SoftInit { control }
-    }
-
-    fn update(&'a mut self, control: &'a mut SoftControl, delta: Duration) -> Self::Context {
-        let input = &mut self.input;
-        SoftContext {
-            control,
-            delta,
-            input,
-        }
-    }
-
-    fn handle_event(
-        &mut self,
-        event: Self::Event,
-        event_context: Self::EventContext,
-        control: &mut SoftControl,
-    ) -> Option<Self::Event> {
-        let context = SoftEventContext {
-            window: event_context,
-            resolution: (
-                self.render_surface.width() as u32,
-                self.render_surface.height() as u32,
-            ),
+        let mut init = SoftInit {
+            window: &window,
+            settings: &mut self.settings,
         };
 
-        if let Some(event) = self.input.handle_event(event, &context) {
-            match event {
-                WindowEvent::CloseRequested => {
-                    control.shutdown();
-                }
-                WindowEvent::Resized(internal_size) => {
-                    self.buffer_dimensions =
-                        (internal_size.width as usize, internal_size.height as usize);
-                }
-                _ => {}
+        self.middleware.on_init(&mut init);
+        window.set_min_inner_size(Some(self.settings.render_window_size));
+
+        let context = softbuffer::Context::new(Rc::clone(&window))?;
+        let surface = softbuffer::Surface::new(&context, Rc::clone(&window))?;
+        let size = window.inner_size();
+
+        window.set_visible(true);
+
+        let mut internal = Internal {
+            window,
+            surface,
+            surface_size: size,
+        };
+        let _ = internal.on_resize(size);
+
+        self.internal = Some(internal);
+
+        Ok(())
+    }
+
+    fn handle_update(&mut self, event_loop: &ActiveEventLoop) {
+        let now = Instant::now();
+        if let Some(internal) = &self.internal {
+            let delta = now - self.last;
+
+            let mut control = SoftContext {
+                shutdown: false,
+                window: &internal.window,
+                delta,
+            };
+            self.middleware.on_update(&mut control);
+
+            internal.window.request_redraw();
+
+            if control.shutdown {
+                event_loop.exit();
             }
-
-            Some(event)
-        } else {
-            None
         }
-    }
-
-    fn render(&'a mut self, surface: Self::Surface) -> Self::RenderTarget {
-        let background_color = self.background_color;
-        let buffer_dimensions = self.buffer_dimensions;
-        let render_surface = &mut self.render_surface;
-        SoftRenderTarget {
-            background_color,
-            buffer_dimensions,
-            render_surface,
-            buffer: surface,
-        }
+        self.last = now;
+        event_loop.set_control_flow(ControlFlow::WaitUntil(
+            now + Duration::from_secs_f32(1.0 / 60.0),
+        ));
     }
 }
 
-/// Default Init for the Softbuffer backend.
-pub struct SoftInit<'a> {
-    control: &'a mut SoftControl,
-}
-
-impl<'a> SoftInit<'a> {
-    /// Get reference to `SoftControl`.
-    pub fn control(&self) -> &SoftControl {
-        self.control
-    }
-
-    /// Get mutable reference to `SoftControl`.
-    pub fn control_mut(&mut self) -> &mut SoftControl {
-        self.control
-    }
-}
-
-/// Default Context for the Softbuffer backend.
-pub struct SoftContext<'a, Input>
+impl<M> ApplicationHandler for SoftBackend<M>
 where
-    Input: devotee_backend::Input<'a, SoftEventContext<'a>>,
+    for<'init, 'control, 'surface, 'event_context> M: Middleware<
+            SoftInit<'init>,
+            SoftContext<'control>,
+            SoftSurface<'surface>,
+            SoftEvent,
+            SoftEventContext<'event_context>,
+            (),
+        >,
 {
-    control: &'a mut SoftControl,
-    input: &'a mut Input,
+    fn resumed(&mut self, event_loop: &ActiveEventLoop) {
+        if self.internal.is_none() && self.init(event_loop).is_err() {
+            event_loop.exit();
+        }
+    }
+
+    fn new_events(&mut self, event_loop: &ActiveEventLoop, cause: StartCause) {
+        if let StartCause::ResumeTimeReached { .. } = cause {
+            self.handle_update(event_loop);
+        }
+    }
+
+    fn window_event(
+        &mut self,
+        event_loop: &ActiveEventLoop,
+        _window_id: WindowId,
+        event: WindowEvent,
+    ) {
+        if let Some(internal) = &mut self.internal {
+            let surface = SoftSurface::new(
+                &mut internal.surface,
+                internal.surface_size,
+                self.settings.scale_mode,
+                self.settings.render_window_size,
+            );
+
+            let context = SoftEventContext { surface };
+
+            if let Some(event) = self.middleware.on_event(event, &context, &mut ()) {
+                match event {
+                    WindowEvent::Resized(physical_size) => {
+                        if let Some(internal) = &mut self.internal {
+                            internal.on_resize(physical_size);
+                        }
+                    }
+                    WindowEvent::CloseRequested => {
+                        event_loop.exit();
+                    }
+                    WindowEvent::Destroyed => {
+                        event_loop.exit();
+                    }
+                    WindowEvent::RedrawRequested => {
+                        let mut surface = SoftSurface::new(
+                            &mut internal.surface,
+                            internal.surface_size,
+                            self.settings.scale_mode,
+                            self.settings.render_window_size,
+                        );
+                        let _ = surface.clear(self.settings.border_color);
+                        self.middleware.on_render(&mut surface);
+                        let _ = surface.present();
+                    }
+                    _ => {}
+                }
+            }
+        }
+    }
+}
+
+struct Settings {
+    render_window_size: PhysicalSize<u32>,
+    border_color: u32,
+    scale_mode: ScaleMode,
+}
+
+impl Settings {
+    fn set_scale(&mut self, scale: u32) {
+        if let Ok(scale) = scale.try_into() {
+            self.scale_mode = ScaleMode::Fixed(scale);
+        } else {
+            self.scale_mode = ScaleMode::Auto;
+        }
+    }
+}
+
+struct Internal {
+    window: Rc<Window>,
+    surface: softbuffer::Surface<Rc<Window>, Rc<Window>>,
+    surface_size: PhysicalSize<u32>,
+}
+
+impl Internal {
+    fn on_resize(&mut self, size: PhysicalSize<u32>) -> Option<()> {
+        self.surface
+            .resize(size.width.try_into().ok()?, size.height.try_into().ok()?)
+            .ok()?;
+
+        self.surface_size = size;
+
+        Some(())
+    }
+}
+
+/// An ititalization argument passed to the application.
+pub struct SoftInit<'a> {
+    window: &'a Window,
+    settings: &'a mut Settings,
+}
+
+impl SoftInit<'_> {
+    /// Set window title.
+    pub fn set_title(&mut self, title: &str) {
+        self.window.set_title(title);
+    }
+
+    /// Set internal render scale.
+    /// If case of `0` `scale` value automatic scaling is used.
+    pub fn set_scale(&mut self, scale: u32) {
+        self.settings.set_scale(scale);
+    }
+
+    /// Set the internal render window size.
+    pub fn set_render_window_size(&mut self, width: u32, height: u32) {
+        self.settings.render_window_size = PhysicalSize::new(width, height);
+    }
+
+    /// Set the color of the border to be rendered.
+    pub fn set_border_color(&mut self, color: u32) {
+        self.settings.border_color = color;
+    }
+}
+
+/// An update argument passed to the application.
+pub struct SoftContext<'a> {
+    shutdown: bool,
+    window: &'a Window,
     delta: Duration,
 }
 
-impl<'a, Input> SoftContext<'a, Input>
-where
-    Input: devotee_backend::Input<'a, SoftEventContext<'a>>,
-{
-    /// Get reference to `SoftControl`.
-    pub fn control(&self) -> &SoftControl {
-        self.control
+impl SoftContext<'_> {
+    /// Get reference to the underlying `winit` `Window` reference.
+    pub fn window(&self) -> &Window {
+        self.window
     }
 
-    /// Get mutable reference to `SoftControl`.
-    pub fn control_mut(&mut self) -> &mut SoftControl {
-        self.control
-    }
-}
-
-impl<'a, Input> Context<'a, Input> for SoftContext<'a, Input>
-where
-    Input: devotee_backend::Input<'a, SoftEventContext<'a>>,
-{
-    fn input(&self) -> &Input {
-        self.input
+    /// Tell the backend to shut itself down.
+    pub fn shutdown(&mut self) {
+        self.shutdown = true;
     }
 
-    fn delta(&self) -> Duration {
+    /// Get delta time estimation.
+    pub fn delta(&self) -> Duration {
         self.delta
     }
-
-    fn shutdown(&mut self) {
-        self.control.shutdown();
-    }
 }
 
-impl<'a, Input> Drop for SoftContext<'a, Input>
-where
-    Input: devotee_backend::Input<'a, SoftEventContext<'a>>,
-{
-    fn drop(&mut self) {
-        self.input.tick();
-    }
-}
+type SoftEvent = WindowEvent;
 
-/// Default Render Target for the Softbuffer backend.
-pub struct SoftRenderTarget<'a, RenderSurface> {
-    background_color: u32,
-    buffer_dimensions: (usize, usize),
-    render_surface: &'a mut RenderSurface,
-    buffer: Buf<'a>,
-}
-
-impl<'a, RenderSurface, Converter> RenderTarget<Converter> for SoftRenderTarget<'a, RenderSurface>
-where
-    RenderSurface: devotee_backend::RenderSurface,
-    Converter: devotee_backend::Converter<Data = RenderSurface::Data>,
-{
-    type RenderSurface = RenderSurface;
-    type PresentError = SoftBufferError;
-
-    fn render_surface(&self) -> &Self::RenderSurface {
-        self.render_surface
-    }
-
-    fn render_surface_mut(&mut self) -> &mut Self::RenderSurface {
-        self.render_surface
-    }
-
-    fn present(mut self, converter: Converter) -> Result<(), Self::PresentError> {
-        let render_surface_dimensions = (self.render_surface.width(), self.render_surface.height());
-
-        let scale_x = self.buffer_dimensions.0 / render_surface_dimensions.0;
-        let scale_y = self.buffer_dimensions.1 / render_surface_dimensions.1;
-
-        let minimal_scale = scale_x.min(scale_y);
-
-        self.buffer.fill(self.background_color);
-        if minimal_scale >= 1 {
-            let start_x =
-                (self.buffer_dimensions.0 - render_surface_dimensions.0 * minimal_scale) / 2;
-            let start_y =
-                (self.buffer_dimensions.1 - render_surface_dimensions.1 * minimal_scale) / 2;
-
-            for y in 0..render_surface_dimensions.1 {
-                for x in 0..render_surface_dimensions.0 {
-                    let pixel_color = self.render_surface.data(x, y);
-                    let pixel_value = converter.convert(x, y, pixel_color);
-                    for iy in 0..minimal_scale {
-                        let index = (start_x + x * minimal_scale)
-                            + (iy + start_y + y * minimal_scale) * self.buffer_dimensions.0;
-                        self.buffer[index..index + minimal_scale].fill(pixel_value);
-                    }
-                }
-            }
-        }
-
-        self.buffer.present()
-    }
-}
-
-/// Default Control instance for the Softbuffer backend.
-pub struct SoftControl {
-    should_quit: bool,
-    window: Rc<Window>,
-}
-
-impl SoftControl {
-    /// Tell backend to shut down.
-    pub fn shutdown(&mut self) -> &mut Self {
-        self.should_quit = true;
-        self
-    }
-
-    /// Get reference to the underlying window.
-    pub fn window_ref(&self) -> &Window {
-        &self.window
-    }
-}
-
-/// Default Event Context for the Softbuffer backend.
+/// A context passed to the event handler.
 pub struct SoftEventContext<'a> {
-    window: &'a Window,
-    resolution: (u32, u32),
+    surface: SoftSurface<'a>,
 }
 
-impl<'a> EventContext for SoftEventContext<'a> {
-    fn position_into_render_surface_space(
-        &self,
-        position: (f32, f32),
-    ) -> Result<(i32, i32), (i32, i32)> {
-        let size = self.window.inner_size();
-        let scale_x = size.width / self.resolution.0;
-        let scale_y = size.height / self.resolution.1;
+impl EventContext<PhysicalPosition<f64>> for SoftEventContext<'_> {
+    type SurfaceSpace = Option<PhysicalPosition<u32>>;
 
-        let minimal_scale = scale_x.min(scale_y);
-
-        if minimal_scale < 1 {
-            Err((0, 0))
-        } else {
-            let position = (position.0 as i32, position.1 as i32);
-            let start_x = ((size.width - self.resolution.0 * minimal_scale) / 2) as i32;
-            let start_y = ((size.height - self.resolution.1 * minimal_scale) / 2) as i32;
-
-            let position = (
-                (position.0 - start_x) / minimal_scale as i32,
-                (position.1 - start_y) / minimal_scale as i32,
+    fn estimate_surface_space(&self, event_space: PhysicalPosition<f64>) -> Self::SurfaceSpace {
+        let PhysicalPosition { x, y } = event_space;
+        let (x, y) = (x as u32, y as u32);
+        if x > self.surface.render_window_position().x
+            && y > self.surface.render_window_position().y
+        {
+            let (x, y) = (
+                (x - self.surface.render_window_position().x) / self.surface.render_window_scale(),
+                (y - self.surface.render_window_position().y) / self.surface.render_window_scale(),
             );
-
-            if position.0 < 0
-                || position.0 >= self.resolution.0 as i32
-                || position.1 < 0
-                || position.1 >= self.resolution.1 as i32
+            if x < self.surface.render_window_size().width
+                && y < self.surface.render_window_size().height
             {
-                Err(position)
-            } else {
-                Ok(position)
+                return Some(PhysicalPosition::new(x, y));
             }
         }
+        None
     }
 }
 
-/// Softbuffer backend error enumeration.
+/// An error generalization.
 #[derive(Debug)]
 pub enum Error {
     /// Winit event loop error.
     WinitEventLoopError(EventLoopError),
-
-    /// Winit OS error.
-    WinitOsError(OsError),
-
-    /// Softbuffer render error.
-    SoftbufferError(SoftBufferError),
-
-    /// Window resolution retrieval error.
-    WindowResolutionError(TryFromIntError),
+    /// Os error.
+    OsError(OsError),
+    /// SoftBuffer error.
+    SoftBufferError(softbuffer::SoftBufferError),
 }
 
 impl From<EventLoopError> for Error {
@@ -486,18 +330,12 @@ impl From<EventLoopError> for Error {
 
 impl From<OsError> for Error {
     fn from(value: OsError) -> Self {
-        Self::WinitOsError(value)
+        Self::OsError(value)
     }
 }
 
-impl From<SoftBufferError> for Error {
-    fn from(value: SoftBufferError) -> Self {
-        Self::SoftbufferError(value)
-    }
-}
-
-impl From<TryFromIntError> for Error {
-    fn from(value: TryFromIntError) -> Self {
-        Self::WindowResolutionError(value)
+impl From<softbuffer::SoftBufferError> for Error {
+    fn from(value: softbuffer::SoftBufferError) -> Self {
+        Self::SoftBufferError(value)
     }
 }

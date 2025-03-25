@@ -20,6 +20,9 @@ pub mod pixel;
 /// Subpixel-perfect operations implementation.
 pub mod subpixel;
 
+/// Surface adapter implementation.
+pub mod adapter;
+
 mod util;
 
 /// Collection of drawing traits and functions in a single prelude.
@@ -27,8 +30,8 @@ pub mod prelude {
     pub use super::image::{Image, ImageMut};
     pub use super::view::View;
     pub use super::Paint;
+    pub use super::Painter;
     pub use super::{paint, printer, stamp};
-    pub use super::{PaintTarget, Painter};
 }
 
 /// Mapper function accepts `x` and `y` coordinates and pixel value.
@@ -178,23 +181,6 @@ impl Iterator for ScanIterator<i32> {
     }
 }
 
-/// Something that can be painted on.
-pub trait PaintTarget<T> {
-    /// Get painter for painting.
-    fn painter<C>(&mut self) -> Painter<T, C>
-    where
-        C: Clone + Default;
-}
-
-impl<T> PaintTarget<T> for T {
-    fn painter<C>(&mut self) -> Painter<T, C>
-    where
-        C: Clone + Default,
-    {
-        Painter::new(self)
-    }
-}
-
 /// Painter to draw on encapsulated target.
 pub struct Painter<'image, I, C> {
     target: &'image mut I,
@@ -205,7 +191,8 @@ impl<'image, I, C> Painter<'image, I, C>
 where
     C: Clone + Default,
 {
-    fn new(target: &'image mut I) -> Self {
+    /// Create new painter instance.
+    pub fn new(target: &'image mut I) -> Self {
         Self {
             target,
             offset: Default::default(),
@@ -236,7 +223,7 @@ where
 
 impl<T, C> Painter<'_, T, C>
 where
-    T: ImageMut,
+    T: Image,
     T::Pixel: Clone,
 {
     /// Get target's width.
@@ -248,7 +235,13 @@ where
     pub fn height(&self) -> i32 {
         Image::height(self.target)
     }
+}
 
+impl<T, C> Painter<'_, T, C>
+where
+    T: ImageMut,
+    T::Pixel: Clone,
+{
     /// Clear the target with provided color.
     pub fn clear(&mut self, clear_color: T::Pixel) {
         ImageMut::clear(self.target, clear_color)

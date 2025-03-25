@@ -1,7 +1,5 @@
 use std::ops::RangeInclusive;
 
-use devotee_backend::RenderSurface;
-
 use super::image::{DesignatorMut, DesignatorRef};
 use super::{FastHorizontalWriter, Image, ImageMut};
 use crate::util::vector::Vector;
@@ -103,25 +101,6 @@ where
 
     fn fast_horizontal_writer(&mut self) -> Option<impl FastHorizontalWriter<Self>> {
         Some(CanvasFastHorizontalWriter { canvas: self })
-    }
-}
-
-impl<P> RenderSurface for Canvas<P>
-where
-    P: Clone,
-{
-    type Data = P;
-
-    fn width(&self) -> usize {
-        self.width
-    }
-
-    fn height(&self) -> usize {
-        self.height
-    }
-
-    fn data(&self, x: usize, y: usize) -> P {
-        unsafe { self.unsafe_pixel(Vector::new(x as i32, y as i32)).clone() }
     }
 }
 

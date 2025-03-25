@@ -1,5 +1,3 @@
-use backend::RenderSurface;
-
 use super::image::{DesignatorMut, DesignatorRef};
 use super::{Image, ImageMut};
 use crate::util::vector::Vector;
@@ -95,24 +93,5 @@ where
 {
     fn default() -> Self {
         Self::with_color(Default::default())
-    }
-}
-
-impl<P, const W: usize, const H: usize> RenderSurface for Sprite<P, W, H>
-where
-    P: Copy,
-{
-    type Data = P;
-
-    fn width(&self) -> usize {
-        W
-    }
-
-    fn height(&self) -> usize {
-        H
-    }
-
-    fn data(&self, x: usize, y: usize) -> P {
-        unsafe { *self.unsafe_pixel(Vector::new(x as i32, y as i32)) }
     }
 }

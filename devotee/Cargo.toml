@@ -1,6 +1,6 @@
 [package]
 name = "devotee"
-version = "0.2.0-beta.12"
+version = "0.2.0-beta.13"
 edition = "2021"
 publish = true
 authors = ["PSUAN collective", "Hara Red <rtc6fg4.fejg2@gmail.com>"]
@@ -16,17 +16,19 @@ categories = ["game-engines"]
 [features]
 default = ["rodio-sound-system", "winit-input", "winit-x11"]
 rodio-sound-system = ["rodio"]
-winit-input = ["winit", "devotee-backend/input-context"]
+winit-input = ["winit"]
 winit-x11 = ["winit/x11"]
 winit-wayland = ["winit/wayland"]
 
 [dependencies]
-devotee-backend = "0.2.0-beta.2"
+devotee-backend = { path = "../devotee-backend", version = "0.2.0-beta.3" }
 
-winit = { version = "0.29.11", optional = true, default-features = false, features = ["rwh_06"] }
+winit = { version = "0.30.9", optional = true, default-features = false, features = [
+    "rwh_06",
+] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-rodio = { version = "0.17.1", default-features = false, optional = true }
+rodio = { version = "0.20.1", default-features = false, optional = true }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 rodio = { version = "0.17.1", default-features = false, features = [
@@ -34,4 +36,5 @@ rodio = { version = "0.17.1", default-features = false, features = [
 ], optional = true }
 
 [dev-dependencies]
-devotee-backend-softbuffer = { version = "0.2.0-beta.1" }
+devotee-backend-softbuffer = { path = "../devotee-backend-softbuffer", version = "0.2.0-beta.4" }
+devotee-backend-pixels = { path = "../devotee-backend-pixels", version = "0.2.0-beta.5" }

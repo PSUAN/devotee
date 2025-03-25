@@ -2,7 +2,6 @@ use std::ops::RangeInclusive;
 
 use crate::util::vector::Vector;
 
-use super::view::View;
 use super::FastHorizontalWriter;
 
 /// Type trait that can point on a pixel reference.
@@ -42,17 +41,6 @@ pub trait Image: for<'a> DesignatorRef<'a> {
 
     /// Get height of this image.
     fn height(&self) -> i32;
-
-    /// Get dimensions of this image.
-    fn dimensions(&self) -> Vector<i32> {
-        Vector::new(self.width(), self.height())
-    }
-
-    /// Get an immutable view into this `Image`.
-    /// Resulting `View`'s origin and dimensions are cropped to the image automatically.
-    fn view(&self, origin: Vector<i32>, dimensions: Vector<i32>) -> View<&Self> {
-        View::<&Self>::new(self, origin, dimensions)
-    }
 }
 
 /// Mutable part of an Image.
@@ -73,15 +61,20 @@ pub trait ImageMut: Image + for<'a> DesignatorMut<'a> {
     fn fast_horizontal_writer(&mut self) -> Option<impl FastHorizontalWriter<Self>> {
         None::<FastHorizontalWriterPlaceholder>
     }
+}
 
-    /// Get a mutable view into this `Image`.
-    /// Resulting `View`'s origin and dimensions are cropped to the image automatically.
-    fn view_mut<'this>(
-        &'this mut self,
-        origin: Vector<i32>,
-        dimensions: Vector<i32>,
-    ) -> View<&'this mut Self> {
-        View::<&'this mut Self>::new(self, origin, dimensions)
+/// Some image with dimensions.
+pub trait Dimensions {
+    /// Get dimensions of this image.
+    fn dimensions(&self) -> Vector<i32>;
+}
+
+impl<T> Dimensions for T
+where
+    T: Image + ?Sized,
+{
+    fn dimensions(&self) -> Vector<i32> {
+        Vector::new(self.width(), self.height())
     }
 }
 

@@ -1,24 +1,24 @@
-use std::f32::consts::{self, PI};
-use std::time::Duration;
+use std::f32::consts::{self};
+use std::ops::{Deref, DerefMut};
 
 use devotee::app::root::Root;
 use devotee::app::App;
 use devotee::input::winit_input::{KeyCode, Keyboard};
 use devotee::util::vector::Vector;
-use devotee::visual::canvas::Canvas;
-use devotee::visual::{paint, Paint, PaintTarget, Painter};
-use devotee_backend::{Context, Converter};
-use devotee_backend_softbuffer::{Error, SoftBackend, SoftContext, SoftInit, SoftMiddleware};
-use winit::window::Fullscreen;
+
+use devotee::visual::adapter::{Adapter, Converter};
+use devotee::visual::image::{DesignatorMut, DesignatorRef, ImageMut};
+use devotee::visual::{paint, Paint, Painter};
+use devotee_backend::middling::MiddlingMiddleware;
+use devotee_backend_softbuffer::{Error, SoftBackend, SoftContext, SoftInit, SoftSurface};
 
 fn main() -> Result<(), Error> {
-    let backend = SoftBackend::try_new("gears")?;
-    backend.run(
-        App::new(Gears::new()),
-        SoftMiddleware::new(Canvas::with_resolution(false, 320, 240), Keyboard::new())
-            .with_background_color(0xff000000),
-        Duration::from_secs_f32(1.0 / 60.0),
-    )
+    let gears = Gears::new();
+    let app = App::new(gears);
+    let middleware = MiddlingMiddleware::new(app, Keyboard::new());
+    let mut backend = SoftBackend::new(middleware);
+
+    backend.run()
 }
 
 struct Gears {
@@ -39,55 +39,56 @@ impl Gears {
     }
 }
 
-impl Root<SoftInit<'_>, SoftContext<'_, Keyboard>> for Gears {
-    type Converter = TwoConverter;
-    type RenderSurface = Canvas<bool>;
-
+impl Root<SoftInit<'_>, SoftContext<'_>, Keyboard, SoftSurface<'_>> for Gears {
     fn init(&mut self, init: &mut SoftInit) {
-        init.control()
-            .window_ref()
-            .set_fullscreen(Some(Fullscreen::Borderless(None)));
+        init.set_render_window_size(320, 240);
+        init.set_title("Gears demo: press ESC to exit.");
 
         self.driven_gear.angle =
-            -self.drive_gear.angle / 3.0 + PI / self.driven_gear.teeth_count as f32;
+            -self.drive_gear.angle / 3.0 + consts::PI / self.driven_gear.teeth_count as f32;
     }
 
-    fn update(&mut self, context: &mut SoftContext<Keyboard>) {
-        let keyboard = context.input();
+    fn update(&mut self, context: &mut SoftContext, input: &Keyboard) {
+        let keyboard = input;
 
         if keyboard.is_pressed(KeyCode::Space) {
-            self.drive_gear.angle += PI * context.delta().as_secs_f32() / 4.0;
+            self.drive_gear.angle += consts::PI * context.delta().as_secs_f32() / 4.0;
         }
         self.driven_gear.angle =
-            -self.drive_gear.angle / 3.0 + PI / self.driven_gear.teeth_count as f32;
+            -self.drive_gear.angle / 3.0 + consts::PI / self.driven_gear.teeth_count as f32;
 
         if keyboard.just_pressed(KeyCode::Escape) {
             context.shutdown();
         }
     }
 
-    fn render(&mut self, render: &mut Self::RenderSurface) {
-        let mut render = render.painter();
-        render.clear(false);
-        self.drive_gear.render(&mut render);
-        self.driven_gear.render(&mut render);
-    }
+    fn render(&mut self, surface: &mut SoftSurface<'_>) {
+        let mut adapter = Adapter::new(surface, TwoConverter);
+        adapter.clear(false);
 
-    fn converter(&self) -> Self::Converter {
-        TwoConverter
+        self.drive_gear.render(&mut adapter);
+        self.driven_gear.render(&mut adapter);
     }
 }
 
 struct TwoConverter;
 
 impl Converter for TwoConverter {
-    type Data = bool;
+    type Pixel = bool;
+    type Texel = u32;
 
-    fn convert(&self, _: usize, _: usize, data: Self::Data) -> u32 {
-        if data {
+    fn forward(&self, pixel: &Self::Pixel) -> Self::Texel {
+        if *pixel {
             0xffc0b0a0
         } else {
             0xff101020
+        }
+    }
+
+    fn inverse(&self, texel: &Self::Texel) -> Self::Pixel {
+        match *texel & 0xffffff {
+            0xc0b0a0 => true,
+            _ => false,
         }
     }
 }
@@ -153,10 +154,16 @@ impl Gear {
         }
     }
 
-    fn render(&self, painter: &mut Painter<Canvas<bool>, f32>) {
+    fn render<I>(&self, image: &mut I)
+    where
+        I: ImageMut<Pixel = bool>,
+        for<'a> <I as DesignatorRef<'a>>::PixelRef: Deref<Target = bool>,
+        for<'a> <I as DesignatorMut<'a>>::PixelMut: DerefMut<Target = bool>,
+    {
+        let mut painter = Painter::new(image);
         painter.set_offset(self.center);
         for i in 0..=self.teeth_count {
-            let angle = i as f32 * 2.0 * PI / self.teeth_count as f32 + self.angle;
+            let angle = i as f32 * 2.0 * consts::PI / self.teeth_count as f32 + self.angle;
             let tooth = self
                 .tooth
                 .iter()
@@ -172,7 +179,7 @@ impl Gear {
             |_, _, p| !p,
         );
         for i in 0..3 {
-            let angle = PI * 2.0 * i as f32 / 3.0;
+            let angle = consts::PI * 2.0 * i as f32 / 3.0;
             painter.circle_f(
                 rotate_vector((self.internal_radius / 2.0, 0.0).into(), self.angle + angle),
                 self.internal_radius / 4.0,
