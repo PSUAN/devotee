@@ -2,7 +2,8 @@ use devotee::app::root::Root;
 use devotee::app::App;
 use devotee::input::winit_input::KeyboardMouse;
 use devotee::util::vector::Vector;
-use devotee::visual::adapter::{Adapter, CopyConverter};
+use devotee::visual::adapter::generic::Adapter;
+use devotee::visual::adapter::CopyConverter;
 use devotee::visual::{paint, Paint, Painter};
 use devotee_backend::middling::MiddlingMiddleware;
 use devotee_backend_pixels::{Error, PixelsBackend, PixelsContext, PixelsInit, PixelsSurface};
@@ -37,7 +38,8 @@ impl Root<PixelsInit<'_>, PixelsContext<'_>, KeyboardMouse, PixelsSurface<'_, '_
     }
 
     fn render(&mut self, surface: &mut PixelsSurface<'_, '_>) {
-        let mut adapter = Adapter::new(surface, CopyConverter::new());
+        let converter = CopyConverter::new();
+        let mut adapter = Adapter::new(surface, &converter);
         let mut painter = Painter::new(&mut adapter);
         painter.clear([0x40, 0x40, 0x40]);
         if let Some(position) = self.position {

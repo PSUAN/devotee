@@ -414,7 +414,7 @@ where
     T: ImageMut,
     T::Pixel: Clone,
     for<'a> <T as DesignatorRef<'a>>::PixelRef: Deref<Target = T::Pixel>,
-    for<'a> <T as DesignatorMut<'a>>::PixelMut: DerefMut<Target = <T as Image>::Pixel>,
+    for<'a> <T as DesignatorMut<'a>>::PixelMut: DerefMut<Target = T::Pixel>,
 {
     fn pixel(&self, position: Vector<i32>) -> Option<PixelRef<'_, T>> {
         Image::pixel(self.target, position + self.offset)
@@ -541,7 +541,7 @@ where
     T: ImageMut,
     T::Pixel: Clone,
     for<'a> <T as DesignatorRef<'a>>::PixelRef: Deref<Target = T::Pixel>,
-    for<'a> <T as DesignatorMut<'a>>::PixelMut: DerefMut<Target = <T as Image>::Pixel>,
+    for<'a> <T as DesignatorMut<'a>>::PixelMut: DerefMut<Target = T::Pixel>,
 {
     /// Get reference to pixel.
     ///

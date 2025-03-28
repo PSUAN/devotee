@@ -6,7 +6,8 @@ use devotee::app::App;
 use devotee::input::winit_input::{KeyCode, Keyboard};
 use devotee::util::vector::Vector;
 
-use devotee::visual::adapter::{Adapter, Converter};
+use devotee::visual::adapter::generic::Adapter;
+use devotee::visual::adapter::Converter;
 use devotee::visual::image::{DesignatorMut, DesignatorRef, ImageMut};
 use devotee::visual::{paint, Paint, Painter};
 use devotee_backend::middling::MiddlingMiddleware;
@@ -63,7 +64,7 @@ impl Root<SoftInit<'_>, SoftContext<'_>, Keyboard, SoftSurface<'_>> for Gears {
     }
 
     fn render(&mut self, surface: &mut SoftSurface<'_>) {
-        let mut adapter = Adapter::new(surface, TwoConverter);
+        let mut adapter = Adapter::new(surface, &TwoConverter);
         adapter.clear(false);
 
         self.drive_gear.render(&mut adapter);

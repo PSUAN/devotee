@@ -228,7 +228,7 @@ impl Internal {
     }
 }
 
-/// An ititalization argument passed to the application.
+/// An initialization argument passed to the application.
 pub struct SoftInit<'a> {
     window: &'a Window,
     settings: &'a mut Settings,

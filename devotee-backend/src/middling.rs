@@ -56,13 +56,13 @@ pub trait Application<Init, Context, Input, Surface> {
 }
 
 /// Type trait that can point on a texel reference.
-pub trait TexelDesignatorRef<'a, _Bound = &'a Self> {
+pub trait TexelDesignatorRef<'a> {
     /// Texel reference.
     type TexelRef;
 }
 
 /// Type trait that can point on a mutable texel reference.
-pub trait TexelDesignatorMut<'a, _Bound = &'a mut Self> {
+pub trait TexelDesignatorMut<'a> {
     /// Mutable texel reference.
     type TexelMut;
 }

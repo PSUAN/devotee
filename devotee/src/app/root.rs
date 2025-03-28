@@ -1,6 +1,6 @@
 /// Generic root trait.
 pub trait Root<Init, Context, Input, Surface> {
-    /// Perform the initalization process.
+    /// Perform the initialization process.
     fn init(&mut self, init: &mut Init);
 
     /// Handle the update event.

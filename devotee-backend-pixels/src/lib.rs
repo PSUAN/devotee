@@ -210,7 +210,7 @@ impl Internal<'_> {
     }
 }
 
-/// An ititalization argument passed to the application.
+/// An initialization argument passed to the application.
 pub struct PixelsInit<'a> {
     window: &'a Window,
     settings: &'a mut Settings,
