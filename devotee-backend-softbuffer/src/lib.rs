@@ -80,6 +80,7 @@ where
 
         self.middleware.on_init(&mut init);
         window.set_min_inner_size(Some(self.settings.render_window_size));
+        let _ = window.request_inner_size(self.settings.render_window_size);
 
         let context = softbuffer::Context::new(Rc::clone(&window))?;
         let surface = softbuffer::Surface::new(&context, Rc::clone(&window))?;
@@ -235,9 +236,9 @@ pub struct SoftInit<'a> {
 }
 
 impl SoftInit<'_> {
-    /// Set window title.
-    pub fn set_title(&mut self, title: &str) {
-        self.window.set_title(title);
+    /// Get internal `winit` window reference.
+    pub fn window(&self) -> &Window {
+        self.window
     }
 
     /// Set internal render scale.

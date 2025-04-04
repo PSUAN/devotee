@@ -74,6 +74,7 @@ where
 
         self.middleware.on_init(&mut init);
         window.set_min_inner_size(Some(self.settings.render_window_size));
+        let _ = window.request_inner_size(self.settings.render_window_size);
 
         let surface_size = window.inner_size();
         let surface_texture =
@@ -217,9 +218,9 @@ pub struct PixelsInit<'a> {
 }
 
 impl PixelsInit<'_> {
-    /// Set window title.
-    pub fn set_title(&mut self, title: &str) {
-        self.window.set_title(title);
+    /// Get reference to the underlying `winit` `Window` reference.
+    pub fn window(&self) -> &Window {
+        self.window
     }
 
     /// Set the internal render window size.
@@ -280,15 +281,15 @@ pub struct PixelsSurface<'s, 'w> {
 }
 
 impl<'a> TexelDesignatorRef<'a> for PixelsSurface<'_, '_> {
-    type TexelRef = &'a [u8; 3];
+    type TexelRef = &'a [u8; 4];
 }
 
 impl<'a> TexelDesignatorMut<'a> for PixelsSurface<'_, '_> {
-    type TexelMut = &'a mut [u8; 3];
+    type TexelMut = &'a mut [u8; 4];
 }
 
 impl Surface for PixelsSurface<'_, '_> {
-    type Texel = [u8; 3];
+    type Texel = [u8; 4];
 
     fn texel(&self, x: u32, y: u32) -> Option<TexelRef<'_, Self>> {
         if x >= self.dimensions.width || y >= self.dimensions.height {
@@ -296,7 +297,7 @@ impl Surface for PixelsSurface<'_, '_> {
         } else {
             let buffer = self.pixels.frame();
             let offset = (4 * (x + y * self.dimensions.width)) as usize;
-            let slice = &buffer[offset..(offset + 3)];
+            let slice = &buffer[offset..(offset + 4)];
             slice.try_into().ok()
         }
     }
@@ -307,7 +308,7 @@ impl Surface for PixelsSurface<'_, '_> {
         } else {
             let buffer = self.pixels.frame_mut();
             let offset = (4 * (x + y * self.dimensions.width)) as usize;
-            let slice = &mut buffer[offset..(offset + 3)];
+            let slice = &mut buffer[offset..(offset + 4)];
             slice.try_into().ok()
         }
     }
@@ -315,8 +316,7 @@ impl Surface for PixelsSurface<'_, '_> {
     fn clear(&mut self, value: Self::Texel) {
         let frame = self.pixels.frame_mut();
         for pixel in frame.chunks_exact_mut(4) {
-            pixel[..3].copy_from_slice(&value);
-            pixel[3] = 0xff;
+            pixel.copy_from_slice(&value);
         }
     }
 

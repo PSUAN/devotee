@@ -43,7 +43,7 @@ impl Gears {
 impl Root<SoftInit<'_>, SoftContext<'_>, Keyboard, SoftSurface<'_>> for Gears {
     fn init(&mut self, init: &mut SoftInit) {
         init.set_render_window_size(320, 240);
-        init.set_title("Gears demo: press ESC to exit.");
+        init.window().set_title("Gears demo: press ESC to exit.");
 
         self.driven_gear.angle =
             -self.drive_gear.angle / 3.0 + consts::PI / self.driven_gear.teeth_count as f32;

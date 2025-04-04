@@ -89,7 +89,7 @@ struct Adapting {
 impl Root<PixelsInit<'_>, PixelsContext<'_>, KeyboardMouse, PixelsSurface<'_, '_>> for Adapting {
     fn init(&mut self, init: &mut PixelsInit<'_>) {
         init.set_render_window_size(320, 240);
-        init.set_title("Adapting demo: Pixels version");
+        init.window().set_title("Adapting demo: Pixels version");
     }
 
     fn update(&mut self, context: &mut PixelsContext<'_>, input: &KeyboardMouse) {
@@ -115,12 +115,12 @@ struct PixelsConverter;
 
 impl Converter for PixelsConverter {
     type Pixel = Color;
-    type Texel = [u8; 3];
+    type Texel = [u8; 4];
 
     fn forward(&self, pixel: &Self::Pixel) -> Self::Texel {
         match pixel {
-            Color::Dark => [0x40, 0x20, 0x20],
-            Color::Light => [0xe0; 3],
+            Color::Dark => [0x40, 0x20, 0x20, 0xff],
+            Color::Light => [0xe0, 0xe0, 0xe0, 0xff],
         }
     }
 
@@ -136,7 +136,7 @@ impl Converter for PixelsConverter {
 impl Root<SoftInit<'_>, SoftContext<'_>, KeyboardMouse, SoftSurface<'_>> for Adapting {
     fn init(&mut self, init: &mut SoftInit<'_>) {
         init.set_render_window_size(320, 240);
-        init.set_title("Adapting demo: SoftBuffer version");
+        init.window().set_title("Adapting demo: SoftBuffer version");
     }
 
     fn update(&mut self, context: &mut SoftContext<'_>, input: &KeyboardMouse) {
