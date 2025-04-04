@@ -49,12 +49,12 @@ impl<M> SoftBackend<M> {
 
 impl<M> SoftBackend<M>
 where
-    for<'init, 'context, 'surface, 'event_context> M: Middleware<
+    for<'init, 'context, 'surface> M: Middleware<
             SoftInit<'init>,
             SoftContext<'context>,
             SoftSurface<'surface>,
             SoftEvent,
-            SoftEventContext<'event_context>,
+            SoftEventContext,
             (),
         >,
 {
@@ -127,12 +127,12 @@ where
 
 impl<M> ApplicationHandler for SoftBackend<M>
 where
-    for<'init, 'control, 'surface, 'event_context> M: Middleware<
+    for<'init, 'control, 'surface> M: Middleware<
             SoftInit<'init>,
             SoftContext<'control>,
             SoftSurface<'surface>,
             SoftEvent,
-            SoftEventContext<'event_context>,
+            SoftEventContext,
             (),
         >,
 {
@@ -155,14 +155,11 @@ where
         event: WindowEvent,
     ) {
         if let Some(internal) = &mut self.internal {
-            let surface = SoftSurface::new(
-                &mut internal.surface,
+            let context = SoftEventContext::new(
                 internal.surface_size,
                 self.settings.scale_mode,
                 self.settings.render_window_size,
             );
-
-            let context = SoftEventContext { surface };
 
             if let Some(event) = self.middleware.on_event(event, &context, &mut ()) {
                 match event {
@@ -178,15 +175,17 @@ where
                         event_loop.exit();
                     }
                     WindowEvent::RedrawRequested => {
-                        let mut surface = SoftSurface::new(
-                            &mut internal.surface,
-                            internal.surface_size,
-                            self.settings.scale_mode,
-                            self.settings.render_window_size,
-                        );
-                        let _ = surface.clear(self.settings.border_color);
-                        self.middleware.on_render(&mut surface);
-                        let _ = surface.present();
+                        if let Ok(buffer) = internal.surface.buffer_mut() {
+                            let mut surface = SoftSurface::new(
+                                buffer,
+                                internal.surface_size,
+                                self.settings.scale_mode,
+                                self.settings.render_window_size,
+                            );
+                            let _ = surface.clear(self.settings.border_color);
+                            self.middleware.on_render(&mut surface);
+                            let _ = surface.present();
+                        }
                     }
                     _ => {}
                 }
@@ -285,26 +284,39 @@ impl SoftContext<'_> {
 type SoftEvent = WindowEvent;
 
 /// A context passed to the event handler.
-pub struct SoftEventContext<'a> {
-    surface: SoftSurface<'a>,
+pub struct SoftEventContext {
+    render_window: (PhysicalPosition<u32>, PhysicalSize<u32>),
+    scale: u32,
 }
 
-impl EventContext<PhysicalPosition<f64>> for SoftEventContext<'_> {
+impl SoftEventContext {
+    fn new(
+        surface_size: PhysicalSize<u32>,
+        scale: ScaleMode,
+        render_window_size: PhysicalSize<u32>,
+    ) -> Self {
+        let (render_window_position, scale) =
+            surface::estimate_render_window_position_scale(surface_size, scale, render_window_size);
+        let render_window = (render_window_position, render_window_size);
+        Self {
+            render_window,
+            scale,
+        }
+    }
+}
+
+impl EventContext<PhysicalPosition<f64>> for SoftEventContext {
     type SurfaceSpace = Option<PhysicalPosition<u32>>;
 
     fn estimate_surface_space(&self, event_space: PhysicalPosition<f64>) -> Self::SurfaceSpace {
         let PhysicalPosition { x, y } = event_space;
         let (x, y) = (x as u32, y as u32);
-        if x > self.surface.render_window_position().x
-            && y > self.surface.render_window_position().y
-        {
+        if x > self.render_window.0.x && y > self.render_window.0.y {
             let (x, y) = (
-                (x - self.surface.render_window_position().x) / self.surface.render_window_scale(),
-                (y - self.surface.render_window_position().y) / self.surface.render_window_scale(),
+                (x - self.render_window.0.x) / self.scale,
+                (y - self.render_window.0.y) / self.scale,
             );
-            if x < self.surface.render_window_size().width
-                && y < self.surface.render_window_size().height
-            {
+            if x < self.render_window.1.width && y < self.render_window.1.height {
                 return Some(PhysicalPosition::new(x, y));
             }
         }
