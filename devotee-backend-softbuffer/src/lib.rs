@@ -37,6 +37,7 @@ impl<M> SoftBackend<M> {
             render_window_size: PhysicalSize::new(32, 32),
             border_color: 0,
             scale_mode: ScaleMode::Auto,
+            updates_per_seconds: 60.0,
         };
         Self {
             middleware,
@@ -63,7 +64,7 @@ where
         let event_loop = EventLoop::new()?;
 
         event_loop.set_control_flow(ControlFlow::WaitUntil(
-            Instant::now() + Duration::from_secs_f32(1.0 / 60.0),
+            Instant::now() + Duration::from_secs_f32(1.0 / self.settings.updates_per_seconds),
         ));
         event_loop.run_app(self)?;
 
@@ -120,7 +121,7 @@ where
         }
         self.last = now;
         event_loop.set_control_flow(ControlFlow::WaitUntil(
-            now + Duration::from_secs_f32(1.0 / 60.0),
+            now + Duration::from_secs_f32(1.0 / self.settings.updates_per_seconds),
         ));
     }
 }
@@ -198,6 +199,7 @@ struct Settings {
     render_window_size: PhysicalSize<u32>,
     border_color: u32,
     scale_mode: ScaleMode,
+    updates_per_seconds: f32,
 }
 
 impl Settings {
@@ -207,6 +209,17 @@ impl Settings {
         } else {
             self.scale_mode = ScaleMode::Auto;
         }
+    }
+
+    /// # Panics
+    ///
+    /// Panics if `updates_per_second` is less or equal to `0`.
+    fn set_updated_per_second(&mut self, updates_per_second: f32) {
+        assert!(
+            updates_per_second > 0.0,
+            "Update rate has to be greater than 0"
+        );
+        self.updates_per_seconds = updates_per_second;
     }
 }
 
@@ -244,6 +257,15 @@ impl SoftInit<'_> {
     /// If case of `0` `scale` value automatic scaling is used.
     pub fn set_scale(&mut self, scale: u32) {
         self.settings.set_scale(scale);
+    }
+
+    /// Set update framerate in updates per second count.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `updates_per_second` is less or equal to `0`.
+    pub fn set_updates_per_second(&mut self, updates_per_second: f32) {
+        self.settings.set_updated_per_second(updates_per_second);
     }
 
     /// Set the internal render window size.
