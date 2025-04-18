@@ -191,8 +191,10 @@ where
     }
 
     unsafe fn unsafe_pixel(&self, position: Vector<i32>) -> PixelRef<'_, Self> {
-        self.target
-            .unsafe_pixel(self.zone.origin + self.deform_position(position))
+        unsafe {
+            self.target
+                .unsafe_pixel(self.zone.origin + self.deform_position(position))
+        }
     }
 
     fn width(&self) -> i32 {
@@ -228,8 +230,10 @@ where
     }
 
     unsafe fn unsafe_pixel(&self, position: Vector<i32>) -> PixelRef<'_, Self> {
-        self.target
-            .unsafe_pixel(self.zone.origin + self.deform_position(position))
+        unsafe {
+            self.target
+                .unsafe_pixel(self.zone.origin + self.deform_position(position))
+        }
     }
 
     fn width(&self) -> i32 {
@@ -265,8 +269,10 @@ where
     }
 
     unsafe fn unsafe_pixel_mut(&mut self, position: Vector<i32>) -> PixelMut<'_, Self> {
-        self.target
-            .unsafe_pixel_mut(self.zone.origin + self.deform_position(position))
+        unsafe {
+            self.target
+                .unsafe_pixel_mut(self.zone.origin + self.deform_position(position))
+        }
     }
 
     fn clear(&mut self, color: Self::Pixel) {

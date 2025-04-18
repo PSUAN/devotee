@@ -27,10 +27,10 @@ mod util;
 
 /// Collection of drawing traits and functions in a single prelude.
 pub mod prelude {
-    pub use super::image::{Image, ImageMut};
-    pub use super::view::View;
     pub use super::Paint;
     pub use super::Painter;
+    pub use super::image::{Image, ImageMut};
+    pub use super::view::View;
     pub use super::{paint, printer, stamp};
 }
 

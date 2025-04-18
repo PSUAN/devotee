@@ -251,6 +251,8 @@ where
                     (FlipType::Opening, None) => 1,
                     (FlipType::Closing, None) => 1,
                     (FlipType::Singular, None) => 2,
+                    (FlipType::Opening, Some(false)) => 1,
+                    (FlipType::Closing, Some(false)) => 1,
                     _ => 0,
                 };
             }

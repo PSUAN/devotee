@@ -117,9 +117,9 @@ impl Mouse {
 impl<EventContext, SurfaceSpace> InputHandler<WindowEvent, EventContext> for Mouse
 where
     EventContext: middling::EventContext<
-        PhysicalPosition<f64>,
-        SurfaceSpace = Option<PhysicalPosition<SurfaceSpace>>,
-    >,
+            PhysicalPosition<f64>,
+            SurfaceSpace = Option<PhysicalPosition<SurfaceSpace>>,
+        >,
     SurfaceSpace: TryInto<i32>,
 {
     fn handle_event(&mut self, event: WindowEvent, context: &EventContext) -> Option<WindowEvent> {
@@ -185,9 +185,9 @@ impl KeyboardMouse {
 impl<EventContext, SurfaceSpace> InputHandler<WindowEvent, EventContext> for KeyboardMouse
 where
     EventContext: middling::EventContext<
-        PhysicalPosition<f64>,
-        SurfaceSpace = Option<PhysicalPosition<SurfaceSpace>>,
-    >,
+            PhysicalPosition<f64>,
+            SurfaceSpace = Option<PhysicalPosition<SurfaceSpace>>,
+        >,
     SurfaceSpace: TryInto<i32>,
 {
     fn handle_event(&mut self, event: WindowEvent, context: &EventContext) -> Option<WindowEvent> {

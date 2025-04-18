@@ -1,15 +1,15 @@
 use std::f32::consts::{self};
 use std::ops::{Deref, DerefMut};
 
-use devotee::app::root::Root;
 use devotee::app::App;
+use devotee::app::root::Root;
 use devotee::input::winit_input::{KeyCode, Keyboard};
 use devotee::util::vector::Vector;
 
-use devotee::visual::adapter::generic::Adapter;
 use devotee::visual::adapter::Converter;
+use devotee::visual::adapter::generic::Adapter;
 use devotee::visual::image::{DesignatorMut, DesignatorRef, ImageMut};
-use devotee::visual::{paint, Paint, Painter};
+use devotee::visual::{Paint, Painter, paint};
 use devotee_backend::middling::MiddlingMiddleware;
 use devotee_backend_softbuffer::{Error, SoftBackend, SoftContext, SoftInit, SoftSurface};
 
@@ -79,11 +79,7 @@ impl Converter for TwoConverter {
     type Texel = u32;
 
     fn forward(&self, pixel: &Self::Pixel) -> Self::Texel {
-        if *pixel {
-            0xffc0b0a0
-        } else {
-            0xff101020
-        }
+        if *pixel { 0xffc0b0a0 } else { 0xff101020 }
     }
 
     fn inverse(&self, texel: &Self::Texel) -> Self::Pixel {

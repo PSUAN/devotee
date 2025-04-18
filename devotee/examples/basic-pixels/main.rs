@@ -1,10 +1,10 @@
-use devotee::app::root::Root;
 use devotee::app::App;
+use devotee::app::root::Root;
 use devotee::input::winit_input::KeyboardMouse;
 use devotee::util::vector::Vector;
-use devotee::visual::adapter::generic::Adapter;
 use devotee::visual::adapter::CopyConverter;
-use devotee::visual::{paint, Paint, Painter};
+use devotee::visual::adapter::generic::Adapter;
+use devotee::visual::{Paint, Painter, paint};
 use devotee_backend::middling::MiddlingMiddleware;
 use devotee_backend_pixels::{Error, PixelsBackend, PixelsContext, PixelsInit, PixelsSurface};
 use winit::keyboard::KeyCode;

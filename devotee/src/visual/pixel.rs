@@ -247,6 +247,8 @@ where
                     (FlipType::Opening, None) => 1,
                     (FlipType::Closing, None) => 1,
                     (FlipType::Singular, None) => 2,
+                    (FlipType::Opening, Some(false)) => 1,
+                    (FlipType::Closing, Some(false)) => 1,
                     _ => 0,
                 };
             }
@@ -548,7 +550,7 @@ where
     /// # Safety
     /// - `position + self.offset` must be in the `[0, (width, height))` range.
     pub unsafe fn pixel_unsafe(&self, position: Vector<i32>) -> PixelRef<'_, T> {
-        Image::unsafe_pixel(self.target, position + self.offset)
+        unsafe { Image::unsafe_pixel(self.target, position + self.offset) }
     }
 
     /// Get mutable reference to pixel.
@@ -556,7 +558,7 @@ where
     /// # Safety
     /// - `position + self.offset` must be in the `[0, (width, height))` range.
     pub unsafe fn pixel_mut_unsafe(&mut self, position: Vector<i32>) -> PixelMut<'_, T> {
-        ImageMut::unsafe_pixel_mut(self.target, position + self.offset)
+        unsafe { ImageMut::unsafe_pixel_mut(self.target, position + self.offset) }
     }
 
     /// Use provided function and given image on this drawable.

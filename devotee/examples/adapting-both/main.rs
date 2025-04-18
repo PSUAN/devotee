@@ -2,14 +2,14 @@ use std::env;
 use std::ops::{Deref, DerefMut};
 use std::time::Duration;
 
-use devotee::app::root::Root;
 use devotee::app::App;
+use devotee::app::root::Root;
 use devotee::input::winit_input::KeyboardMouse;
 use devotee::util::vector::Vector;
-use devotee::visual::adapter::generic::Adapter;
 use devotee::visual::adapter::Converter;
+use devotee::visual::adapter::generic::Adapter;
 use devotee::visual::image::ImageMut;
-use devotee::visual::{paint, Paint, Painter};
+use devotee::visual::{Paint, Painter, paint};
 use devotee_backend::middling::{
     MiddlingMiddleware, Surface, TexelDesignatorMut, TexelDesignatorRef,
 };
