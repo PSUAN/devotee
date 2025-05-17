@@ -72,6 +72,7 @@ where
             settings: &mut self.settings,
         };
 
+        window.set_visible(true);
         self.middleware.on_init(&mut init);
         window.set_min_inner_size(Some(self.settings.render_window_size));
         let _ = window.request_inner_size(self.settings.render_window_size);
@@ -86,8 +87,6 @@ where
             surface_texture,
         )
         .build()?;
-
-        window.set_visible(true);
 
         let mut internal = Internal {
             window,

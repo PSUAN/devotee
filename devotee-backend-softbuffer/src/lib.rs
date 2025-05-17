@@ -79,22 +79,21 @@ where
             settings: &mut self.settings,
         };
 
+        window.set_visible(true);
         self.middleware.on_init(&mut init);
         window.set_min_inner_size(Some(self.settings.render_window_size));
         let _ = window.request_inner_size(self.settings.render_window_size);
 
         let context = softbuffer::Context::new(Rc::clone(&window))?;
         let surface = softbuffer::Surface::new(&context, Rc::clone(&window))?;
-        let size = window.inner_size();
-
-        window.set_visible(true);
+        let surface_size = window.inner_size();
 
         let mut internal = Internal {
             window,
             surface,
-            surface_size: size,
+            surface_size,
         };
-        let _ = internal.on_resize(size);
+        let _ = internal.on_resize(surface_size);
 
         self.internal = Some(internal);
 
