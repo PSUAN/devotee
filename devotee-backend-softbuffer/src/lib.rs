@@ -82,7 +82,6 @@ where
         window.set_visible(true);
         self.middleware.on_init(&mut init);
         window.set_min_inner_size(Some(self.settings.render_window_size));
-        let _ = window.request_inner_size(self.settings.render_window_size);
 
         let context = softbuffer::Context::new(Rc::clone(&window))?;
         let surface = softbuffer::Surface::new(&context, Rc::clone(&window))?;
@@ -213,7 +212,7 @@ impl Settings {
     /// # Panics
     ///
     /// Panics if `updates_per_second` is less or equal to `0`.
-    fn set_updated_per_second(&mut self, updates_per_second: f32) {
+    fn set_updates_per_second(&mut self, updates_per_second: f32) {
         assert!(
             updates_per_second > 0.0,
             "Update rate has to be greater than 0"
@@ -264,12 +263,14 @@ impl SoftInit<'_> {
     ///
     /// Panics if `updates_per_second` is less or equal to `0`.
     pub fn set_updates_per_second(&mut self, updates_per_second: f32) {
-        self.settings.set_updated_per_second(updates_per_second);
+        self.settings.set_updates_per_second(updates_per_second);
     }
 
     /// Set the internal render window size.
     pub fn set_render_window_size(&mut self, width: u32, height: u32) {
-        self.settings.render_window_size = PhysicalSize::new(width, height);
+        let size = PhysicalSize::new(width, height);
+        self.settings.render_window_size = size;
+        let _ = self.window.request_inner_size(size);
     }
 
     /// Set the color of the border to be rendered.

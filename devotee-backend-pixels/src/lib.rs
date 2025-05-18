@@ -5,10 +5,10 @@
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+use devotee_backend::Middleware;
 use devotee_backend::middling::{
     EventContext, Surface, TexelDesignatorMut, TexelDesignatorRef, TexelMut, TexelRef,
 };
-use devotee_backend::Middleware;
 use winit::application::ApplicationHandler;
 use winit::dpi::{PhysicalPosition, PhysicalSize};
 use winit::error::{EventLoopError, OsError};
@@ -44,13 +44,13 @@ impl<M> PixelsBackend<'_, M> {
 impl<'w, M> PixelsBackend<'w, M>
 where
     for<'init, 'context, 'surface, 'event_context> M: Middleware<
-        PixelsInit<'init>,
-        PixelsContext<'context>,
-        PixelsSurface<'surface, 'w>,
-        PixelsEvent,
-        PixelsEventContext<'event_context, 'w>,
-        (),
-    >,
+            PixelsInit<'init>,
+            PixelsContext<'context>,
+            PixelsSurface<'surface, 'w>,
+            PixelsEvent,
+            PixelsEventContext<'event_context, 'w>,
+            (),
+        >,
 {
     /// Run this backend to completion.
     pub fn run(&mut self) -> Result<(), Error> {
@@ -75,7 +75,6 @@ where
         window.set_visible(true);
         self.middleware.on_init(&mut init);
         window.set_min_inner_size(Some(self.settings.render_window_size));
-        let _ = window.request_inner_size(self.settings.render_window_size);
 
         let surface_size = window.inner_size();
         let surface_texture =
@@ -128,13 +127,13 @@ where
 impl<'w, M> ApplicationHandler for PixelsBackend<'w, M>
 where
     for<'init, 'control, 'surface, 'event_context> M: Middleware<
-        PixelsInit<'init>,
-        PixelsContext<'control>,
-        PixelsSurface<'surface, 'w>,
-        PixelsEvent,
-        PixelsEventContext<'event_context, 'w>,
-        (),
-    >,
+            PixelsInit<'init>,
+            PixelsContext<'control>,
+            PixelsSurface<'surface, 'w>,
+            PixelsEvent,
+            PixelsEventContext<'event_context, 'w>,
+            (),
+        >,
 {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         if self.internal.is_none() && self.init(event_loop).is_err() {
@@ -224,7 +223,9 @@ impl PixelsInit<'_> {
 
     /// Set the internal render window size.
     pub fn set_render_window_size(&mut self, width: u32, height: u32) {
-        self.settings.render_window_size = PhysicalSize::new(width, height);
+        let size = PhysicalSize::new(width, height);
+        self.settings.render_window_size = size;
+        let _ = self.window.request_inner_size(size);
     }
 }
 
