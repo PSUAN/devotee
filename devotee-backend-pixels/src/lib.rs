@@ -12,7 +12,7 @@ use devotee_backend::middling::{
 use winit::application::ApplicationHandler;
 use winit::dpi::{PhysicalPosition, PhysicalSize};
 use winit::error::{EventLoopError, OsError};
-use winit::event::{StartCause, WindowEvent};
+use winit::event::{DeviceEvent, DeviceId, StartCause, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
 use winit::window::{Window, WindowAttributes, WindowId};
 
@@ -43,13 +43,13 @@ impl<M> PixelsBackend<'_, M> {
 
 impl<'w, M> PixelsBackend<'w, M>
 where
-    for<'init, 'context, 'surface, 'event_context> M: Middleware<
+    for<'init, 'context, 'surface, 'event_context, 'event_control> M: Middleware<
             PixelsInit<'init>,
             PixelsContext<'context>,
             PixelsSurface<'surface, 'w>,
             PixelsEvent,
             PixelsEventContext<'event_context, 'w>,
-            (),
+            PixelsEventControl<'event_control>,
         >,
 {
     /// Run this backend to completion.
@@ -122,17 +122,58 @@ where
             now + Duration::from_secs_f32(1.0 / 60.0),
         ));
     }
+
+    fn handle_window_event(
+        settings: &Settings,
+        event_loop: &ActiveEventLoop,
+        middleware: &mut M,
+        internal: &mut Internal<'w>,
+        event: WindowEvent,
+    ) {
+        match event {
+            WindowEvent::Resized(physical_size) => {
+                internal.on_resize(physical_size);
+            }
+            WindowEvent::CloseRequested => {
+                event_loop.exit();
+            }
+            WindowEvent::Destroyed => {
+                event_loop.exit();
+            }
+            WindowEvent::RedrawRequested => {
+                let mut surface = PixelsSurface {
+                    pixels: &mut internal.pixels,
+                    dimensions: settings.render_window_size,
+                };
+                middleware.on_render(&mut surface);
+                let _ = internal.pixels.render();
+            }
+            _ => {}
+        }
+    }
+
+    fn handle_event(
+        settings: &Settings,
+        event_loop: &ActiveEventLoop,
+        middleware: &mut M,
+        internal: &mut Internal<'w>,
+        event: PixelsEvent,
+    ) {
+        if let PixelsEvent::Window(event) = event {
+            Self::handle_window_event(settings, event_loop, middleware, internal, event)
+        }
+    }
 }
 
 impl<'w, M> ApplicationHandler for PixelsBackend<'w, M>
 where
-    for<'init, 'control, 'surface, 'event_context> M: Middleware<
+    for<'init, 'control, 'surface, 'event_context, 'event_control> M: Middleware<
             PixelsInit<'init>,
             PixelsContext<'control>,
             PixelsSurface<'surface, 'w>,
             PixelsEvent,
             PixelsEventContext<'event_context, 'w>,
-            (),
+            PixelsEventControl<'event_control>,
         >,
 {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
@@ -158,33 +199,42 @@ where
                 pixels: &mut internal.pixels,
                 dimensions: self.settings.render_window_size,
             };
-
             let context = PixelsEventContext { surface };
+            let mut control = PixelsEventControl { event_loop };
 
-            if let Some(event) = self.middleware.on_event(event, &context, &mut ()) {
-                match event {
-                    WindowEvent::Resized(physical_size) => {
-                        if let Some(internal) = &mut self.internal {
-                            internal.on_resize(physical_size);
-                        }
-                    }
-                    WindowEvent::CloseRequested => {
-                        event_loop.exit();
-                    }
-                    WindowEvent::Destroyed => {
-                        event_loop.exit();
-                    }
-                    WindowEvent::RedrawRequested => {
-                        let mut surface = PixelsSurface {
-                            pixels: &mut internal.pixels,
-                            dimensions: self.settings.render_window_size,
-                        };
-                        self.middleware.on_render(&mut surface);
-                        let _ = internal.pixels.render();
-                    }
-                    _ => {}
-                }
+            if let Some(event) =
+                self.middleware
+                    .on_event(PixelsEvent::Window(event), &context, &mut control)
+            {
+                Self::handle_event(
+                    &self.settings,
+                    event_loop,
+                    &mut self.middleware,
+                    internal,
+                    event,
+                );
             }
+        }
+    }
+
+    fn device_event(
+        &mut self,
+        event_loop: &ActiveEventLoop,
+        device_id: DeviceId,
+        event: DeviceEvent,
+    ) {
+        if let Some(internal) = &mut self.internal {
+            let surface = PixelsSurface {
+                pixels: &mut internal.pixels,
+                dimensions: self.settings.render_window_size,
+            };
+            let context = PixelsEventContext { surface };
+            let mut control = PixelsEventControl { event_loop };
+            let _ = self.middleware.on_event(
+                PixelsEvent::Device(device_id, event),
+                &context,
+                &mut control,
+            );
         }
     }
 }
@@ -253,7 +303,13 @@ impl PixelsContext<'_> {
     }
 }
 
-type PixelsEvent = WindowEvent;
+/// Pixels-based backend event.
+pub enum PixelsEvent {
+    /// Winit window event.
+    Window(WindowEvent),
+    /// Winit device event.
+    Device(DeviceId, DeviceEvent),
+}
 
 /// A context passed to the event handler.
 pub struct PixelsEventContext<'s, 'w> {
@@ -326,6 +382,18 @@ impl Surface for PixelsSurface<'_, '_> {
 
     fn height(&self) -> u32 {
         self.dimensions.height
+    }
+}
+
+/// Event control structure.
+pub struct PixelsEventControl<'a> {
+    event_loop: &'a ActiveEventLoop,
+}
+
+impl PixelsEventControl<'_> {
+    /// Tell the backend to shut itself down.
+    pub fn shutdown(&self) {
+        self.event_loop.exit();
     }
 }
 

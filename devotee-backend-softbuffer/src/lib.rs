@@ -10,7 +10,7 @@ use devotee_backend::middling::EventContext;
 use winit::application::ApplicationHandler;
 use winit::dpi::{PhysicalPosition, PhysicalSize};
 use winit::error::{EventLoopError, OsError};
-use winit::event::{StartCause, WindowEvent};
+use winit::event::{DeviceEvent, DeviceId, StartCause, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
 use winit::window::{Window, WindowAttributes, WindowId};
 
@@ -50,13 +50,13 @@ impl<M> SoftBackend<M> {
 
 impl<M> SoftBackend<M>
 where
-    for<'init, 'context, 'surface> M: Middleware<
+    for<'init, 'context, 'surface, 'control> M: Middleware<
             SoftInit<'init>,
             SoftContext<'context>,
             SoftSurface<'surface>,
             SoftEvent,
             SoftEventContext,
-            (),
+            SoftEventControl<'control>,
         >,
 {
     /// Run this backend to completion.
@@ -122,17 +122,63 @@ where
             now + Duration::from_secs_f32(1.0 / self.settings.updates_per_seconds),
         ));
     }
+
+    fn handle_window_event(
+        settings: &Settings,
+        event_loop: &ActiveEventLoop,
+        middleware: &mut M,
+        internal: &mut Internal,
+        event: WindowEvent,
+    ) {
+        match event {
+            WindowEvent::Resized(physical_size) => {
+                internal.on_resize(physical_size);
+            }
+            WindowEvent::CloseRequested => {
+                event_loop.exit();
+            }
+            WindowEvent::Destroyed => {
+                event_loop.exit();
+            }
+            WindowEvent::RedrawRequested => {
+                if let Ok(buffer) = internal.surface.buffer_mut() {
+                    let mut surface = SoftSurface::new(
+                        buffer,
+                        internal.surface_size,
+                        settings.scale_mode,
+                        settings.render_window_size,
+                    );
+                    let _ = surface.clear(settings.border_color);
+                    middleware.on_render(&mut surface);
+                    let _ = surface.present();
+                }
+            }
+            _ => {}
+        }
+    }
+
+    fn handle_event(
+        settings: &Settings,
+        event_loop: &ActiveEventLoop,
+        middleware: &mut M,
+        internal: &mut Internal,
+        event: SoftEvent,
+    ) {
+        if let SoftEvent::Window(event) = event {
+            Self::handle_window_event(settings, event_loop, middleware, internal, event)
+        }
+    }
 }
 
 impl<M> ApplicationHandler for SoftBackend<M>
 where
-    for<'init, 'control, 'surface> M: Middleware<
+    for<'init, 'context, 'surface, 'control> M: Middleware<
             SoftInit<'init>,
-            SoftContext<'control>,
+            SoftContext<'context>,
             SoftSurface<'surface>,
             SoftEvent,
             SoftEventContext,
-            (),
+            SoftEventControl<'control>,
         >,
 {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
@@ -159,36 +205,42 @@ where
                 self.settings.scale_mode,
                 self.settings.render_window_size,
             );
+            let mut control = SoftEventControl { event_loop };
 
-            if let Some(event) = self.middleware.on_event(event, &context, &mut ()) {
-                match event {
-                    WindowEvent::Resized(physical_size) => {
-                        if let Some(internal) = &mut self.internal {
-                            internal.on_resize(physical_size);
-                        }
-                    }
-                    WindowEvent::CloseRequested => {
-                        event_loop.exit();
-                    }
-                    WindowEvent::Destroyed => {
-                        event_loop.exit();
-                    }
-                    WindowEvent::RedrawRequested => {
-                        if let Ok(buffer) = internal.surface.buffer_mut() {
-                            let mut surface = SoftSurface::new(
-                                buffer,
-                                internal.surface_size,
-                                self.settings.scale_mode,
-                                self.settings.render_window_size,
-                            );
-                            let _ = surface.clear(self.settings.border_color);
-                            self.middleware.on_render(&mut surface);
-                            let _ = surface.present();
-                        }
-                    }
-                    _ => {}
-                }
+            if let Some(event) =
+                self.middleware
+                    .on_event(SoftEvent::Window(event), &context, &mut control)
+            {
+                Self::handle_event(
+                    &self.settings,
+                    event_loop,
+                    &mut self.middleware,
+                    internal,
+                    event,
+                );
             }
+        }
+    }
+
+    fn device_event(
+        &mut self,
+        event_loop: &ActiveEventLoop,
+        device_id: DeviceId,
+        event: DeviceEvent,
+    ) {
+        if let Some(internal) = &mut self.internal {
+            let context = SoftEventContext::new(
+                internal.surface_size,
+                self.settings.scale_mode,
+                self.settings.render_window_size,
+            );
+            let mut control = SoftEventControl { event_loop };
+
+            let _ = self.middleware.on_event(
+                SoftEvent::Device(device_id, event),
+                &context,
+                &mut control,
+            );
         }
     }
 }
@@ -303,7 +355,13 @@ impl SoftContext<'_> {
     }
 }
 
-type SoftEvent = WindowEvent;
+/// An event produced by the Softbuffer-backed backend.
+pub enum SoftEvent {
+    /// Winit window event.
+    Window(WindowEvent),
+    /// Winit raw device event.
+    Device(DeviceId, DeviceEvent),
+}
 
 /// A context passed to the event handler.
 pub struct SoftEventContext {
@@ -343,6 +401,18 @@ impl EventContext<PhysicalPosition<f64>> for SoftEventContext {
             }
         }
         None
+    }
+}
+
+/// Event control structure.
+pub struct SoftEventControl<'a> {
+    event_loop: &'a ActiveEventLoop,
+}
+
+impl SoftEventControl<'_> {
+    /// Tell the backend to shut itself down.
+    pub fn shutdown(&self) {
+        self.event_loop.exit();
     }
 }
 

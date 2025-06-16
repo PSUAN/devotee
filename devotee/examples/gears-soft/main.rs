@@ -1,8 +1,6 @@
 use std::f32::consts::{self};
 use std::ops::{Deref, DerefMut};
 
-use devotee::app::App;
-use devotee::app::root::Root;
 use devotee::input::winit_input::{KeyCode, Keyboard};
 use devotee::util::vector::Vector;
 
@@ -10,38 +8,55 @@ use devotee::visual::adapter::Converter;
 use devotee::visual::adapter::generic::Adapter;
 use devotee::visual::image::{DesignatorMut, DesignatorRef, ImageMut};
 use devotee::visual::{Paint, Painter, paint};
-use devotee_backend::middling::MiddlingMiddleware;
-use devotee_backend_softbuffer::{Error, SoftBackend, SoftContext, SoftInit, SoftSurface};
+use devotee_backend::Middleware;
+use devotee_backend::middling::InputHandler;
+use devotee_backend_softbuffer::{
+    Error, SoftBackend, SoftContext, SoftEvent, SoftEventContext, SoftEventControl, SoftInit,
+    SoftSurface,
+};
 
 fn main() -> Result<(), Error> {
     let gears = Gears::new();
-    let app = App::new(gears);
-    let middleware = MiddlingMiddleware::new(app, Keyboard::new());
-    let mut backend = SoftBackend::new(middleware);
+    let mut backend = SoftBackend::new(gears);
 
     backend.run()
 }
 
 struct Gears {
+    keyboard: Keyboard,
+
     drive_gear: Gear,
     driven_gear: Gear,
 }
 
 impl Gears {
     fn new() -> Self {
+        let keyboard = Keyboard::new();
+
         let mut drive_gear = Gear::new_gear(128.0, 20);
         drive_gear.center = Vector::new(0.0, 32.0);
         let mut driven_gear = Gear::new_gear(384.0, 60);
         driven_gear.center = Vector::new(256.0, 32.0);
+
         Self {
+            keyboard,
             drive_gear,
             driven_gear,
         }
     }
 }
 
-impl Root<SoftInit<'_>, SoftContext<'_>, Keyboard, SoftSurface<'_>> for Gears {
-    fn init(&mut self, init: &mut SoftInit) {
+impl
+    Middleware<
+        SoftInit<'_>,
+        SoftContext<'_>,
+        SoftSurface<'_>,
+        SoftEvent,
+        SoftEventContext,
+        SoftEventControl<'_>,
+    > for Gears
+{
+    fn on_init(&mut self, init: &mut SoftInit) {
         init.set_render_window_size(320, 240);
         init.window().set_title("Gears demo: press ESC to exit.");
 
@@ -49,8 +64,8 @@ impl Root<SoftInit<'_>, SoftContext<'_>, Keyboard, SoftSurface<'_>> for Gears {
             -self.drive_gear.angle / 3.0 + consts::PI / self.driven_gear.teeth_count as f32;
     }
 
-    fn update(&mut self, context: &mut SoftContext, input: &Keyboard) {
-        let keyboard = input;
+    fn on_update(&mut self, context: &mut SoftContext) {
+        let keyboard = &mut self.keyboard;
 
         if keyboard.is_pressed(KeyCode::Space) {
             self.drive_gear.angle += consts::PI * context.delta().as_secs_f32() / 4.0;
@@ -61,14 +76,33 @@ impl Root<SoftInit<'_>, SoftContext<'_>, Keyboard, SoftSurface<'_>> for Gears {
         if keyboard.just_pressed(KeyCode::Escape) {
             context.shutdown();
         }
+
+        InputHandler::<_, SoftEventControl>::update(&mut self.keyboard);
     }
 
-    fn render(&mut self, surface: &mut SoftSurface<'_>) {
+    fn on_render(&mut self, surface: &mut SoftSurface<'_>) {
         let mut adapter = Adapter::new(surface, &TwoConverter);
         adapter.clear(false);
 
         self.drive_gear.render(&mut adapter);
         self.driven_gear.render(&mut adapter);
+    }
+
+    fn on_event(
+        &mut self,
+        event: SoftEvent,
+        event_context: &SoftEventContext,
+        _: &mut SoftEventControl,
+    ) -> Option<SoftEvent> {
+        if let SoftEvent::Window(event) = event {
+            if let Some(event) = self.keyboard.handle_event(event, event_context) {
+                Some(SoftEvent::Window(event))
+            } else {
+                None
+            }
+        } else {
+            Some(event)
+        }
     }
 }
 
