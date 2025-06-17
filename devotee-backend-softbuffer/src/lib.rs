@@ -17,6 +17,7 @@ use winit::window::{Window, WindowAttributes, WindowId};
 use surface::ScaleMode;
 
 pub use surface::SoftSurface;
+pub use winit;
 
 mod surface;
 

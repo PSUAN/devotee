@@ -1,6 +1,6 @@
 [package]
 name = "devotee-backend-pixels"
-version = "0.2.0-beta.9"
+version = "0.2.0-beta.10"
 edition = "2024"
 publish = true
 authors = ["PSUAN collective", "Hara Red <rtc6fg4.fejg2@gmail.com>"]

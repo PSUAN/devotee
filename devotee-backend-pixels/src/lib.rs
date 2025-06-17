@@ -16,6 +16,8 @@ use winit::event::{DeviceEvent, DeviceId, StartCause, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
 use winit::window::{Window, WindowAttributes, WindowId};
 
+pub use winit;
+
 /// A [Pixels](https://crates.io/crates/pixels)-based backend implementation for the devotee project.
 pub struct PixelsBackend<'w, M> {
     middleware: M,
