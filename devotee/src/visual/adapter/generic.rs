@@ -131,10 +131,7 @@ where
 
     unsafe fn unsafe_pixel(&self, position: Vector<i32>) -> AdapterRef<Convert> {
         let (x, y) = position.split();
-        let texel = self
-            .surface
-            .texel(x.try_into().unwrap(), y.try_into().unwrap())
-            .unwrap();
+        let texel = unsafe { self.surface.unsafe_texel(x as u32, y as u32) };
         let cache = self.converter.inverse(&texel);
 
         AdapterRef { cache }
@@ -182,10 +179,7 @@ where
         position: Vector<i32>,
     ) -> AdapterMut<'_, Surf::Texel, <Surf as TexelDesignatorMut>::TexelMut, Convert> {
         let (x, y) = position.split();
-        let texel = self
-            .surface
-            .texel_mut(x.try_into().unwrap(), y.try_into().unwrap())
-            .unwrap();
+        let texel = unsafe { self.surface.unsafe_texel_mut(x as u32, y as u32) };
         let cache = self.converter.inverse(&texel);
         let converter = &self.converter;
 

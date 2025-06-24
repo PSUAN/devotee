@@ -26,6 +26,11 @@ where
             height,
         }
     }
+
+    /// Get raw internal data as a continuous slice.
+    pub fn raw_data(&self) -> &[P] {
+        &self.data
+    }
 }
 
 impl<'a, P> DesignatorRef<'a> for Canvas<P> {

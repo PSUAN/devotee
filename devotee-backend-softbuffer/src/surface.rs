@@ -3,7 +3,7 @@ use std::ops::{Deref, DerefMut};
 use std::rc::Rc;
 
 use devotee_backend::middling::{
-    Surface, TexelDesignatorMut, TexelDesignatorRef, TexelMut, TexelRef,
+    Fill, Surface, TexelDesignatorMut, TexelDesignatorRef, TexelMut, TexelRef,
 };
 use winit::dpi::{PhysicalPosition, PhysicalSize};
 use winit::window::Window;
@@ -71,6 +71,10 @@ impl<'a> SoftSurface<'a> {
     ) -> Self {
         let (render_window_position, scale) =
             estimate_render_window_position_scale(surface_size, scale, render_window_size);
+        let render_window_size = PhysicalSize::new(
+            render_window_size.width.min(surface_size.width),
+            render_window_size.height.min(surface_size.height),
+        );
         let render_window = (render_window_position, render_window_size);
         Self {
             internal,
@@ -87,6 +91,30 @@ impl<'a> SoftSurface<'a> {
 
     pub(super) fn present(self) -> Result<(), softbuffer::SoftBufferError> {
         self.internal.present()
+    }
+}
+
+impl Fill for SoftSurface<'_> {
+    fn fill_from(&mut self, data: &[Self::Texel]) {
+        let start_x = self.render_window.0.x;
+        let start_y = self.render_window.0.y;
+
+        for y in 0..self.render_window.1.height {
+            for x in 0..self.render_window.1.width {
+                if let Some(pixel) = data.get((x + y * self.render_window.1.width) as usize) {
+                    for internal_y in 0..self.scale {
+                        let index = ((start_x + x * self.scale) as usize)
+                            + ((start_y + internal_y + (y * self.scale)) * self.surface_size.width)
+                                as usize;
+                        if let Some(buffer) =
+                            self.internal.get_mut(index..(index + self.scale as usize))
+                        {
+                            buffer.fill(*pixel);
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -125,6 +153,28 @@ impl Surface for SoftSurface<'_> {
         )
     }
 
+    unsafe fn unsafe_texel(&self, x: u32, y: u32) -> TexelRef<'_, Self> {
+        TexelReader::new(
+            x,
+            y,
+            self.render_window.0,
+            self.surface_size,
+            self.scale,
+            self.internal.deref(),
+        )
+    }
+
+    unsafe fn unsafe_texel_mut(&mut self, x: u32, y: u32) -> TexelMut<'_, Self> {
+        TexelWriter::new(
+            x,
+            y,
+            self.render_window.0,
+            self.surface_size,
+            self.scale,
+            self.internal.deref_mut(),
+        )
+    }
+
     fn clear(&mut self, value: Self::Texel) {
         for y in self.render_window.0.y
             ..(self.render_window.0.y + self.render_window.1.height * self.scale)
@@ -154,6 +204,20 @@ pub struct TexelReader {
 }
 
 impl TexelReader {
+    fn new(
+        x: u32,
+        y: u32,
+        window_start: PhysicalPosition<u32>,
+        surface_size: PhysicalSize<u32>,
+        scale: u32,
+        buffer: &[u32],
+    ) -> Self {
+        let cache =
+            buffer[(window_start.x + x * scale + (y * scale + window_start.y) * surface_size.width)
+                as usize];
+        Self { cache }
+    }
+
     fn try_new(
         x: u32,
         y: u32,
@@ -185,9 +249,8 @@ impl Deref for TexelReader {
 }
 
 pub struct TexelWriter<'a> {
-    x: u32,
-    y: u32,
-    window_start: PhysicalPosition<u32>,
+    start_x: u32,
+    start_y: u32,
     surface_size: PhysicalSize<u32>,
     scale: u32,
     buffer: &'a mut [u32],
@@ -195,6 +258,28 @@ pub struct TexelWriter<'a> {
 }
 
 impl<'a> TexelWriter<'a> {
+    fn new(
+        x: u32,
+        y: u32,
+        window_start: PhysicalPosition<u32>,
+        surface_size: PhysicalSize<u32>,
+        scale: u32,
+        buffer: &'a mut [u32],
+    ) -> Self {
+        let start_x = window_start.x + x * scale;
+        let start_y = window_start.y + y * scale;
+        let cache = buffer[(start_x + start_y * surface_size.width) as usize];
+
+        Self {
+            start_x,
+            start_y,
+            surface_size,
+            scale,
+            buffer,
+            cache,
+        }
+    }
+
     fn try_new(
         x: u32,
         y: u32,
@@ -203,21 +288,19 @@ impl<'a> TexelWriter<'a> {
         scale: u32,
         buffer: &'a mut [u32],
     ) -> Option<Self> {
+        let start_x = window_start.x + x * scale;
+        let start_y = window_start.y + y * scale;
         {
-            let (x, y) = (window_start.x + x * scale, window_start.y + y * scale);
+            let (x, y) = (start_x, start_y);
             if x >= surface_size.width || y >= surface_size.height {
                 return None;
             }
         }
-        let cache = *buffer.get(
-            (window_start.x + x * scale + (y * scale + window_start.y) * surface_size.width)
-                as usize,
-        )?;
+        let cache = *buffer.get((start_x + start_y * surface_size.width) as usize)?;
 
         Some(Self {
-            x,
-            y,
-            window_start,
+            start_x,
+            start_y,
             surface_size,
             scale,
             buffer,
@@ -242,11 +325,9 @@ impl DerefMut for TexelWriter<'_> {
 
 impl Drop for TexelWriter<'_> {
     fn drop(&mut self) {
-        let start_x = self.window_start.x + self.x * self.scale;
-        let end_x = (self.window_start.x + (self.x + 1) * self.scale).min(self.surface_size.width);
-        for y in (self.y * self.scale + self.window_start.y)
-            ..((self.y + 1) * self.scale + self.window_start.y)
-        {
+        let start_x = self.start_x;
+        let end_x = (start_x + self.scale).min(self.surface_size.width);
+        for y in self.start_y..(self.start_y + self.scale) {
             let slice_y = y * self.surface_size.width;
             self.buffer[((start_x + slice_y) as usize)..((end_x + slice_y) as usize)]
                 .fill(self.cache)

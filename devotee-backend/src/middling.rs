@@ -27,6 +27,26 @@ pub trait Surface: for<'a> TexelDesignatorRef<'a> + for<'a> TexelDesignatorMut<'
     /// Get mutable texel reference given its coordinates.
     fn texel_mut(&mut self, x: u32, y: u32) -> Option<TexelMut<'_, Self>>;
 
+    /// Get texel reference given its coordinates unsafely.
+    ///
+    /// # Safety
+    ///
+    /// - `x` must be in range [`0`, `width - 1`];
+    /// - `y` must be in range [`0`, `height - 1`];
+    unsafe fn unsafe_texel(&self, x: u32, y: u32) -> TexelRef<'_, Self> {
+        self.texel(x, y).unwrap()
+    }
+
+    /// Get mutable texel reference given its coordinates unsafely.
+    ///
+    /// # Safety
+    ///
+    /// - `x` must be in range [`0`, `width - 1`];
+    /// - `y` must be in range [`0`, `height - 1`];
+    unsafe fn unsafe_texel_mut(&mut self, x: u32, y: u32) -> TexelMut<'_, Self> {
+        self.texel_mut(x, y).unwrap()
+    }
+
     /// Clear the surface with the given color.
     fn clear(&mut self, value: Self::Texel);
 
@@ -35,6 +55,12 @@ pub trait Surface: for<'a> TexelDesignatorRef<'a> + for<'a> TexelDesignatorMut<'
 
     /// Get surface height.
     fn height(&self) -> u32;
+}
+
+/// The surface that can be filled directly.
+pub trait Fill: Surface {
+    /// Fill the surface from the provided `data`.
+    fn fill_from(&mut self, data: &[Self::Texel]);
 }
 
 /// Input handler trait with optional input caching.

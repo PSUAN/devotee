@@ -7,7 +7,7 @@ use std::time::{Duration, Instant};
 
 use devotee_backend::Middleware;
 use devotee_backend::middling::{
-    EventContext, Surface, TexelDesignatorMut, TexelDesignatorRef, TexelMut, TexelRef,
+    EventContext, Fill, Surface, TexelDesignatorMut, TexelDesignatorRef, TexelMut, TexelRef,
 };
 use winit::application::ApplicationHandler;
 use winit::dpi::{PhysicalPosition, PhysicalSize};
@@ -384,6 +384,15 @@ impl Surface for PixelsSurface<'_, '_> {
 
     fn height(&self) -> u32 {
         self.dimensions.height
+    }
+}
+
+impl Fill for PixelsSurface<'_, '_> {
+    fn fill_from(&mut self, data: &[Self::Texel]) {
+        let frame = self.pixels.frame_mut();
+        for (texel, data) in frame.chunks_exact_mut(4).zip(data) {
+            texel.copy_from_slice(data);
+        }
     }
 }
 
