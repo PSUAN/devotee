@@ -157,7 +157,8 @@ where
     fn pixel_mut(
         &mut self,
         position: Vector<i32>,
-    ) -> Option<AdapterMut<'_, Surf::Texel, <Surf as TexelDesignatorMut>::TexelMut, Convert>> {
+    ) -> Option<AdapterMut<'_, Surf::Texel, <Surf as TexelDesignatorMut<'_>>::TexelMut, Convert>>
+    {
         let (x, y) = position.split();
         if x < 0 || y < 0 {
             return None;
@@ -177,7 +178,7 @@ where
     unsafe fn unsafe_pixel_mut(
         &mut self,
         position: Vector<i32>,
-    ) -> AdapterMut<'_, Surf::Texel, <Surf as TexelDesignatorMut>::TexelMut, Convert> {
+    ) -> AdapterMut<'_, Surf::Texel, <Surf as TexelDesignatorMut<'_>>::TexelMut, Convert> {
         let (x, y) = position.split();
         let texel = unsafe { self.surface.unsafe_texel_mut(x as u32, y as u32) };
         let cache = self.converter.inverse(&texel);

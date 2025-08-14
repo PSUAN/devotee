@@ -80,15 +80,19 @@ where
 
 struct FastHorizontalWriterPlaceholder;
 
-impl<I> FastHorizontalWriter<I> for FastHorizontalWriterPlaceholder
+impl<T> FastHorizontalWriter<T> for FastHorizontalWriterPlaceholder
 where
-    I: ImageMut + ?Sized,
+    T: ImageMut + ?Sized,
 {
-    fn write_line<F: FnMut(i32, i32, I::Pixel) -> I::Pixel>(
+    fn overwrite(&mut self, _: RangeInclusive<i32>, _: i32, _: &T::Pixel) {
+        unreachable!()
+    }
+
+    fn apply_function(
         &mut self,
         _: RangeInclusive<i32>,
         _: i32,
-        _: &mut F,
+        _: &mut dyn FnMut((i32, i32), <T>::Pixel) -> <T>::Pixel,
     ) {
         unreachable!()
     }

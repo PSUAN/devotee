@@ -2,10 +2,14 @@ use std::ops::{Deref, DerefMut};
 
 use crate::util::getter::Getter;
 use crate::util::vector::Vector;
-use crate::visual::util::AngleIterator;
+use crate::visual::Paint;
 
 use super::image::{DesignatorMut, DesignatorRef, PixelMut, PixelRef};
-use super::{Image, ImageMut, Paint, Painter, Scan};
+use super::strategy::PixelStrategy;
+use super::util::AngleIterator;
+use super::{Image, ImageMut, Painter, Scan};
+
+type ImageMapper<'a, T, R> = dyn FnMut((i32, i32), T, (i32, i32), R) -> T + 'a;
 
 fn scanline_segment_i32(segment: (Vector<i32>, Vector<i32>), scanline: i32) -> Scan<i32> {
     let (from, to) = if segment.0.y() < segment.1.y() {
@@ -61,28 +65,25 @@ fn scanline_segment_i32(segment: (Vector<i32>, Vector<i32>), scanline: i32) -> S
     }
 }
 
-impl<T> Painter<'_, T, i32>
+impl<T> Painter<'_, T>
 where
     T: ImageMut,
     T::Pixel: Clone,
-    for<'a> <T as DesignatorRef<'a>>::PixelRef: Deref<Target = T::Pixel>,
     for<'a> <T as DesignatorMut<'a>>::PixelMut: DerefMut<Target = T::Pixel>,
 {
-    fn map_on_line_offset<F: FnMut(i32, i32, T::Pixel) -> T::Pixel>(
+    fn paint_line(
         &mut self,
         from: Vector<i32>,
         to: Vector<i32>,
-        function: &mut F,
+        strategy: &mut PixelStrategy<T>,
         skip: usize,
     ) {
-        let from = from + self.offset;
-        let to = to + self.offset;
         if from.x() == to.x() {
-            self.map_vertical_line_raw(from.x(), from.y(), to.y(), function, skip);
+            self.vertical_line(from.x(), from.y(), to.y(), strategy, skip);
             return;
         }
         if from.y() == to.y() {
-            self.map_horizontal_line_raw(from.x(), to.x(), from.y(), function, skip);
+            self.horizontal_line(from.x(), to.x(), from.y(), strategy, skip);
             return;
         }
 
@@ -108,7 +109,7 @@ where
             for x in scan {
                 if skip == 0 {
                     let pose = (x, y).into();
-                    self.map_on_pixel_raw(pose, function);
+                    self.apply_strategy(pose, strategy);
                 } else {
                     skip -= 1;
                 }
@@ -116,23 +117,20 @@ where
         }
     }
 
-    fn map_on_filled_triangle_offset<F: FnMut(i32, i32, T::Pixel) -> T::Pixel>(
-        &mut self,
-        vertices: [Vector<i32>; 3],
-        function: &mut F,
-    ) {
-        let mut vertex = vertices.map(|v| v + self.offset);
-        vertex.sort_by(|a, b| a.y_ref().cmp(b.y_ref()));
-        let [a, b, c] = vertex;
+    fn filled_triangle(&mut self, vertices: [Vector<i32>; 3], strategy: &mut PixelStrategy<T>) {
+        let mut vertices = vertices;
+        vertices.sort_by(|a, b| a.y_ref().cmp(b.y_ref()));
+        let [a, b, c] = vertices;
 
         // We are on a horizontal line.
         if a.y() == c.y() {
-            vertex.sort_by(|a, b| a.x().cmp(b.x_ref()));
-            self.map_fast_horizontal_line_raw(
-                vertex[0].x(),
-                vertex[2].x(),
-                vertex[0].y(),
-                function,
+            vertices.sort_by(|a, b| a.x().cmp(b.x_ref()));
+            self.horizontal_line(
+                vertices[0].x(),
+                vertices[2].x(),
+                vertices[0].y(),
+                strategy,
+                0,
             );
             return;
         }
@@ -146,7 +144,7 @@ where
                 .start_unchecked()
                 .min(right_range.start_unchecked());
             let right = left_range.end_unchecked().max(right_range.end_unchecked());
-            self.map_fast_horizontal_line_raw(left, right, y, function);
+            self.horizontal_line(left, right, y, strategy, 0);
         }
 
         let middle = middle + 1;
@@ -157,15 +155,11 @@ where
                 .start_unchecked()
                 .min(right_range.start_unchecked());
             let right = left_range.end_unchecked().max(right_range.end_unchecked());
-            self.map_fast_horizontal_line_raw(left, right, y, function);
+            self.horizontal_line(left, right, y, strategy, 0);
         }
     }
 
-    fn map_on_filled_sane_polygon_offset<F: FnMut(i32, i32, T::Pixel) -> T::Pixel>(
-        &mut self,
-        vertices: &[Vector<i32>],
-        function: &mut F,
-    ) {
+    fn filled_polygon_raw(&mut self, vertices: &[Vector<i32>], strategy: &mut PixelStrategy<T>) {
         enum FlipType {
             Opening,
             Closing,
@@ -233,11 +227,12 @@ where
             let mut current_left = left;
             for flip in flips {
                 if counter % 2 == 1 || counter / 2 % 2 == 1 {
-                    self.map_fast_horizontal_line_raw(
+                    self.horizontal_line(
                         current_left + self.offset.x(),
                         flip.position + self.offset.x(),
                         y + self.offset.y(),
-                        function,
+                        strategy,
+                        0,
                     );
                 }
                 current_left = flip.position;
@@ -255,18 +250,13 @@ where
         }
     }
 
-    fn map_on_filled_circle_offset<F: FnMut(i32, i32, T::Pixel) -> T::Pixel>(
-        &mut self,
-        center: Vector<i32>,
-        radius: i32,
-        function: &mut F,
-    ) {
-        let center = center + self.offset;
-        self.map_fast_horizontal_line_raw(
+    fn filled_circle(&mut self, center: Vector<i32>, radius: i32, function: &mut PixelStrategy<T>) {
+        self.horizontal_line(
             center.x() - radius,
             center.x() + radius,
             center.y(),
             function,
+            0,
         );
 
         let mut x = 0;
@@ -277,18 +267,8 @@ where
 
         while x < y {
             if decision > 0 {
-                self.map_fast_horizontal_line_raw(
-                    center.x() - x,
-                    center.x() + x,
-                    center.y() + y,
-                    function,
-                );
-                self.map_fast_horizontal_line_raw(
-                    center.x() - x,
-                    center.x() + x,
-                    center.y() - y,
-                    function,
-                );
+                self.horizontal_line(center.x() - x, center.x() + x, center.y() + y, function, 0);
+                self.horizontal_line(center.x() - x, center.x() + x, center.y() - y, function, 0);
                 y -= 1;
                 checker_y += 2;
                 decision += checker_y;
@@ -297,33 +277,17 @@ where
                 checker_x += 2;
                 decision += checker_x;
 
-                self.map_fast_horizontal_line_raw(
-                    center.x() - y,
-                    center.x() + y,
-                    center.y() + x,
-                    function,
-                );
-                self.map_fast_horizontal_line_raw(
-                    center.x() - y,
-                    center.x() + y,
-                    center.y() - x,
-                    function,
-                );
+                self.horizontal_line(center.x() - y, center.x() + y, center.y() + x, function, 0);
+                self.horizontal_line(center.x() - y, center.x() + y, center.y() - x, function, 0);
             }
         }
     }
 
-    fn map_on_circle_offset<F: FnMut(i32, i32, T::Pixel) -> T::Pixel>(
-        &mut self,
-        center: Vector<i32>,
-        radius: i32,
-        function: &mut F,
-    ) {
-        let center = center + self.offset;
-        self.map_on_pixel_raw(center + (radius, 0), function);
-        self.map_on_pixel_raw(center - (radius, 0), function);
-        self.map_on_pixel_raw(center + (0, radius), function);
-        self.map_on_pixel_raw(center - (0, radius), function);
+    fn circle(&mut self, center: Vector<i32>, radius: i32, strategy: &mut PixelStrategy<T>) {
+        self.apply_strategy(center + (radius, 0), strategy);
+        self.apply_strategy(center - (radius, 0), strategy);
+        self.apply_strategy(center + (0, radius), strategy);
+        self.apply_strategy(center - (0, radius), strategy);
 
         let mut x = 0;
         let mut y = radius;
@@ -332,15 +296,15 @@ where
         let mut checker_y = -2 * radius;
 
         let mut mapper = |x, y| {
-            self.map_on_pixel_raw(center + (x, y), function);
-            self.map_on_pixel_raw(center + (x, -y), function);
-            self.map_on_pixel_raw(center + (-x, y), function);
-            self.map_on_pixel_raw(center + (-x, -y), function);
+            self.apply_strategy(center + (x, y), strategy);
+            self.apply_strategy(center + (x, -y), strategy);
+            self.apply_strategy(center + (-x, y), strategy);
+            self.apply_strategy(center + (-x, -y), strategy);
 
-            self.map_on_pixel_raw(center + (y, x), function);
-            self.map_on_pixel_raw(center + (y, -x), function);
-            self.map_on_pixel_raw(center + (-y, x), function);
-            self.map_on_pixel_raw(center + (-y, -x), function);
+            self.apply_strategy(center + (y, x), strategy);
+            self.apply_strategy(center + (y, -x), strategy);
+            self.apply_strategy(center + (-y, x), strategy);
+            self.apply_strategy(center + (-y, -x), strategy);
         };
 
         while x < y - 2 {
@@ -357,26 +321,22 @@ where
 
         if x == y - 2 {
             let x = x + 1;
-            self.map_on_pixel_raw(center + (x, x), function);
-            self.map_on_pixel_raw(center + (x, -x), function);
-            self.map_on_pixel_raw(center + (-x, x), function);
-            self.map_on_pixel_raw(center + (-x, -x), function);
+            self.apply_strategy(center + (x, x), strategy);
+            self.apply_strategy(center + (x, -x), strategy);
+            self.apply_strategy(center + (-x, x), strategy);
+            self.apply_strategy(center + (-x, -x), strategy);
         }
     }
 
-    fn zip_map_images_offset<
-        O: Clone,
-        F: FnMut(i32, i32, T::Pixel, i32, i32, O) -> T::Pixel,
-        U: Image<Pixel = O> + ?Sized,
-    >(
+    fn zip_map_images<O: Clone, U: Image<Pixel = O> + ?Sized>(
         &mut self,
         at: Vector<i32>,
         image: &U,
-        function: &mut F,
+        function: &mut ImageMapper<T::Pixel, O>,
     ) where
+        for<'a> <T as DesignatorRef<'a>>::PixelRef: Deref<Target = T::Pixel>,
         for<'b> <U as DesignatorRef<'b>>::PixelRef: Deref<Target = O>,
     {
-        let at = at + self.offset;
         let image_start_x = if at.x() < 0 { -at.x() } else { 0 };
         let image_start_y = if at.y() < 0 { -at.y() } else { 0 };
 
@@ -397,11 +357,9 @@ where
                 unsafe {
                     let color = Image::unsafe_pixel(image, step);
                     let pixel = function(
-                        pose.x(),
-                        pose.y(),
+                        pose.split(),
                         self.target.unsafe_pixel(pose).clone(),
-                        x,
-                        y,
+                        (x, y),
                         color.clone(),
                     );
                     *self.target.unsafe_pixel_mut(pose) = pixel;
@@ -411,104 +369,109 @@ where
     }
 }
 
-impl<T> Paint<T, i32> for Painter<'_, T, i32>
+impl<T> Paint<T, i32> for Painter<'_, T>
 where
     T: ImageMut,
     T::Pixel: Clone,
-    for<'a> <T as DesignatorRef<'a>>::PixelRef: Deref<Target = T::Pixel>,
     for<'a> <T as DesignatorMut<'a>>::PixelMut: DerefMut<Target = T::Pixel>,
 {
     fn pixel(&self, position: Vector<i32>) -> Option<PixelRef<'_, T>> {
-        Image::pixel(self.target, position + self.offset)
+        let position = self.position_i32(position);
+        Image::pixel(self.target, position)
     }
 
     fn pixel_mut(&mut self, position: Vector<i32>) -> Option<PixelMut<'_, T>> {
-        ImageMut::pixel_mut(self.target, position + self.offset)
+        let position = self.position_i32(position);
+        ImageMut::pixel_mut(self.target, position)
     }
 
-    fn mod_pixel<F>(&mut self, position: Vector<i32>, function: F)
+    fn mod_pixel<S>(&mut self, position: Vector<i32>, strategy: S)
     where
-        F: FnMut(i32, i32, T::Pixel) -> T::Pixel,
+        for<'a> S: Into<PixelStrategy<'a, T>>,
     {
-        let mut function = function;
-        if let Some(mut pixel) = self.pixel_mut(position) {
-            *pixel = function(position.x(), position.y(), pixel.clone());
-        }
+        let mut strategy = strategy.into();
+        let position = self.position_i32(position);
+        self.apply_strategy(position, &mut strategy);
     }
 
-    fn line<F>(&mut self, from: Vector<i32>, to: Vector<i32>, function: F)
+    fn line<'a, S>(&mut self, from: Vector<i32>, to: Vector<i32>, strategy: S)
     where
-        F: FnMut(i32, i32, T::Pixel) -> T::Pixel,
+        T::Pixel: 'a,
+        S: 'a + Into<PixelStrategy<'a, T>>,
     {
-        let mut function = function;
-        self.map_on_line_offset(from, to, &mut function, 0);
+        let mut strategy = strategy.into();
+        let from = self.position_i32(from);
+        let to = self.position_i32(to);
+        self.paint_line(from, to, &mut strategy, 0);
     }
 
-    fn rect_f<F>(&mut self, from: Vector<i32>, dimensions: Vector<i32>, function: F)
+    fn rect_f<'a, S>(&mut self, from: Vector<i32>, dimensions: Vector<i32>, strategy: S)
     where
-        F: FnMut(i32, i32, T::Pixel) -> T::Pixel,
+        T::Pixel: 'a,
+        S: 'a + Into<PixelStrategy<'a, T>>,
     {
-        let mut function = function;
-        let from = from + self.offset;
-        let to = from + dimensions;
-        self.map_on_filled_rect_raw(from, to, &mut function);
+        let mut strategy = strategy.into();
+        let from = self.position_i32(from);
+        self.filled_rect(from, from + dimensions, &mut strategy);
     }
 
-    fn rect_b<F>(&mut self, from: Vector<i32>, dimensions: Vector<i32>, function: F)
+    fn rect_b<'a, S>(&mut self, from: Vector<i32>, dimensions: Vector<i32>, strategy: S)
     where
-        F: FnMut(i32, i32, T::Pixel) -> T::Pixel,
+        T::Pixel: 'a,
+        S: 'a + Into<PixelStrategy<'a, T>>,
     {
-        let (from, to) = (from + self.offset, from + dimensions + self.offset - (1, 1));
-        let mut function = function;
-        self.map_horizontal_line_raw(from.x(), to.x(), from.y(), &mut function, 1);
-        self.map_horizontal_line_raw(to.x(), from.x(), to.y(), &mut function, 1);
-        self.map_vertical_line_raw(from.x(), to.y(), from.y(), &mut function, 1);
-        self.map_vertical_line_raw(to.x(), from.y(), to.y(), &mut function, 1);
+        let mut strategy = strategy.into();
+        let from = self.position_i32(from);
+        let (from, to) = (from, from + dimensions - (1, 1));
+        self.horizontal_line(from.x(), to.x(), from.y(), &mut strategy, 1);
+        self.horizontal_line(to.x(), from.x(), to.y(), &mut strategy, 1);
+        self.vertical_line(from.x(), to.y(), from.y(), &mut strategy, 1);
+        self.vertical_line(to.x(), from.y(), to.y(), &mut strategy, 1);
     }
 
-    fn triangle_f<F>(&mut self, vertices: [Vector<i32>; 3], function: F)
+    fn triangle_f<'a, S>(&mut self, vertices: [Vector<i32>; 3], strategy: S)
     where
-        F: FnMut(i32, i32, T::Pixel) -> T::Pixel,
+        T::Pixel: 'a,
+        S: 'a + Into<PixelStrategy<'a, T>>,
     {
-        let mut function = function;
-        self.map_on_filled_triangle_offset(vertices, &mut function);
+        let mut strategy = strategy.into();
+        let vertices = vertices.map(|v| self.position_i32(v));
+        self.filled_triangle(vertices, &mut strategy);
     }
 
-    fn triangle_b<F>(&mut self, vertices: [Vector<i32>; 3], function: F)
+    fn triangle_b<'a, S>(&mut self, vertices: [Vector<i32>; 3], strategy: S)
     where
-        F: FnMut(i32, i32, T::Pixel) -> T::Pixel,
+        T::Pixel: 'a,
+        S: 'a + Into<PixelStrategy<'a, T>>,
     {
-        let [a, b, c] = vertices;
-        let mut function = function;
-        self.map_on_line_offset(a, b, &mut function, 1);
-        self.map_on_line_offset(b, c, &mut function, 1);
-        self.map_on_line_offset(c, a, &mut function, 1);
+        let [a, b, c] = vertices.map(|v| self.position_i32(v));
+        let mut strategy = strategy.into();
+        self.paint_line(a, b, &mut strategy, 1);
+        self.paint_line(b, c, &mut strategy, 1);
+        self.paint_line(c, a, &mut strategy, 1);
     }
 
-    fn polygon_f<F>(&mut self, vertices: &[Vector<i32>], function: F)
+    fn polygon_f<'a, S>(&mut self, vertices: &[Vector<i32>], strategy: S)
     where
-        F: FnMut(i32, i32, T::Pixel) -> T::Pixel,
+        T::Pixel: 'a,
+        S: 'a + Into<PixelStrategy<'a, T>>,
     {
-        let mut function = function;
-        match vertices.len() {
-            0 => (),
-            1 => self.mod_pixel(vertices[0], function),
-            2 => self.line(vertices[0], vertices[1], function),
-            _ => self.map_on_filled_sane_polygon_offset(vertices, &mut function),
-        }
+        let mut strategy = strategy.into();
+        self.filled_polygon_raw(vertices, &mut strategy);
     }
 
-    fn polygon_b<F>(&mut self, vertices: &[Vector<i32>], function: F)
+    fn polygon_b<'a, S>(&mut self, vertices: &[Vector<i32>], strategy: S)
     where
-        F: FnMut(i32, i32, T::Pixel) -> T::Pixel,
+        T::Pixel: 'a,
+        S: 'a + Into<PixelStrategy<'a, T>>,
     {
-        let mut function = function;
+        let mut strategy = strategy.into();
         let skip = if vertices.len() > 2 {
-            self.map_on_line_offset(
-                *vertices.last().unwrap(),
+            self.paint_line(
                 // SAFETY: we have checked that `vertices` contain at least 3 elements.
-                vertices[0],
-                &mut function,
+                self.position_i32(*vertices.last().unwrap()),
+                self.position_i32(vertices[0]),
+                &mut strategy,
                 1,
             );
             1
@@ -517,28 +480,37 @@ where
         };
 
         for window in vertices.windows(2) {
-            self.map_on_line_offset(window[0], window[1], &mut function, skip);
+            self.paint_line(
+                self.position_i32(window[0]),
+                self.position_i32(window[1]),
+                &mut strategy,
+                skip,
+            );
         }
     }
 
-    fn circle_f<F>(&mut self, center: Vector<i32>, radius: i32, function: F)
+    fn circle_f<'a, S>(&mut self, center: Vector<i32>, radius: i32, strategy: S)
     where
-        F: FnMut(i32, i32, T::Pixel) -> T::Pixel,
+        T::Pixel: 'a,
+        S: 'a + Into<PixelStrategy<'a, T>>,
     {
-        let mut function = function;
-        self.map_on_filled_circle_offset(center, radius, &mut function);
+        let mut strategy = strategy.into();
+        let center = self.position_i32(center);
+        self.filled_circle(center, radius, &mut strategy);
     }
 
-    fn circle_b<F>(&mut self, center: Vector<i32>, radius: i32, function: F)
+    fn circle_b<'a, S>(&mut self, center: Vector<i32>, radius: i32, strategy: S)
     where
-        F: FnMut(i32, i32, T::Pixel) -> T::Pixel,
+        T::Pixel: 'a,
+        S: 'a + Into<PixelStrategy<'a, T>>,
     {
-        let mut function = function;
-        self.map_on_circle_offset(center, radius, &mut function);
+        let mut strategy = strategy.into();
+        let center = self.position_i32(center);
+        self.circle(center, radius, &mut strategy);
     }
 }
 
-impl<T> Painter<'_, T, i32>
+impl<T> Painter<'_, T>
 where
     T: ImageMut,
     T::Pixel: Clone,
@@ -550,7 +522,8 @@ where
     /// # Safety
     /// - `position + self.offset` must be in the `[0, (width, height))` range.
     pub unsafe fn pixel_unsafe(&self, position: Vector<i32>) -> PixelRef<'_, T> {
-        unsafe { Image::unsafe_pixel(self.target, position + self.offset) }
+        let position = self.position_i32(position);
+        unsafe { Image::unsafe_pixel(self.target, position) }
     }
 
     /// Get mutable reference to pixel.
@@ -558,42 +531,45 @@ where
     /// # Safety
     /// - `position + self.offset` must be in the `[0, (width, height))` range.
     pub unsafe fn pixel_mut_unsafe(&mut self, position: Vector<i32>) -> PixelMut<'_, T> {
-        unsafe { ImageMut::unsafe_pixel_mut(self.target, position + self.offset) }
+        let position = self.position_i32(position);
+        unsafe { ImageMut::unsafe_pixel_mut(self.target, position) }
     }
 
-    /// Use provided function and given image on this drawable.
-    pub fn image<F, O, U>(&mut self, at: Vector<i32>, image: &U, function: F)
-    where
+    /// Use provided function and the given image.
+    pub fn image<O, U>(
+        &mut self,
+        at: Vector<i32>,
+        image: &U,
+        function: &mut ImageMapper<T::Pixel, O>,
+    ) where
         U: Image<Pixel = O> + ?Sized,
         O: Clone,
-        F: FnMut(i32, i32, T::Pixel, i32, i32, O) -> T::Pixel,
-        for<'b> <U as DesignatorRef<'b>>::PixelRef: Deref<Target = O>,
+        for<'a> <U as DesignatorRef<'a>>::PixelRef: Deref<Target = O>,
     {
-        let mut function = function;
-        self.zip_map_images_offset(at, image, &mut function)
+        let at = self.position_i32(at);
+        self.zip_map_images(at, image, function)
     }
 
     /// Use provided spatial mapper, font and mapper function to draw text.
-    pub fn text<M, U, O, F>(
+    pub fn text<M, U, O>(
         &mut self,
         at: Vector<i32>,
         mapper: M,
         font: &dyn Getter<Index = char, Item = U>,
         text: &str,
-        function: F,
+        function: &mut ImageMapper<T::Pixel, O>,
     ) where
         M: FnMut(char, &U) -> Vector<i32>,
         U: Image<Pixel = O>,
         O: Clone,
-        F: FnMut(i32, i32, T::Pixel, i32, i32, O) -> T::Pixel,
-        for<'b> <U as DesignatorRef<'b>>::PixelRef: Deref<Target = O>,
+        for<'a> <U as DesignatorRef<'a>>::PixelRef: Deref<Target = O>,
     {
+        let at = self.position_i32(at);
         let mut mapper = mapper;
-        let mut function = function;
         for code_point in text.chars() {
             if let Some(symbol) = font.get(&code_point) {
                 let local = at + mapper(code_point, symbol);
-                self.zip_map_images_offset(local, symbol, &mut function);
+                self.zip_map_images(local, symbol, function);
             }
         }
     }

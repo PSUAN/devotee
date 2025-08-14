@@ -1,19 +1,19 @@
 use std::collections::HashMap;
 use std::hash::Hash;
 
-/// Getting value by reference from collection.
+/// Getting value reference from collection.
 pub trait Getter {
     /// Indexing type for collection.
     type Index;
     /// The type of element being stored.
     type Item;
-    /// Try retrieving element reference from collection by index.
+    /// Try retrieving value reference from collection by index.
     fn get(&self, index: &Self::Index) -> Option<&Self::Item>;
 }
 
-/// Getting value by mutable reference from collection.
+/// Getting value mutable reference from collection.
 pub trait GetterMut: Getter {
-    /// Try retrieving mutable element reference from collection by index.
+    /// Try retrieving mutable value reference from collection by index.
     fn get_mut(&mut self, index: &Self::Index) -> Option<&mut Self::Item>;
 }
 

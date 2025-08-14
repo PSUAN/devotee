@@ -17,12 +17,7 @@ impl<T> Vector<T> {
     pub fn split(self) -> (T, T) {
         (self.x, self.y)
     }
-}
 
-impl<T> Vector<T>
-where
-    T: Copy,
-{
     /// Get the x value.
     pub fn x(self) -> T {
         self.x
@@ -46,12 +41,12 @@ impl<T> Vector<T> {
     }
 
     /// Get mutable reference to the x value.
-    pub fn x_mut(&mut self) -> &mut T {
+    pub const fn x_mut(&mut self) -> &mut T {
         &mut self.x
     }
 
     /// Get mutable reference to the y value.
-    pub fn y_mut(&mut self) -> &mut T {
+    pub const fn y_mut(&mut self) -> &mut T {
         &mut self.y
     }
 
@@ -126,14 +121,14 @@ impl<T> Vector<T> {
 
 impl Vector<i32> {
     /// Create vector with zero values.
-    pub fn zero() -> Self {
+    pub const fn zero() -> Self {
         Self { x: 0, y: 0 }
     }
 }
 
 impl Vector<f32> {
     /// Create vector with zero values.
-    pub fn zero() -> Self {
+    pub const fn zero() -> Self {
         Self { x: 0.0, y: 0.0 }
     }
 }

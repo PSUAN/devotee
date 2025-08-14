@@ -2,40 +2,8 @@ use std::ops::DerefMut;
 
 use crate::util::vector::Vector;
 
-use super::image::{DesignatorMut, DesignatorRef, Dimensions, PixelMut, PixelRef};
+use super::image::{DesignatorMut, DesignatorRef, PixelMut, PixelRef};
 use super::{FastHorizontalWriter, Image, ImageMut};
-
-/// Trait that provides an immutable two-dimensional view.
-pub trait ViewProvider {
-    /// Get an immutable view into `Self`.
-    /// Resulting `View`'s origin and dimensions are cropped to the image automatically.
-    fn view(&self, origin: Vector<i32>, dimensions: Vector<i32>) -> View<&Self>;
-}
-
-impl<I> ViewProvider for I
-where
-    I: Image,
-{
-    fn view(&self, origin: Vector<i32>, dimensions: Vector<i32>) -> View<&Self> {
-        View::<&Self>::new(self, origin, dimensions)
-    }
-}
-
-/// Trait that provides a mutable two-dimensional view.
-pub trait ViewMutProvider {
-    /// Get a mutable view into this `Image`.
-    /// Resulting `View`'s origin and dimensions are cropped to the image automatically.
-    fn view_mut(&mut self, origin: Vector<i32>, dimensions: Vector<i32>) -> View<&mut Self>;
-}
-
-impl<I> ViewMutProvider for I
-where
-    I: ImageMut,
-{
-    fn view_mut(&mut self, origin: Vector<i32>, dimensions: Vector<i32>) -> View<&mut Self> {
-        View::<&mut Self>::new(self, origin, dimensions)
-    }
-}
 
 #[derive(Clone, Copy, Debug)]
 struct Zone {
@@ -53,34 +21,25 @@ pub struct View<T> {
     scale: i32,
 }
 
-fn calculate_origin_and_dimensions(
-    original_dimensions: Vector<i32>,
-    origin: Vector<i32>,
-    dimensions: Vector<i32>,
-) -> (Vector<i32>, Vector<i32>) {
-    let origin_in_bounds = origin.individual_max((0, 0));
-    let end_in_bounds = (origin + dimensions).individual_min(original_dimensions);
-    let dimensions = (end_in_bounds - origin_in_bounds).individual_max((0, 0));
-    (origin_in_bounds, dimensions)
-}
-
 impl<T> View<T> {
     fn deform_position(&self, position: Vector<i32>) -> Vector<i32> {
         self.flip.apply(
             self.rotation.apply(position / self.scale, &self.zone),
             &self.zone,
-        )
+        ) + self.zone.origin
     }
 
     fn position_if_in_bounds(&self, position: Vector<i32>) -> Option<Vector<i32>> {
         let position = self.deform_position(position);
-        if position.x() < 0 || position.y() < 0 {
+        if position.x() < self.zone.origin.x() || position.y() < self.zone.origin.y() {
             return None;
         }
-        if position.x() >= self.zone.dimensions.x() || position.y() >= self.zone.dimensions.y() {
+        if position.x() >= self.zone.dimensions.x() + self.zone.dimensions.x()
+            || position.y() >= self.zone.dimensions.y() + self.zone.dimensions.y()
+        {
             return None;
         }
-        Some(self.zone.origin + position)
+        Some(position)
     }
 
     /// Get current flip value.
@@ -118,7 +77,7 @@ impl<T> View<T> {
         self.scale
     }
 
-    /// Consume this `View` and get another one with the scale value provided.
+    /// Consume this `View` and create another one with the scale value provided.
     ///
     /// # Panics
     /// Panics if `scale` is less or equal to 0.
@@ -133,9 +92,8 @@ impl<'image, T> View<&'image T>
 where
     T: Image + ?Sized,
 {
-    pub(super) fn new(target: &'image T, origin: Vector<i32>, dimensions: Vector<i32>) -> Self {
-        let (origin, dimensions) =
-            calculate_origin_and_dimensions(target.dimensions(), origin, dimensions);
+    /// Create new immutable `View` into provided `target`.
+    pub fn new(target: &'image T, origin: Vector<i32>, dimensions: Vector<i32>) -> Self {
         let zone = Zone { origin, dimensions };
         let flip = Flip::None;
         let rotation = Rotation::None;
@@ -155,9 +113,8 @@ impl<'image, T> View<&'image mut T>
 where
     T: Image + ?Sized,
 {
-    pub(super) fn new(target: &'image mut T, origin: Vector<i32>, dimensions: Vector<i32>) -> Self {
-        let (origin, dimensions) =
-            calculate_origin_and_dimensions(target.dimensions(), origin, dimensions);
+    /// Create new mutable `View` into provided `target`.
+    pub fn new_mut(target: &'image mut T, origin: Vector<i32>, dimensions: Vector<i32>) -> Self {
         let zone = Zone { origin, dimensions };
         let flip = Flip::None;
         let rotation = Rotation::None;
@@ -191,10 +148,7 @@ where
     }
 
     unsafe fn unsafe_pixel(&self, position: Vector<i32>) -> PixelRef<'_, Self> {
-        unsafe {
-            self.target
-                .unsafe_pixel(self.zone.origin + self.deform_position(position))
-        }
+        unsafe { self.target.unsafe_pixel(self.deform_position(position)) }
     }
 
     fn width(&self) -> i32 {
@@ -230,10 +184,7 @@ where
     }
 
     unsafe fn unsafe_pixel(&self, position: Vector<i32>) -> PixelRef<'_, Self> {
-        unsafe {
-            self.target
-                .unsafe_pixel(self.zone.origin + self.deform_position(position))
-        }
+        unsafe { self.target.unsafe_pixel(self.deform_position(position)) }
     }
 
     fn width(&self) -> i32 {
@@ -281,11 +232,11 @@ where
             .fast_horizontal_writer()
             .map(|mut writer| {
                 for y in 0..self.zone.dimensions.y() {
-                    writer.write_line(
+                    writer.overwrite(
                         self.zone.origin.x()
                             ..=(self.zone.origin.x() + self.zone.dimensions.x() - 1),
                         self.zone.origin.y() + y,
-                        &mut |_, _, _| color.clone(),
+                        &color,
                     );
                 }
             })

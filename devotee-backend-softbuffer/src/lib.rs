@@ -38,7 +38,7 @@ impl<M> SoftBackend<M> {
             render_window_size: PhysicalSize::new(32, 32),
             border_color: 0,
             scale_mode: ScaleMode::Auto,
-            updates_per_seconds: 60.0,
+            updates_per_second: 60.0,
         };
         Self {
             middleware,
@@ -65,7 +65,7 @@ where
         let event_loop = EventLoop::new()?;
 
         event_loop.set_control_flow(ControlFlow::WaitUntil(
-            Instant::now() + Duration::from_secs_f32(1.0 / self.settings.updates_per_seconds),
+            Instant::now() + Duration::from_secs_f32(1.0 / self.settings.updates_per_second),
         ));
         event_loop.run_app(self)?;
 
@@ -120,7 +120,7 @@ where
         }
         self.last = now;
         event_loop.set_control_flow(ControlFlow::WaitUntil(
-            now + Duration::from_secs_f32(1.0 / self.settings.updates_per_seconds),
+            now + Duration::from_secs_f32(1.0 / self.settings.updates_per_second),
         ));
     }
 
@@ -250,7 +250,7 @@ struct Settings {
     render_window_size: PhysicalSize<u32>,
     border_color: u32,
     scale_mode: ScaleMode,
-    updates_per_seconds: f32,
+    updates_per_second: f32,
 }
 
 impl Settings {
@@ -270,7 +270,7 @@ impl Settings {
             updates_per_second > 0.0,
             "Update rate has to be greater than 0"
         );
-        self.updates_per_seconds = updates_per_second;
+        self.updates_per_second = updates_per_second;
     }
 }
 

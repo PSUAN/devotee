@@ -6,8 +6,9 @@ use devotee::util::vector::Vector;
 
 use devotee::visual::adapter::Converter;
 use devotee::visual::adapter::generic::Adapter;
-use devotee::visual::image::{DesignatorMut, DesignatorRef, ImageMut};
-use devotee::visual::{Paint, Painter, paint};
+use devotee::visual::image::{DesignatorMut, DesignatorRef, Dimensions, ImageMut};
+use devotee::visual::view::View;
+use devotee::visual::{Paint, Painter};
 use devotee_backend::Middleware;
 use devotee_backend::middling::InputHandler;
 use devotee_backend_softbuffer::{
@@ -34,9 +35,9 @@ impl Gears {
         let keyboard = Keyboard::new();
 
         let mut drive_gear = Gear::new_gear(128.0, 20);
-        drive_gear.center = Vector::new(0.0, 32.0);
+        drive_gear.center = Vector::new(0, 32);
         let mut driven_gear = Gear::new_gear(384.0, 60);
-        driven_gear.center = Vector::new(256.0, 32.0);
+        driven_gear.center = Vector::new(256, 32);
 
         Self {
             keyboard,
@@ -95,11 +96,9 @@ impl
         _: &mut SoftEventControl,
     ) -> Option<SoftEvent> {
         if let SoftEvent::Window(event) = event {
-            if let Some(event) = self.keyboard.handle_event(event, event_context) {
-                Some(SoftEvent::Window(event))
-            } else {
-                None
-            }
+            self.keyboard
+                .handle_event(event, event_context)
+                .map(SoftEvent::Window)
         } else {
             Some(event)
         }
@@ -117,10 +116,7 @@ impl Converter for TwoConverter {
     }
 
     fn inverse(&self, texel: &Self::Texel) -> Self::Pixel {
-        match *texel & 0xffffff {
-            0xc0b0a0 => true,
-            _ => false,
-        }
+        matches!(*texel & 0xffffff, 0xc0b0a0)
     }
 }
 
@@ -128,7 +124,7 @@ const GEAR_PRECISION: usize = 16;
 
 #[derive(Clone, Default, Debug)]
 struct Gear {
-    center: Vector<f32>,
+    center: Vector<i32>,
     angle: f32,
 
     separation_diameter: f32,
@@ -191,8 +187,8 @@ impl Gear {
         for<'a> <I as DesignatorRef<'a>>::PixelRef: Deref<Target = bool>,
         for<'a> <I as DesignatorMut<'a>>::PixelMut: DerefMut<Target = bool>,
     {
-        let mut painter = Painter::new(image);
-        painter.set_offset(self.center);
+        let mut view = View::new_mut(image, (0, 0).into(), image.dimensions());
+        let mut painter = Painter::new(&mut view).with_offset(self.center);
         for i in 0..=self.teeth_count {
             let angle = i as f32 * 2.0 * consts::PI / self.teeth_count as f32 + self.angle;
             let tooth = self
@@ -201,27 +197,23 @@ impl Gear {
                 .copied()
                 .map(|v| rotate_vector(v, angle))
                 .collect::<Vec<_>>();
-            painter.polygon_f(&tooth, paint(true));
+            painter.polygon_f(&tooth, &true);
         }
-        painter.circle_f(Vector::<f32>::zero(), self.internal_radius, paint(true));
+        painter.circle_f(Vector::<f32>::zero(), self.internal_radius, &true);
         painter.circle_b(
             Vector::<f32>::zero(),
             self.separation_diameter / 2.0,
-            |_, _, p| !p,
+            &mut |_, p: bool| !p,
         );
         for i in 0..3 {
             let angle = consts::PI * 2.0 * i as f32 / 3.0;
             painter.circle_f(
                 rotate_vector((self.internal_radius / 2.0, 0.0).into(), self.angle + angle),
                 self.internal_radius / 4.0,
-                |x, y, _| (x + y) % 2 == 0,
+                &mut |(x, y), _| (x + y) % 2 == 0,
             );
         }
-        painter.circle_f(
-            Vector::<f32>::zero(),
-            self.internal_radius / 2.0,
-            paint(false),
-        );
+        painter.circle_f(Vector::<f32>::zero(), self.internal_radius / 2.0, &false);
     }
 }
 

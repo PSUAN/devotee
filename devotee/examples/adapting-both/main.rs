@@ -7,7 +7,7 @@ use devotee::util::vector::Vector;
 use devotee::visual::adapter::Converter;
 use devotee::visual::adapter::generic::Adapter;
 use devotee::visual::image::ImageMut;
-use devotee::visual::{Paint, Painter, paint};
+use devotee::visual::{Paint, Painter};
 use devotee_backend::Middleware;
 use devotee_backend::middling::{InputHandler, Surface, TexelDesignatorMut, TexelDesignatorRef};
 use devotee_backend_pixels::{
@@ -65,8 +65,8 @@ impl Internal {
         Cfg: Config,
     {
         if let Some(position) = self.position {
-            let mut painter = Painter::<'_, _, f32>::new(render);
-            painter.line((0.0, 0.0).into(), position, paint(Color::Light));
+            let mut painter = Painter::<'_, _>::new(render);
+            painter.line((0.0, 0.0).into(), position, &Color::Light);
         }
     }
 }
@@ -107,14 +107,14 @@ impl
     }
 
     fn on_update(&mut self, context: &mut PixelsContext<'_>) {
-        self.internal.update(context.delta(), &mut self.input);
+        self.internal.update(context.delta(), &self.input);
+        InputHandler::<_, PixelsEventContext>::update(&mut self.input);
     }
 
     fn on_render(&mut self, surface: &mut PixelsSurface<'_, '_>) {
         let mut adapter = Adapter::new(surface, &PixelsConverter);
         adapter.clear(Color::Dark);
         self.internal.render::<PixelsConfig>(&mut adapter);
-        InputHandler::<_, PixelsEventContext>::update(&mut self.input);
     }
 
     fn on_event(
@@ -124,11 +124,9 @@ impl
         _: &mut PixelsEventControl<'_>,
     ) -> Option<PixelsEvent> {
         if let PixelsEvent::Window(window_event) = event {
-            if let Some(event) = self.input.handle_event(window_event, event_context) {
-                Some(PixelsEvent::Window(event))
-            } else {
-                None
-            }
+            self.input
+                .handle_event(window_event, event_context)
+                .map(PixelsEvent::Window)
         } else {
             None
         }
@@ -182,7 +180,7 @@ impl
     }
 
     fn on_update(&mut self, context: &mut SoftContext<'_>) {
-        self.internal.update(context.delta(), &mut self.input);
+        self.internal.update(context.delta(), &self.input);
         InputHandler::<_, SoftEventContext>::update(&mut self.input);
     }
 
@@ -199,11 +197,9 @@ impl
         _: &mut SoftEventControl,
     ) -> Option<SoftEvent> {
         if let SoftEvent::Window(event) = event {
-            if let Some(event) = self.input.handle_event(event, event_context) {
-                Some(SoftEvent::Window(event))
-            } else {
-                None
-            }
+            self.input
+                .handle_event(event, event_context)
+                .map(SoftEvent::Window)
         } else {
             Some(event)
         }

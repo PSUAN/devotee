@@ -33,6 +33,7 @@ impl<M> PixelsBackend<'_, M> {
         let last = Instant::now();
         let settings = Settings {
             render_window_size: PhysicalSize::new(32, 32),
+            updates_per_second: 60.0,
         };
         Self {
             middleware,
@@ -113,15 +114,13 @@ where
             };
             self.middleware.on_update(&mut control);
 
-            internal.window.request_redraw();
-
             if control.shutdown {
                 event_loop.exit();
             }
         }
         self.last = now;
         event_loop.set_control_flow(ControlFlow::WaitUntil(
-            now + Duration::from_secs_f32(1.0 / 60.0),
+            now + Duration::from_secs_f32(1.0 / self.settings.updates_per_second),
         ));
     }
 
@@ -149,6 +148,7 @@ where
                 };
                 middleware.on_render(&mut surface);
                 let _ = internal.pixels.render();
+                internal.window.request_redraw();
             }
             _ => {}
         }
@@ -243,6 +243,20 @@ where
 
 struct Settings {
     render_window_size: PhysicalSize<u32>,
+    updates_per_second: f32,
+}
+
+impl Settings {
+    /// # Panics
+    ///
+    /// Panics if `updates_per_second` is less or equal to `0`.
+    fn set_updates_per_second(&mut self, updates_per_second: f32) {
+        assert!(
+            updates_per_second > 0.0,
+            "Update rate has to be greater than 0"
+        );
+        self.updates_per_second = updates_per_second;
+    }
 }
 
 struct Internal<'w> {
@@ -278,6 +292,15 @@ impl PixelsInit<'_> {
         let size = PhysicalSize::new(width, height);
         self.settings.render_window_size = size;
         let _ = self.window.request_inner_size(size);
+    }
+
+    /// Set update framerate in updates per second count.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `updates_per_second` is less or equal to `0`.
+    pub fn set_updates_per_second(&mut self, updates_per_second: f32) {
+        self.settings.set_updates_per_second(updates_per_second);
     }
 }
 

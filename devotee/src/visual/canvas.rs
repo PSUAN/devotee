@@ -117,11 +117,27 @@ impl<P> FastHorizontalWriter<Canvas<P>> for CanvasFastHorizontalWriter<'_, P>
 where
     P: Clone,
 {
-    fn write_line<F: FnMut(i32, i32, P) -> P>(
+    fn overwrite(&mut self, x: RangeInclusive<i32>, y: i32, value: &P) {
+        if y < 0 || y >= Image::height(self.canvas) {
+            return;
+        }
+        let width = Image::width(self.canvas);
+        let start_x = (*x.start()).clamp(0, width - 1);
+        let end_x = (*x.end() + 1).clamp(0, width - 1);
+        let start = start_x + width * y;
+        let end = end_x + width * y;
+
+        let s = start.min(end) as usize;
+        let e = start.max(end) as usize;
+
+        self.canvas.data[s..e].fill(value.clone());
+    }
+
+    fn apply_function(
         &mut self,
         x: RangeInclusive<i32>,
         y: i32,
-        function: &mut F,
+        function: &mut dyn FnMut((i32, i32), P) -> P,
     ) {
         if y < 0 || y >= Image::height(self.canvas) {
             return;
@@ -140,7 +156,7 @@ where
             .enumerate()
             .for_each(|(x, pixel)| {
                 let x = start_x + x as i32;
-                *pixel = function(x, y, pixel.clone());
+                *pixel = function((x, y), pixel.clone());
             });
     }
 }

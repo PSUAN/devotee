@@ -2,6 +2,7 @@ use std::cmp::Ordering;
 use std::ops::{Deref, DerefMut};
 
 use crate::util::vector::Vector;
+use crate::visual::strategy::PixelStrategy;
 use crate::visual::util::AngleIterator;
 
 use super::image::{DesignatorMut, DesignatorRef, PixelMut, PixelRef};
@@ -59,24 +60,19 @@ fn round_to_i32(value: f32) -> i32 {
     value.round() as i32
 }
 
-impl<T, P> Painter<'_, T, f32>
+impl<T, P> Painter<'_, T>
 where
     T: ImageMut<Pixel = P>,
     T::Pixel: Clone,
-    for<'a> <T as DesignatorRef<'a>>::PixelRef: Deref<Target = T::Pixel>,
     for<'a> <T as DesignatorMut<'a>>::PixelMut: DerefMut<Target = T::Pixel>,
 {
-    fn map_on_subline_offset<F: FnMut(i32, i32, P) -> P>(
+    fn subline(
         &mut self,
         from: Vector<f32>,
         to: Vector<f32>,
-        function: &mut F,
+        function: &mut PixelStrategy<T>,
         skip: usize,
     ) {
-        let offset = self.offset;
-        let from = from + offset;
-        let to = to + offset;
-
         let from_i32 = from.map(round_to_i32);
         let to_i32 = to.map(round_to_i32);
 
@@ -102,7 +98,7 @@ where
             for x in scan {
                 if skip == 0 {
                     let pose = (x, y).into();
-                    self.map_on_pixel_raw(pose, function);
+                    self.apply_strategy(pose, function);
                 } else {
                     skip -= 1;
                 }
@@ -110,13 +106,8 @@ where
         }
     }
 
-    fn map_on_filled_subtriangle_offset<F: FnMut(i32, i32, P) -> P>(
-        &mut self,
-        vertices: [Vector<f32>; 3],
-        function: &mut F,
-    ) {
-        let offset = self.offset;
-        let mut vertex = vertices.map(|v| v + offset);
+    fn filled_subtriangle(&mut self, vertices: [Vector<f32>; 3], strategy: &mut PixelStrategy<T>) {
+        let mut vertex = vertices;
         vertex.sort_by(|a, b| a.y_ref().partial_cmp(b.y_ref()).unwrap_or(Ordering::Less));
         let [a, b, c] = vertex;
         let mut vertex_i32 = vertex.map(|v| v.map(round_to_i32));
@@ -125,11 +116,12 @@ where
         // We are on a horizontal line.
         if a.y() == c.y() {
             vertex_i32.sort_by(|a, b| a.x().cmp(b.x_ref()));
-            self.map_fast_horizontal_line_raw(
+            self.horizontal_line(
                 vertex_i32[0].x(),
                 vertex_i32[2].x(),
                 vertex_i32[0].y(),
-                function,
+                strategy,
+                0,
             );
             return;
         }
@@ -147,7 +139,7 @@ where
                 .start_unchecked()
                 .min(right_range.start_unchecked());
             let right = left_range.end_unchecked().max(right_range.end_unchecked());
-            self.map_fast_horizontal_line_raw(left, right, y, function);
+            self.horizontal_line(left, right, y, strategy, 0);
         }
 
         let middle = middle + 1;
@@ -158,15 +150,11 @@ where
                 .start_unchecked()
                 .min(right_range.start_unchecked());
             let right = left_range.end_unchecked().max(right_range.end_unchecked());
-            self.map_fast_horizontal_line_raw(left, right, y, function);
+            self.horizontal_line(left, right, y, strategy, 0);
         }
     }
 
-    fn map_on_filled_sane_subpolygon_offset<F: FnMut(i32, i32, P) -> P>(
-        &mut self,
-        vertices: &[Vector<f32>],
-        function: &mut F,
-    ) {
+    fn filled_subpolygon_raw(&mut self, vertices: &[Vector<f32>], strategy: &mut PixelStrategy<T>) {
         enum FlipType {
             Opening,
             Closing,
@@ -191,7 +179,6 @@ where
         );
         let (top, bottom) = (round_to_i32(top), round_to_i32(bottom));
         let left = round_to_i32(left);
-        let offset = self.offset.map(round_to_i32);
 
         for y in top..=bottom {
             let segments = AngleIterator::new(vertices);
@@ -237,11 +224,12 @@ where
             let mut current_left = left;
             for flip in flips {
                 if counter % 2 == 1 || counter / 2 % 2 == 1 {
-                    self.map_fast_horizontal_line_raw(
-                        current_left + offset.x(),
-                        flip.position + offset.x(),
-                        y + offset.y(),
-                        function,
+                    self.horizontal_line(
+                        current_left + self.offset.x(),
+                        flip.position + self.offset.x(),
+                        y + self.offset.y(),
+                        strategy,
+                        0,
                     );
                 }
                 current_left = flip.position;
@@ -259,13 +247,12 @@ where
         }
     }
 
-    fn map_on_filled_subcircle<F: FnMut(i32, i32, P) -> P>(
+    fn filled_subcircle(
         &mut self,
         center: Vector<f32>,
         radius: f32,
-        function: &mut F,
+        strategy: &mut PixelStrategy<T>,
     ) {
-        let center = self.offset + center;
         let top = round_to_i32(center.y() - radius);
         let bottom = round_to_i32(center.y() + radius);
 
@@ -279,19 +266,21 @@ where
             match (top_x, current_x) {
                 (a, b) if a.is_nan() && b.is_nan() => (),
                 (a, b) if a.is_nan() || b > a => {
-                    self.map_fast_horizontal_line_raw(
+                    self.horizontal_line(
                         round_to_i32(center.x() - b),
                         round_to_i32(center.x() + b),
                         scanline,
-                        function,
+                        strategy,
+                        0,
                     );
                 }
                 (a, b) if b.is_nan() || a >= b => {
-                    self.map_fast_horizontal_line_raw(
+                    self.horizontal_line(
                         round_to_i32(center.x() - a),
                         round_to_i32(center.x() + a),
                         scanline,
-                        function,
+                        strategy,
+                        0,
                     );
                 }
                 (_, _) => (),
@@ -300,13 +289,7 @@ where
         }
     }
 
-    fn map_on_subcircle<F: FnMut(i32, i32, P) -> P>(
-        &mut self,
-        center: Vector<f32>,
-        radius: f32,
-        function: &mut F,
-    ) {
-        let center = self.offset + center;
+    fn subcircle(&mut self, center: Vector<f32>, radius: f32, strategy: &mut PixelStrategy<T>) {
         let top = round_to_i32(center.y() - radius);
         let bottom = round_to_i32(center.y() + radius);
 
@@ -320,47 +303,53 @@ where
             match (top_x, current_x) {
                 (a, b) if a.is_nan() && b.is_nan() => (),
                 (a, b) if a.is_nan() => {
-                    self.map_fast_horizontal_line_raw(
+                    self.horizontal_line(
                         round_to_i32(center.x() - b),
                         round_to_i32(center.x() + b),
                         scanline,
-                        function,
+                        strategy,
+                        0,
                     );
                 }
                 (a, b) if b.is_nan() => {
-                    self.map_fast_horizontal_line_raw(
+                    self.horizontal_line(
                         round_to_i32(center.x() - a),
                         round_to_i32(center.x() + a),
                         scanline,
-                        function,
+                        strategy,
+                        0,
                     );
                 }
                 (a, b) if a > b => {
-                    self.map_fast_horizontal_line_raw(
+                    self.horizontal_line(
                         round_to_i32(center.x() - a),
                         round_to_i32(center.x() - b),
                         scanline,
-                        function,
+                        strategy,
+                        0,
                     );
-                    self.map_fast_horizontal_line_raw(
+                    self.horizontal_line(
                         round_to_i32(center.x() + b),
                         round_to_i32(center.x() + a),
                         scanline,
-                        function,
+                        strategy,
+                        0,
                     );
                 }
                 (a, b) => {
-                    self.map_fast_horizontal_line_raw(
+                    self.horizontal_line(
                         round_to_i32(center.x() - b),
                         round_to_i32(center.x() - a),
                         scanline,
-                        function,
+                        strategy,
+                        0,
                     );
-                    self.map_fast_horizontal_line_raw(
+                    self.horizontal_line(
                         round_to_i32(center.x() + a),
                         round_to_i32(center.x() + b),
                         scanline,
-                        function,
+                        strategy,
+                        0,
                     );
                 }
             }
@@ -369,7 +358,7 @@ where
     }
 }
 
-impl<T, P> Paint<T, f32> for Painter<'_, T, f32>
+impl<T, P> Paint<T, f32> for Painter<'_, T>
 where
     T: ImageMut<Pixel = P>,
     T::Pixel: Clone,
@@ -377,126 +366,144 @@ where
     for<'a> <T as DesignatorMut<'a>>::PixelMut: DerefMut<Target = T::Pixel>,
 {
     fn pixel(&self, position: Vector<f32>) -> Option<PixelRef<'_, T>> {
-        Image::pixel(self.target, (position + self.offset).map(round_to_i32))
+        let position = self.position_f32(position).map(round_to_i32);
+        Image::pixel(self.target, position)
     }
 
     fn pixel_mut(&mut self, position: Vector<f32>) -> Option<PixelMut<'_, T>> {
-        ImageMut::pixel_mut(self.target, (position + self.offset).map(round_to_i32))
+        let position = self.position_f32(position).map(round_to_i32);
+        ImageMut::pixel_mut(self.target, position)
     }
 
-    fn mod_pixel<F>(&mut self, position: Vector<f32>, function: F)
+    fn mod_pixel<S>(&mut self, position: Vector<f32>, strategy: S)
     where
-        F: FnMut(i32, i32, P) -> P,
+        for<'a> S: Into<PixelStrategy<'a, T>>,
     {
-        let mut function = function;
-        if let Some(mut pixel) = self.pixel_mut(position) {
-            *pixel = function(
-                round_to_i32(position.x()),
-                round_to_i32(position.y()),
-                pixel.clone(),
-            );
-        }
+        let mut strategy = strategy.into();
+        let position = self.position_f32(position).map(round_to_i32);
+        self.apply_strategy(position, &mut strategy);
     }
 
-    fn line<F>(&mut self, from: Vector<f32>, to: Vector<f32>, function: F)
+    fn line<'a, S>(&mut self, from: Vector<f32>, to: Vector<f32>, strategy: S)
     where
-        F: FnMut(i32, i32, P) -> P,
+        T::Pixel: 'a,
+        S: 'a + Into<PixelStrategy<'a, T>>,
     {
-        let mut function = function;
-        self.map_on_subline_offset(from, to, &mut function, 0);
+        let mut strategy = strategy.into();
+        let from = self.position_f32(from);
+        let to = self.position_f32(to);
+        self.subline(from, to, &mut strategy, 0);
     }
 
-    fn rect_f<F>(&mut self, from: Vector<f32>, dimensions: Vector<f32>, function: F)
+    fn rect_f<'a, S>(&mut self, from: Vector<f32>, dimensions: Vector<f32>, strategy: S)
     where
-        F: FnMut(i32, i32, P) -> P,
+        T::Pixel: 'a,
+        S: 'a + Into<PixelStrategy<'a, T>>,
     {
-        let mut function = function;
-        let offset = self.offset;
-        let from = from + offset;
+        let mut strategy = strategy.into();
+        let from = self.position_f32(from);
         let to = from + dimensions;
         let (from, to) = (from.map(round_to_i32), to.map(round_to_i32));
-        self.map_on_filled_rect_raw(from, to, &mut function);
+        self.filled_rect(from, to, &mut strategy);
     }
 
-    fn rect_b<F>(&mut self, from: Vector<f32>, dimensions: Vector<f32>, function: F)
+    fn rect_b<'a, S>(&mut self, from: Vector<f32>, dimensions: Vector<f32>, strategy: S)
     where
-        F: FnMut(i32, i32, P) -> P,
+        T::Pixel: 'a,
+        S: 'a + Into<PixelStrategy<'a, T>>,
     {
-        let offset = self.offset;
-        let (from, to) = (from + offset, from + dimensions + offset - (1.0, 1.0));
+        let mut strategy = strategy.into();
+        let from = self.position_f32(from);
+        let (from, to) = (from, from + dimensions - (1.0, 1.0));
         let (from, to) = (from.map(round_to_i32), to.map(round_to_i32));
-        let mut function = function;
-        self.map_horizontal_line_raw(from.x(), to.x(), from.y(), &mut function, 1);
-        self.map_horizontal_line_raw(to.x(), from.x(), to.y(), &mut function, 1);
-        self.map_vertical_line_raw(from.x(), to.y(), from.y(), &mut function, 1);
-        self.map_vertical_line_raw(to.x(), from.y(), to.y(), &mut function, 1);
+        self.horizontal_line(from.x(), to.x(), from.y(), &mut strategy, 1);
+        self.horizontal_line(to.x(), from.x(), to.y(), &mut strategy, 1);
+        self.vertical_line(from.x(), to.y(), from.y(), &mut strategy, 1);
+        self.vertical_line(to.x(), from.y(), to.y(), &mut strategy, 1);
     }
 
-    fn triangle_f<F>(&mut self, vertices: [Vector<f32>; 3], function: F)
+    fn triangle_f<'a, S>(&mut self, vertices: [Vector<f32>; 3], strategy: S)
     where
-        F: FnMut(i32, i32, P) -> P,
+        T::Pixel: 'a,
+        S: 'a + Into<PixelStrategy<'a, T>>,
     {
-        let mut function = function;
-        self.map_on_filled_subtriangle_offset(vertices, &mut function);
+        let mut strategy = strategy.into();
+        let vertices = vertices.map(|v| self.position_f32(v));
+        self.filled_subtriangle(vertices, &mut strategy);
     }
 
-    fn triangle_b<F>(&mut self, vertices: [Vector<f32>; 3], function: F)
+    fn triangle_b<'a, S>(&mut self, vertices: [Vector<f32>; 3], strategy: S)
     where
-        F: FnMut(i32, i32, P) -> P,
+        T::Pixel: 'a,
+        S: 'a + Into<PixelStrategy<'a, T>>,
     {
-        let [a, b, c] = vertices;
-        let mut function = function;
-        self.map_on_subline_offset(a, b, &mut function, 1);
-        self.map_on_subline_offset(b, c, &mut function, 1);
-        self.map_on_subline_offset(c, a, &mut function, 1);
+        let mut strategy = strategy.into();
+        let [a, b, c] = vertices.map(|v| self.position_f32(v));
+        self.subline(a, b, &mut strategy, 1);
+        self.subline(b, c, &mut strategy, 1);
+        self.subline(c, a, &mut strategy, 1);
     }
 
-    fn polygon_f<F>(&mut self, vertices: &[Vector<f32>], function: F)
+    fn polygon_f<'a, S>(&mut self, vertices: &[Vector<f32>], strategy: S)
     where
-        F: FnMut(i32, i32, P) -> P,
+        T::Pixel: 'a,
+        S: 'a + Into<PixelStrategy<'a, T>>,
     {
-        let mut function = function;
+        let mut strategy = strategy.into();
         match vertices.len() {
             0 => (),
-            1 => self.mod_pixel(vertices[0], function),
-            2 => self.line(vertices[0], vertices[1], function),
-            _ => self.map_on_filled_sane_subpolygon_offset(vertices, &mut function),
+            1 => self.apply_strategy(vertices[0].map(round_to_i32), &mut strategy),
+            2 => self.subline(vertices[0], vertices[1], &mut strategy, 0),
+            _ => self.filled_subpolygon_raw(vertices, &mut strategy),
         }
     }
 
-    fn polygon_b<F>(&mut self, vertices: &[Vector<f32>], function: F)
+    fn polygon_b<'a, S>(&mut self, vertices: &[Vector<f32>], strategy: S)
     where
-        F: FnMut(i32, i32, P) -> P,
+        T::Pixel: 'a,
+        S: 'a + Into<PixelStrategy<'a, T>>,
     {
-        let mut function = function;
-        if vertices.len() > 2 {
-            self.map_on_subline_offset(
+        let mut strategy = strategy.into();
+        let skip = if vertices.len() > 2 {
+            self.subline(
                 // SAFETY: we have checked that `vertices` contain at least 3 elements.
-                *vertices.last().unwrap(),
-                vertices[0],
-                &mut function,
+                self.position_f32(*vertices.last().unwrap()),
+                self.position_f32(vertices[0]),
+                &mut strategy,
                 0,
             );
-        }
+            1
+        } else {
+            0
+        };
 
         for window in vertices.windows(2) {
-            self.map_on_subline_offset(window[0], window[1], &mut function, 0);
+            self.subline(
+                self.position_f32(window[0]),
+                self.position_f32(window[1]),
+                &mut strategy,
+                skip,
+            );
         }
     }
 
-    fn circle_f<F>(&mut self, center: Vector<f32>, radius: f32, function: F)
+    fn circle_f<'a, S>(&mut self, center: Vector<f32>, radius: f32, strategy: S)
     where
-        F: FnMut(i32, i32, P) -> P,
+        T::Pixel: 'a,
+        S: 'a + Into<PixelStrategy<'a, T>>,
     {
-        let mut function = function;
-        self.map_on_filled_subcircle(center, radius, &mut function);
+        let mut strategy = strategy.into();
+        let center = self.position_f32(center);
+        self.filled_subcircle(center, radius, &mut strategy);
     }
 
-    fn circle_b<F>(&mut self, center: Vector<f32>, radius: f32, function: F)
+    fn circle_b<'a, S>(&mut self, center: Vector<f32>, radius: f32, strategy: S)
     where
-        F: FnMut(i32, i32, P) -> P,
+        T::Pixel: 'a,
+        S: 'a + Into<PixelStrategy<'a, T>>,
     {
-        let mut function = function;
-        self.map_on_subcircle(center, radius, &mut function);
+        let mut strategy = strategy.into();
+        let center = self.position_f32(center);
+        self.subcircle(center, radius, &mut strategy);
     }
 }
