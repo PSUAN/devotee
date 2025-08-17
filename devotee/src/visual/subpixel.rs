@@ -403,7 +403,7 @@ where
         let mut strategy = strategy.into();
         let from = self.position_f32(from);
         let to = from + dimensions;
-        let (from, to) = (from.map(round_to_i32), to.map(round_to_i32));
+        let (from, to) = (from.map(round_to_i32), to.map(round_to_i32) - (1, 1));
         self.filled_rect(from, to, &mut strategy);
     }
 

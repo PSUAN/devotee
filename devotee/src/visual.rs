@@ -264,7 +264,7 @@ where
             let range = if from_x < to_x {
                 (from_x + skip).min(to_x)..=to_x
             } else {
-                from_x..=(to_x - skip).max(from_x)
+                to_x..=(from_x - skip).max(to_x)
             };
             match strategy {
                 PixelStrategy::Overwrite(value) => writer.overwrite(range, y, value),

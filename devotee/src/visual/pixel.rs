@@ -412,7 +412,7 @@ where
     {
         let mut strategy = strategy.into();
         let from = self.position_i32(from);
-        self.filled_rect(from, from + dimensions, &mut strategy);
+        self.filled_rect(from, from + dimensions - (1, 1), &mut strategy);
     }
 
     fn rect_b<'a, S>(&mut self, from: Vector<i32>, dimensions: Vector<i32>, strategy: S)
