@@ -466,11 +466,11 @@ where
         let mut strategy = strategy.into();
         let skip = if vertices.len() > 2 {
             self.subline(
+                self.position_f32(vertices[0]),
                 // SAFETY: we have checked that `vertices` contain at least 3 elements.
                 self.position_f32(*vertices.last().unwrap()),
-                self.position_f32(vertices[0]),
                 &mut strategy,
-                0,
+                1,
             );
             1
         } else {

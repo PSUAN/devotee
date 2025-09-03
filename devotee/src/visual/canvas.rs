@@ -122,8 +122,8 @@ where
             return;
         }
         let width = Image::width(self.canvas);
-        let start_x = (*x.start()).clamp(0, width - 1);
-        let end_x = (*x.end() + 1).clamp(0, width - 1);
+        let start_x = (*x.start()).clamp(0, width);
+        let end_x = (*x.end() + 1).clamp(0, width);
         let start = start_x + width * y;
         let end = end_x + width * y;
 
@@ -143,8 +143,8 @@ where
             return;
         }
         let width = Image::width(self.canvas);
-        let start_x = (*x.start()).clamp(0, width - 1);
-        let end_x = (*x.end() + 1).clamp(0, width - 1);
+        let start_x = (*x.start()).clamp(0, width);
+        let end_x = (*x.end() + 1).clamp(0, width);
         let start = start_x + width * y;
         let end = end_x + width * y;
 

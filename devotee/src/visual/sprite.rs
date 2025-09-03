@@ -116,8 +116,8 @@ where
             return;
         }
         let width = Image::width(self.sprite);
-        let start = (*x.start()).clamp(0, width - 1);
-        let end = (*x.end() + 1).clamp(0, width - 1);
+        let start = (*x.start()).clamp(0, width);
+        let end = (*x.end() + 1).clamp(0, width);
 
         let s = start.min(end) as usize;
         let e = start.max(end) as usize;
@@ -135,8 +135,8 @@ where
             return;
         }
         let width = Image::width(self.sprite);
-        let start = (*x.start()).clamp(0, width - 1);
-        let end = (*x.end() + 1).clamp(0, width - 1);
+        let start = (*x.start()).clamp(0, width);
+        let end = (*x.end() + 1).clamp(0, width);
 
         let s = start.min(end) as usize;
         let e = start.max(end) as usize;
