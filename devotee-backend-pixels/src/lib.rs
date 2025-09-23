@@ -394,6 +394,20 @@ impl Surface for PixelsSurface<'_, '_> {
         }
     }
 
+    unsafe fn unsafe_texel(&self, x: u32, y: u32) -> TexelRef<'_, Self> {
+        let buffer = self.pixels.frame();
+        let offset = (4 * (x + y * self.dimensions.width)) as usize;
+        let slice = &buffer[offset..(offset + 4)];
+        slice.try_into().unwrap()
+    }
+
+    unsafe fn unsafe_texel_mut(&mut self, x: u32, y: u32) -> TexelMut<'_, Self> {
+        let buffer = self.pixels.frame_mut();
+        let offset = (4 * (x + y * self.dimensions.width)) as usize;
+        let slice = &mut buffer[offset..(offset + 4)];
+        slice.try_into().unwrap()
+    }
+
     fn clear(&mut self, value: Self::Texel) {
         let frame = self.pixels.frame_mut();
         for pixel in frame.chunks_exact_mut(4) {
