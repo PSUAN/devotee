@@ -1,7 +1,6 @@
 use std::rc::Rc;
 
-use rodio::source::Source;
-use rodio::{OutputStream, OutputStreamHandle, Sink, StreamError};
+use rodio::{OutputStream, OutputStreamBuilder, Sink, Source, StreamError};
 
 pub use rodio;
 
@@ -10,52 +9,46 @@ pub type Sound = Rc<Sink>;
 
 /// Simple sound system implementation.
 pub struct SoundSystem {
-    // We are storing `OutputStream` instance to save it from being dropped and thus stopping sound.
-    #[allow(dead_code)]
     output_stream: OutputStream,
-    handle: OutputStreamHandle,
     sinks: Vec<Rc<Sink>>,
 }
 
 impl SoundSystem {
     /// Try creating new Sound System instance.
     pub fn try_new() -> Result<Self, StreamError> {
-        let (output_stream, handle) = OutputStream::try_default()?;
+        let output_stream = OutputStreamBuilder::open_default_stream()?;
         let sinks = Vec::new();
         Ok(Self {
             output_stream,
-            handle,
             sinks,
         })
     }
 
-    fn free_sink(&self) -> Option<Rc<Sink>> {
+    fn free_sink(&mut self) -> Rc<Sink> {
         if let Some(free_sink) = self.sinks.iter().find(|sink| sink.empty()) {
-            Some(Rc::clone(free_sink))
+            Rc::clone(free_sink)
         } else {
-            Sink::try_new(&self.handle).ok().map(Rc::new)
+            let sink = Rc::new(Sink::connect_new(self.output_stream.mixer()));
+            self.sinks.push(Rc::clone(&sink));
+            sink
         }
     }
 
-    /// Play passed source and get `Sound` instance if playback start was successful.
-    pub fn play(&mut self, source: Box<dyn Source<Item = f32> + Send>) -> Option<Sound> {
-        if let Some(sink) = self.free_sink() {
-            sink.append(source);
-            self.sinks.push(sink.clone());
-            Some(sink)
-        } else {
-            None
-        }
+    /// Play passed source and get `Sound` instance.
+    pub fn play(&mut self, source: Box<dyn Source<Item = f32> + Send>) -> Sound {
+        let sink = self.free_sink();
+        sink.append(source);
+        sink
     }
 
-    /// Pause playback.
+    /// Pause for all sounds playback.
     pub fn pause(&self) {
         for sink in self.sinks.iter() {
             sink.pause();
         }
     }
 
-    /// Resume playback.
+    /// Resume playback for all sounds.
     pub fn resume(&self) {
         for sink in self.sinks.iter() {
             sink.play();

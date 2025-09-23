@@ -1,6 +1,8 @@
 use std::f32::consts::{self};
 use std::ops::{Deref, DerefMut};
+use std::time::Duration;
 
+use devotee::app::sound_system::rodio_sound_system::SoundSystem;
 use devotee::input::winit_input::{KeyCode, Keyboard};
 use devotee::util::vector::Vector;
 
@@ -15,6 +17,9 @@ use devotee_backend_softbuffer::{
     Error, SoftBackend, SoftContext, SoftEvent, SoftEventContext, SoftEventControl, SoftInit,
     SoftSurface,
 };
+use rodio::Source;
+use rodio::source::SineWave;
+use winit::event::WindowEvent;
 
 fn main() -> Result<(), Error> {
     let gears = Gears::new();
@@ -25,6 +30,11 @@ fn main() -> Result<(), Error> {
 
 struct Gears {
     keyboard: Keyboard,
+    paused: bool,
+    flip_flop: bool,
+
+    counter: f32,
+    sound_system: Option<SoundSystem>,
 
     drive_gear: Gear,
     driven_gear: Gear,
@@ -34,15 +44,42 @@ impl Gears {
     fn new() -> Self {
         let keyboard = Keyboard::new();
 
-        let mut drive_gear = Gear::new_gear(128.0, 20);
+        let mut drive_gear = Gear::new(128.0, 20);
         drive_gear.center = Vector::new(0, 32);
-        let mut driven_gear = Gear::new_gear(384.0, 60);
+        let mut driven_gear = Gear::new(384.0, 60);
         driven_gear.center = Vector::new(256, 32);
+
+        let paused = false;
+        let flip_flop = false;
+        let counter = 0.0;
+        let sound_system = SoundSystem::try_new().ok();
 
         Self {
             keyboard,
+            paused,
+            flip_flop,
+            counter,
+            sound_system,
             drive_gear,
             driven_gear,
+        }
+    }
+
+    fn handle_pause(&mut self, event: WindowEvent) -> Option<WindowEvent> {
+        if let WindowEvent::Focused(focus) = event {
+            self.paused = !focus;
+
+            if let Some(sound_system) = &self.sound_system {
+                if self.paused {
+                    sound_system.pause();
+                } else {
+                    sound_system.resume();
+                }
+            }
+
+            None
+        } else {
+            Some(event)
         }
     }
 }
@@ -66,11 +103,33 @@ impl
     }
 
     fn on_update(&mut self, context: &mut SoftContext) {
+        if self.paused {
+            return;
+        };
         let keyboard = &mut self.keyboard;
 
-        if keyboard.is_pressed(KeyCode::Space) {
-            self.drive_gear.angle += consts::PI * context.delta().as_secs_f32() / 4.0;
+        let delta = context.delta().as_secs_f32();
+
+        self.counter += delta;
+        let half_second = 0.5;
+        if self.counter >= half_second {
+            self.counter -= half_second;
+            self.flip_flop = !self.flip_flop;
+
+            if let Some(sound_system) = &mut self.sound_system {
+                let f = if self.flip_flop { 440.0 } else { 523.25 };
+                let duration = Duration::from_millis(50);
+
+                sound_system.play(Box::new(
+                    SineWave::new(f)
+                        .amplify(0.1)
+                        .take_duration(duration)
+                        .fade_out(duration),
+                ));
+            }
         }
+
+        self.drive_gear.angle += consts::PI * delta / 5.0;
         self.driven_gear.angle =
             -self.drive_gear.angle / 3.0 + consts::PI / self.driven_gear.teeth_count as f32;
 
@@ -98,6 +157,7 @@ impl
         if let SoftEvent::Window(event) = event {
             self.keyboard
                 .handle_event(event, event_context)
+                .and_then(|e| self.handle_pause(e))
                 .map(SoftEvent::Window)
         } else {
             Some(event)
@@ -135,7 +195,7 @@ struct Gear {
 }
 
 impl Gear {
-    fn new_gear(separation_diameter: f32, teeth_count: usize) -> Self {
+    fn new(separation_diameter: f32, teeth_count: usize) -> Self {
         let center = Vector::default();
         let angle = 0.0;
         let (internal_radius, tooth) = {
