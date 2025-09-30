@@ -2,39 +2,19 @@ use std::ops::RangeInclusive;
 
 use crate::util::vector::Vector;
 
-use super::FastHorizontalWriter;
-
-/// Type trait that can point on a pixel reference.
-pub trait DesignatorRef<'a, _Bound = &'a Self> {
-    /// Pixel reference.
-    type PixelRef;
-}
-
-/// Type trait that can point on a mutable pixel reference.
-pub trait DesignatorMut<'a, _Bound = &'a mut Self> {
-    /// Mutable pixel reference.
-    type PixelMut;
-}
-
-/// Helper type to represent pixel reference.
-pub type PixelRef<'a, This> = <This as DesignatorRef<'a>>::PixelRef;
-
-/// Helper type to represent mutable pixel reference.
-pub type PixelMut<'a, This> = <This as DesignatorMut<'a>>::PixelMut;
-
 /// General image trait.
-pub trait Image: for<'a> DesignatorRef<'a> {
-    /// Pixel type of this image.
+pub trait Image {
+    /// Internal pixel representation.
     type Pixel;
 
-    /// Get specific pixel reference.
-    fn pixel(&self, position: Vector<i32>) -> Option<PixelRef<'_, Self>>;
+    /// Get specific pixel.
+    fn pixel(&self, position: Vector<i32>) -> Option<Self::Pixel>;
 
-    /// Get specific pixel reference without bounds check.
+    /// Get specific pixel without bounds check.
     ///
     /// # Safety
     /// - position must be in range [(0, 0), (width - 1, height - 1)]
-    unsafe fn unsafe_pixel(&self, position: Vector<i32>) -> PixelRef<'_, Self>;
+    unsafe fn pixel_unchecked(&self, position: Vector<i32>) -> Self::Pixel;
 
     /// Get width of this image.
     fn width(&self) -> i32;
@@ -44,56 +24,42 @@ pub trait Image: for<'a> DesignatorRef<'a> {
 }
 
 /// Mutable part of an Image.
-pub trait ImageMut: Image + for<'a> DesignatorMut<'a> {
-    /// Get specific pixel mutable reference.
-    fn pixel_mut(&mut self, position: Vector<i32>) -> Option<PixelMut<'_, Self>>;
+pub trait ImageMut: Image {
+    /// Set specific pixel as `position`.
+    fn set_pixel(&mut self, position: Vector<i32>, value: &Self::Pixel);
 
-    /// Get specific pixel mutable reference without bounds check.
+    /// Modify specific pixel using provided function.
+    fn modify_pixel(
+        &mut self,
+        position: Vector<i32>,
+        function: &mut dyn FnMut((i32, i32), Self::Pixel) -> Self::Pixel,
+    );
+
+    /// Set horizontal line values.
+    fn set_horizontal_line(&mut self, x_range: RangeInclusive<i32>, y: i32, value: &Self::Pixel) {
+        for x in x_range {
+            self.set_pixel(Vector::new(x, y), value);
+        }
+    }
+
+    /// Modify all pixels in the horizontal line.
+    fn modify_horizontal_line(
+        &mut self,
+        x_range: RangeInclusive<i32>,
+        y: i32,
+        function: &mut dyn FnMut((i32, i32), Self::Pixel) -> Self::Pixel,
+    ) {
+        for x in x_range {
+            self.modify_pixel(Vector::new(x, y), function);
+        }
+    }
+
+    /// Set specific pixel value without bounds check.
     ///
     /// # Safety
     /// - position must be in range [(0, 0), (width - 1, height - 1)]
-    unsafe fn unsafe_pixel_mut(&mut self, position: Vector<i32>) -> PixelMut<'_, Self>;
+    unsafe fn set_pixel_unchecked(&mut self, position: Vector<i32>, value: &Self::Pixel);
 
     /// Clear this image with color provided.
     fn clear(&mut self, color: Self::Pixel);
-
-    /// Get optional `FastHorizontalWriter` for faster horizontal line drawing.
-    fn fast_horizontal_writer(&mut self) -> Option<impl FastHorizontalWriter<Self>> {
-        None::<FastHorizontalWriterPlaceholder>
-    }
-}
-
-/// Some image with dimensions.
-pub trait Dimensions {
-    /// Get dimensions of this image.
-    fn dimensions(&self) -> Vector<i32>;
-}
-
-impl<T> Dimensions for T
-where
-    T: Image + ?Sized,
-{
-    fn dimensions(&self) -> Vector<i32> {
-        Vector::new(self.width(), self.height())
-    }
-}
-
-struct FastHorizontalWriterPlaceholder;
-
-impl<T> FastHorizontalWriter<T> for FastHorizontalWriterPlaceholder
-where
-    T: ImageMut + ?Sized,
-{
-    fn overwrite(&mut self, _: RangeInclusive<i32>, _: i32, _: &T::Pixel) {
-        unreachable!()
-    }
-
-    fn apply_function(
-        &mut self,
-        _: RangeInclusive<i32>,
-        _: i32,
-        _: &mut dyn FnMut((i32, i32), <T>::Pixel) -> <T>::Pixel,
-    ) {
-        unreachable!()
-    }
 }

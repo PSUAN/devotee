@@ -1,12 +1,10 @@
 use std::cmp::Ordering;
-use std::ops::{Deref, DerefMut};
 
 use crate::util::vector::Vector;
 use crate::visual::strategy::PixelStrategy;
 use crate::visual::util::AngleIterator;
 
-use super::image::{DesignatorMut, DesignatorRef, PixelMut, PixelRef};
-use super::{Image, ImageMut, Paint, Painter, Scan};
+use super::{Image, Paint, Painter, Scan};
 
 fn scanline_segment_f32(segment: (Vector<f32>, Vector<f32>), scanline: i32) -> Scan<i32> {
     let (from, to) = if segment.0.y() < segment.1.y() {
@@ -60,11 +58,9 @@ fn round_to_i32(value: f32) -> i32 {
     value.round() as i32
 }
 
-impl<T, P> Painter<'_, T>
+impl<T> Painter<'_, T>
 where
-    T: ImageMut<Pixel = P>,
-    T::Pixel: Clone,
-    for<'a> <T as DesignatorMut<'a>>::PixelMut: DerefMut<Target = T::Pixel>,
+    T: Clone,
 {
     fn subline(
         &mut self,
@@ -117,8 +113,7 @@ where
         if a.y() == c.y() {
             vertex_i32.sort_by(|a, b| a.x().cmp(b.x_ref()));
             self.horizontal_line(
-                vertex_i32[0].x(),
-                vertex_i32[2].x(),
+                vertex_i32[0].x()..=vertex_i32[2].x(),
                 vertex_i32[0].y(),
                 strategy,
                 0,
@@ -139,7 +134,7 @@ where
                 .start_unchecked()
                 .min(right_range.start_unchecked());
             let right = left_range.end_unchecked().max(right_range.end_unchecked());
-            self.horizontal_line(left, right, y, strategy, 0);
+            self.horizontal_line(left..=right, y, strategy, 0);
         }
 
         let middle = middle + 1;
@@ -150,7 +145,7 @@ where
                 .start_unchecked()
                 .min(right_range.start_unchecked());
             let right = left_range.end_unchecked().max(right_range.end_unchecked());
-            self.horizontal_line(left, right, y, strategy, 0);
+            self.horizontal_line(left..=right, y, strategy, 0);
         }
     }
 
@@ -225,8 +220,7 @@ where
             for flip in flips {
                 if counter % 2 == 1 || counter / 2 % 2 == 1 {
                     self.horizontal_line(
-                        current_left + self.offset.x(),
-                        flip.position + self.offset.x(),
+                        current_left + self.offset.x()..=flip.position + self.offset.x(),
                         y + self.offset.y(),
                         strategy,
                         0,
@@ -267,8 +261,7 @@ where
                 (a, b) if a.is_nan() && b.is_nan() => (),
                 (a, b) if a.is_nan() || b > a => {
                     self.horizontal_line(
-                        round_to_i32(center.x() - b),
-                        round_to_i32(center.x() + b),
+                        round_to_i32(center.x() - b)..=round_to_i32(center.x() + b),
                         scanline,
                         strategy,
                         0,
@@ -276,8 +269,7 @@ where
                 }
                 (a, b) if b.is_nan() || a >= b => {
                     self.horizontal_line(
-                        round_to_i32(center.x() - a),
-                        round_to_i32(center.x() + a),
+                        round_to_i32(center.x() - a)..=round_to_i32(center.x() + a),
                         scanline,
                         strategy,
                         0,
@@ -304,8 +296,7 @@ where
                 (a, b) if a.is_nan() && b.is_nan() => (),
                 (a, b) if a.is_nan() => {
                     self.horizontal_line(
-                        round_to_i32(center.x() - b),
-                        round_to_i32(center.x() + b),
+                        round_to_i32(center.x() - b)..=round_to_i32(center.x() + b),
                         scanline,
                         strategy,
                         0,
@@ -313,8 +304,7 @@ where
                 }
                 (a, b) if b.is_nan() => {
                     self.horizontal_line(
-                        round_to_i32(center.x() - a),
-                        round_to_i32(center.x() + a),
+                        round_to_i32(center.x() - a)..=round_to_i32(center.x() + a),
                         scanline,
                         strategy,
                         0,
@@ -322,15 +312,13 @@ where
                 }
                 (a, b) if a > b => {
                     self.horizontal_line(
-                        round_to_i32(center.x() - a),
-                        round_to_i32(center.x() - b),
+                        round_to_i32(center.x() - a)..=round_to_i32(center.x() - b),
                         scanline,
                         strategy,
                         0,
                     );
                     self.horizontal_line(
-                        round_to_i32(center.x() + b),
-                        round_to_i32(center.x() + a),
+                        round_to_i32(center.x() + b)..=round_to_i32(center.x() + a),
                         scanline,
                         strategy,
                         0,
@@ -338,15 +326,13 @@ where
                 }
                 (a, b) => {
                     self.horizontal_line(
-                        round_to_i32(center.x() - b),
-                        round_to_i32(center.x() - a),
+                        round_to_i32(center.x() - b)..=round_to_i32(center.x() - a),
                         scanline,
                         strategy,
                         0,
                     );
                     self.horizontal_line(
-                        round_to_i32(center.x() + a),
-                        round_to_i32(center.x() + b),
+                        round_to_i32(center.x() + a)..=round_to_i32(center.x() + b),
                         scanline,
                         strategy,
                         0,
@@ -358,21 +344,13 @@ where
     }
 }
 
-impl<T, P> Paint<T, f32> for Painter<'_, T>
+impl<T> Paint<T, f32> for Painter<'_, T>
 where
-    T: ImageMut<Pixel = P>,
-    T::Pixel: Clone,
-    for<'a> <T as DesignatorRef<'a>>::PixelRef: Deref<Target = T::Pixel>,
-    for<'a> <T as DesignatorMut<'a>>::PixelMut: DerefMut<Target = T::Pixel>,
+    T: Clone,
 {
-    fn pixel(&self, position: Vector<f32>) -> Option<PixelRef<'_, T>> {
+    fn pixel(&self, position: Vector<f32>) -> Option<T> {
         let position = self.position_f32(position).map(round_to_i32);
         Image::pixel(self.target, position)
-    }
-
-    fn pixel_mut(&mut self, position: Vector<f32>) -> Option<PixelMut<'_, T>> {
-        let position = self.position_f32(position).map(round_to_i32);
-        ImageMut::pixel_mut(self.target, position)
     }
 
     fn mod_pixel<S>(&mut self, position: Vector<f32>, strategy: S)
@@ -386,7 +364,7 @@ where
 
     fn line<'a, S>(&mut self, from: Vector<f32>, to: Vector<f32>, strategy: S)
     where
-        T::Pixel: 'a,
+        T: 'a,
         S: 'a + Into<PixelStrategy<'a, T>>,
     {
         let mut strategy = strategy.into();
@@ -397,7 +375,7 @@ where
 
     fn rect_f<'a, S>(&mut self, from: Vector<f32>, dimensions: Vector<f32>, strategy: S)
     where
-        T::Pixel: 'a,
+        T: 'a,
         S: 'a + Into<PixelStrategy<'a, T>>,
     {
         let mut strategy = strategy.into();
@@ -409,22 +387,22 @@ where
 
     fn rect_b<'a, S>(&mut self, from: Vector<f32>, dimensions: Vector<f32>, strategy: S)
     where
-        T::Pixel: 'a,
+        T: 'a,
         S: 'a + Into<PixelStrategy<'a, T>>,
     {
         let mut strategy = strategy.into();
         let from = self.position_f32(from);
         let (from, to) = (from, from + dimensions - (1.0, 1.0));
         let (from, to) = (from.map(round_to_i32), to.map(round_to_i32));
-        self.horizontal_line(from.x(), to.x(), from.y(), &mut strategy, 1);
-        self.horizontal_line(to.x(), from.x(), to.y(), &mut strategy, 1);
+        self.horizontal_line(from.x()..=to.x(), from.y(), &mut strategy, 1);
+        self.horizontal_line(to.x()..=from.x(), to.y(), &mut strategy, 1);
         self.vertical_line(from.x(), to.y(), from.y(), &mut strategy, 1);
         self.vertical_line(to.x(), from.y(), to.y(), &mut strategy, 1);
     }
 
     fn triangle_f<'a, S>(&mut self, vertices: [Vector<f32>; 3], strategy: S)
     where
-        T::Pixel: 'a,
+        T: 'a,
         S: 'a + Into<PixelStrategy<'a, T>>,
     {
         let mut strategy = strategy.into();
@@ -434,7 +412,7 @@ where
 
     fn triangle_b<'a, S>(&mut self, vertices: [Vector<f32>; 3], strategy: S)
     where
-        T::Pixel: 'a,
+        T: 'a,
         S: 'a + Into<PixelStrategy<'a, T>>,
     {
         let mut strategy = strategy.into();
@@ -446,7 +424,7 @@ where
 
     fn polygon_f<'a, S>(&mut self, vertices: &[Vector<f32>], strategy: S)
     where
-        T::Pixel: 'a,
+        T: 'a,
         S: 'a + Into<PixelStrategy<'a, T>>,
     {
         let mut strategy = strategy.into();
@@ -460,7 +438,7 @@ where
 
     fn polygon_b<'a, S>(&mut self, vertices: &[Vector<f32>], strategy: S)
     where
-        T::Pixel: 'a,
+        T: 'a,
         S: 'a + Into<PixelStrategy<'a, T>>,
     {
         let mut strategy = strategy.into();
@@ -489,7 +467,7 @@ where
 
     fn circle_f<'a, S>(&mut self, center: Vector<f32>, radius: f32, strategy: S)
     where
-        T::Pixel: 'a,
+        T: 'a,
         S: 'a + Into<PixelStrategy<'a, T>>,
     {
         let mut strategy = strategy.into();
@@ -499,7 +477,7 @@ where
 
     fn circle_b<'a, S>(&mut self, center: Vector<f32>, radius: f32, strategy: S)
     where
-        T::Pixel: 'a,
+        T: 'a,
         S: 'a + Into<PixelStrategy<'a, T>>,
     {
         let mut strategy = strategy.into();

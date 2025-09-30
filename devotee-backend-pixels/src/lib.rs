@@ -6,9 +6,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use devotee_backend::Middleware;
-use devotee_backend::middling::{
-    EventContext, Fill, Surface, TexelDesignatorMut, TexelDesignatorRef, TexelMut, TexelRef,
-};
+use devotee_backend::middling::{EventContext, Fill, Surface};
 use winit::application::ApplicationHandler;
 use winit::dpi::{PhysicalPosition, PhysicalSize};
 use winit::error::{EventLoopError, OsError};
@@ -361,18 +359,10 @@ pub struct PixelsSurface<'s, 'w> {
     dimensions: PhysicalSize<u32>,
 }
 
-impl<'a> TexelDesignatorRef<'a> for PixelsSurface<'_, '_> {
-    type TexelRef = &'a [u8; 4];
-}
-
-impl<'a> TexelDesignatorMut<'a> for PixelsSurface<'_, '_> {
-    type TexelMut = &'a mut [u8; 4];
-}
-
 impl Surface for PixelsSurface<'_, '_> {
     type Texel = [u8; 4];
 
-    fn texel(&self, x: u32, y: u32) -> Option<TexelRef<'_, Self>> {
+    fn texel(&self, x: u32, y: u32) -> Option<[u8; 4]> {
         if x >= self.dimensions.width || y >= self.dimensions.height {
             None
         } else {
@@ -383,29 +373,27 @@ impl Surface for PixelsSurface<'_, '_> {
         }
     }
 
-    fn texel_mut(&mut self, x: u32, y: u32) -> Option<TexelMut<'_, Self>> {
-        if x >= self.dimensions.width || y >= self.dimensions.height {
-            None
-        } else {
+    fn set_texel(&mut self, x: u32, y: u32, value: [u8; 4]) {
+        if x < self.dimensions.width && y < self.dimensions.height {
             let buffer = self.pixels.frame_mut();
             let offset = (4 * (x + y * self.dimensions.width)) as usize;
             let slice = &mut buffer[offset..(offset + 4)];
-            slice.try_into().ok()
+            slice.copy_from_slice(&value);
         }
     }
 
-    unsafe fn unsafe_texel(&self, x: u32, y: u32) -> TexelRef<'_, Self> {
+    unsafe fn texel_unchecked(&self, x: u32, y: u32) -> [u8; 4] {
         let buffer = self.pixels.frame();
         let offset = (4 * (x + y * self.dimensions.width)) as usize;
         let slice = &buffer[offset..(offset + 4)];
         slice.try_into().unwrap()
     }
 
-    unsafe fn unsafe_texel_mut(&mut self, x: u32, y: u32) -> TexelMut<'_, Self> {
+    unsafe fn set_texel_unchecked(&mut self, x: u32, y: u32, value: [u8; 4]) {
         let buffer = self.pixels.frame_mut();
         let offset = (4 * (x + y * self.dimensions.width)) as usize;
         let slice = &mut buffer[offset..(offset + 4)];
-        slice.try_into().unwrap()
+        slice.copy_from_slice(&value);
     }
 
     fn clear(&mut self, value: Self::Texel) {

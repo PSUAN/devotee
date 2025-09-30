@@ -1,5 +1,4 @@
 use std::f32::consts::{self};
-use std::ops::{Deref, DerefMut};
 use std::time::Duration;
 
 use devotee::app::sound_system::rodio_sound_system::SoundSystem;
@@ -8,8 +7,7 @@ use devotee::util::vector::Vector;
 
 use devotee::visual::adapter::Converter;
 use devotee::visual::adapter::generic::Adapter;
-use devotee::visual::image::{DesignatorMut, DesignatorRef, Dimensions, ImageMut};
-use devotee::visual::view::View;
+use devotee::visual::image::ImageMut;
 use devotee::visual::{Paint, Painter};
 use devotee_backend::Middleware;
 use devotee_backend::middling::InputHandler;
@@ -95,7 +93,7 @@ impl
     > for Gears
 {
     fn on_init(&mut self, init: &mut SoftInit) {
-        init.set_render_window_size(320, 240);
+        init.set_render_window_size(480, 270);
         init.window().set_title("Gears demo: press ESC to exit.");
 
         self.driven_gear.angle =
@@ -241,14 +239,8 @@ impl Gear {
         }
     }
 
-    fn render<I>(&self, image: &mut I)
-    where
-        I: ImageMut<Pixel = bool>,
-        for<'a> <I as DesignatorRef<'a>>::PixelRef: Deref<Target = bool>,
-        for<'a> <I as DesignatorMut<'a>>::PixelMut: DerefMut<Target = bool>,
-    {
-        let mut view = View::new_mut(image, (0, 0).into(), image.dimensions());
-        let mut painter = Painter::new(&mut view).with_offset(self.center);
+    fn render(&self, image: &mut dyn ImageMut<Pixel = bool>) {
+        let mut painter = Painter::new(image).with_offset(self.center);
         for i in 0..=self.teeth_count {
             let angle = i as f32 * 2.0 * consts::PI / self.teeth_count as f32 + self.angle;
             let tooth = self

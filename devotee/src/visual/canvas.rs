@@ -1,7 +1,4 @@
-use std::ops::RangeInclusive;
-
-use super::image::{DesignatorMut, DesignatorRef};
-use super::{FastHorizontalWriter, Image, ImageMut};
+use super::{Image, ImageMut};
 use crate::util::vector::Vector;
 
 /// Canvas based on box slice of pixel data.
@@ -33,17 +30,13 @@ where
     }
 }
 
-impl<'a, P> DesignatorRef<'a> for Canvas<P> {
-    type PixelRef = &'a P;
-}
-
 impl<P> Image for Canvas<P>
 where
     P: Clone,
 {
     type Pixel = P;
 
-    fn pixel(&self, position: Vector<i32>) -> Option<&P> {
+    fn pixel(&self, position: Vector<i32>) -> Option<Self::Pixel> {
         if position.x() < 0 || position.y() < 0 {
             return None;
         }
@@ -51,16 +44,16 @@ where
         if x >= self.width || y >= self.height {
             None
         } else {
-            self.data.get(x + self.width * y)
+            self.data.get(x + self.width * y).cloned()
         }
     }
 
     /// Get reference to pixel.
     /// # Safety
     /// - `position` must be in range `[0, width-1]` by `x` and `[0, height-1]` by `y`.
-    unsafe fn unsafe_pixel(&self, position: Vector<i32>) -> &P {
+    unsafe fn pixel_unchecked(&self, position: Vector<i32>) -> P {
         let (x, y) = (position.x() as usize, position.y() as usize);
-        &self.data[x + self.width * y]
+        self.data[x + self.width * y].clone()
     }
 
     fn width(&self) -> i32 {
@@ -72,91 +65,41 @@ where
     }
 }
 
-impl<'a, P> DesignatorMut<'a> for Canvas<P> {
-    type PixelMut = &'a mut P;
-}
-
 impl<P> ImageMut for Canvas<P>
 where
     P: Clone,
 {
-    fn pixel_mut(&mut self, position: Vector<i32>) -> Option<&mut P> {
+    fn set_pixel(&mut self, position: Vector<i32>, value: &P) {
         if position.x() < 0 || position.y() < 0 {
-            return None;
+            return;
         }
         let (x, y) = (position.x() as usize, position.y() as usize);
-        if x >= self.width || y >= self.height {
-            None
-        } else {
-            self.data.get_mut(x + self.width * y)
+        if x < self.width && y < self.height {
+            self.data[x + self.width * y] = value.clone();
         }
     }
 
-    /// Get mutable reference to pixel.
-    /// # Safety
-    /// - `position` must be in range `[0, width-1]` by `x` and `[0, height-1]` by `y`.
-    unsafe fn unsafe_pixel_mut(&mut self, position: Vector<i32>) -> &mut P {
+    fn modify_pixel(
+        &mut self,
+        position: Vector<i32>,
+        function: &mut dyn FnMut((i32, i32), Self::Pixel) -> Self::Pixel,
+    ) {
+        if position.x() < 0 || position.y() < 0 {
+            return;
+        }
         let (x, y) = (position.x() as usize, position.y() as usize);
-        &mut self.data[x + self.width * y]
+        if x < self.width && y < self.height {
+            self.data[x + self.width * y] =
+                function(position.split(), self.data[x + self.width * y].clone());
+        }
+    }
+
+    unsafe fn set_pixel_unchecked(&mut self, position: Vector<i32>, value: &Self::Pixel) {
+        let (x, y) = (position.x() as usize, position.y() as usize);
+        self.data[x + self.width * y] = value.clone();
     }
 
     fn clear(&mut self, color: P) {
-        self.data = vec![color; self.width * self.height].into_boxed_slice();
-    }
-
-    fn fast_horizontal_writer(&mut self) -> Option<impl FastHorizontalWriter<Self>> {
-        Some(CanvasFastHorizontalWriter { canvas: self })
-    }
-}
-
-struct CanvasFastHorizontalWriter<'a, P> {
-    canvas: &'a mut Canvas<P>,
-}
-
-impl<P> FastHorizontalWriter<Canvas<P>> for CanvasFastHorizontalWriter<'_, P>
-where
-    P: Clone,
-{
-    fn overwrite(&mut self, x: RangeInclusive<i32>, y: i32, value: &P) {
-        if y < 0 || y >= Image::height(self.canvas) {
-            return;
-        }
-        let width = Image::width(self.canvas);
-        let start_x = (*x.start()).clamp(0, width);
-        let end_x = (*x.end() + 1).clamp(0, width);
-        let start = start_x + width * y;
-        let end = end_x + width * y;
-
-        let s = start.min(end) as usize;
-        let e = start.max(end) as usize;
-
-        self.canvas.data[s..e].fill(value.clone());
-    }
-
-    fn apply_function(
-        &mut self,
-        x: RangeInclusive<i32>,
-        y: i32,
-        function: &mut dyn FnMut((i32, i32), P) -> P,
-    ) {
-        if y < 0 || y >= Image::height(self.canvas) {
-            return;
-        }
-        let width = Image::width(self.canvas);
-        let start_x = (*x.start()).clamp(0, width);
-        let end_x = (*x.end() + 1).clamp(0, width);
-        let start = start_x + width * y;
-        let end = end_x + width * y;
-
-        let s = start.min(end) as usize;
-        let e = start.max(end) as usize;
-
-        self.canvas.data[s..e]
-            .iter_mut()
-            .enumerate()
-            .for_each(|(x, pixel)| {
-                let x = start_x + x as i32;
-                *pixel = function((x, y), pixel.clone());
-            });
+        self.data.fill(color);
     }
 }

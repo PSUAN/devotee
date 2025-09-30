@@ -1,7 +1,4 @@
-use std::ops::RangeInclusive;
-
-use super::image::{DesignatorMut, DesignatorRef};
-use super::{FastHorizontalWriter, Image, ImageMut};
+use super::{Image, ImageMut};
 use crate::util::vector::Vector;
 
 /// Sprite of fixed dimensions.
@@ -10,12 +7,12 @@ pub struct Sprite<P, const W: usize, const H: usize> {
     data: [[P; W]; H],
 }
 
-impl<P, const W: usize, const H: usize> Sprite<P, W, H>
-where
-    P: Copy,
-{
+impl<P, const W: usize, const H: usize> Sprite<P, W, H> {
     /// Create new Sprite with given color for each pixel.
-    pub const fn with_color(color: P) -> Self {
+    pub const fn with_color(color: P) -> Self
+    where
+        P: Copy,
+    {
         let data = [[color; W]; H];
         Self { data }
     }
@@ -26,14 +23,13 @@ where
     }
 }
 
-impl<'a, P, const W: usize, const H: usize> DesignatorRef<'a> for Sprite<P, W, H> {
-    type PixelRef = &'a P;
-}
-
-impl<P, const W: usize, const H: usize> Image for Sprite<P, W, H> {
+impl<P, const W: usize, const H: usize> Image for Sprite<P, W, H>
+where
+    P: Clone,
+{
     type Pixel = P;
 
-    fn pixel(&self, position: Vector<i32>) -> Option<&P> {
+    fn pixel(&self, position: Vector<i32>) -> Option<P> {
         if position.x() < 0 || position.y() < 0 {
             return None;
         }
@@ -41,13 +37,13 @@ impl<P, const W: usize, const H: usize> Image for Sprite<P, W, H> {
         if x >= W || y >= H {
             None
         } else {
-            Some(&self.data[y][x])
+            Some(self.data[y][x].clone())
         }
     }
 
-    unsafe fn unsafe_pixel(&self, position: Vector<i32>) -> &P {
+    unsafe fn pixel_unchecked(&self, position: Vector<i32>) -> P {
         let (x, y) = (position.x() as usize, position.y() as usize);
-        &self.data[y][x]
+        self.data[y][x].clone()
     }
 
     fn width(&self) -> i32 {
@@ -59,37 +55,41 @@ impl<P, const W: usize, const H: usize> Image for Sprite<P, W, H> {
     }
 }
 
-impl<'a, P, const W: usize, const H: usize> DesignatorMut<'a> for Sprite<P, W, H> {
-    type PixelMut = &'a mut P;
-}
-
 impl<P, const W: usize, const H: usize> ImageMut for Sprite<P, W, H>
 where
     P: Copy,
 {
-    fn pixel_mut(&mut self, position: Vector<i32>) -> Option<&mut P> {
+    fn set_pixel(&mut self, position: Vector<i32>, value: &P) {
         if position.x() < 0 || position.y() < 0 {
-            return None;
+            return;
         }
         let (x, y) = (position.x() as usize, position.y() as usize);
-        if x >= W || y >= H {
-            None
-        } else {
-            Some(&mut self.data[y][x])
+        if x < W && y < H {
+            self.data[y][x] = *value;
         }
     }
 
-    unsafe fn unsafe_pixel_mut(&mut self, position: Vector<i32>) -> &mut P {
+    fn modify_pixel(
+        &mut self,
+        position: Vector<i32>,
+        function: &mut dyn FnMut((i32, i32), Self::Pixel) -> Self::Pixel,
+    ) {
+        if position.x() < 0 || position.y() < 0 {
+            return;
+        }
         let (x, y) = (position.x() as usize, position.y() as usize);
-        &mut self.data[y][x]
+        if x < W && y < H {
+            self.data[y][x] = function(position.split(), self.data[y][x]);
+        }
+    }
+
+    unsafe fn set_pixel_unchecked(&mut self, position: Vector<i32>, value: &P) {
+        let (x, y) = (position.x() as usize, position.y() as usize);
+        self.data[y][x] = *value;
     }
 
     fn clear(&mut self, color: P) {
         self.data = [[color; W]; H];
-    }
-
-    fn fast_horizontal_writer(&mut self) -> Option<impl FastHorizontalWriter<Self>> {
-        Some(SpriteFastHorizontalWriter { sprite: self })
     }
 }
 
@@ -99,54 +99,5 @@ where
 {
     fn default() -> Self {
         Self::with_color(Default::default())
-    }
-}
-
-struct SpriteFastHorizontalWriter<'a, P, const W: usize, const H: usize> {
-    sprite: &'a mut Sprite<P, W, H>,
-}
-
-impl<P, const W: usize, const H: usize> FastHorizontalWriter<Sprite<P, W, H>>
-    for SpriteFastHorizontalWriter<'_, P, W, H>
-where
-    P: Copy,
-{
-    fn overwrite(&mut self, x: RangeInclusive<i32>, y: i32, value: &P) {
-        if y < 0 || y >= Image::height(self.sprite) {
-            return;
-        }
-        let width = Image::width(self.sprite);
-        let start = (*x.start()).clamp(0, width);
-        let end = (*x.end() + 1).clamp(0, width);
-
-        let s = start.min(end) as usize;
-        let e = start.max(end) as usize;
-
-        self.sprite.data[y as usize][s..e].fill(*value);
-    }
-
-    fn apply_function(
-        &mut self,
-        x: RangeInclusive<i32>,
-        y: i32,
-        function: &mut dyn FnMut((i32, i32), P) -> P,
-    ) {
-        if y < 0 || y >= Image::height(self.sprite) {
-            return;
-        }
-        let width = Image::width(self.sprite);
-        let start = (*x.start()).clamp(0, width);
-        let end = (*x.end() + 1).clamp(0, width);
-
-        let s = start.min(end) as usize;
-        let e = start.max(end) as usize;
-
-        self.sprite.data[y as usize][s..e]
-            .iter_mut()
-            .enumerate()
-            .for_each(|(x, pixel)| {
-                let x = start + x as i32;
-                *pixel = function((x, y), *pixel);
-            });
     }
 }

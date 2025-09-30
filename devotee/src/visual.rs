@@ -1,10 +1,9 @@
-use std::ops::{DerefMut, RangeInclusive};
+use std::ops::RangeInclusive;
 
-use image::{DesignatorMut, Image, ImageMut};
+use image::{Image, ImageMut};
 use strategy::PixelStrategy;
 
 use crate::util::vector::Vector;
-use crate::visual::image::{PixelMut, PixelRef};
 
 /// General image-related traits.
 pub mod image;
@@ -160,14 +159,14 @@ impl Iterator for ScanIterator<i32> {
 }
 
 /// Painter to draw on encapsulated target.
-pub struct Painter<'image, I> {
-    target: &'image mut I,
+pub struct Painter<'image, T> {
+    target: &'image mut dyn ImageMut<Pixel = T>,
     offset: Vector<i32>,
 }
 
-impl<'image, I> Painter<'image, I> {
+impl<'image, T> Painter<'image, T> {
     /// Create new painter instance.
-    pub fn new(target: &'image mut I) -> Self {
+    pub fn new(target: &'image mut dyn ImageMut<Pixel = T>) -> Self {
         let offset = Vector::<i32>::zero();
         Self { target, offset }
     }
@@ -190,7 +189,7 @@ impl<'image, I> Painter<'image, I> {
 
 impl<T> Painter<'_, T>
 where
-    T: Image,
+    T: Clone,
 {
     fn position_i32(&self, original: Vector<i32>) -> Vector<i32> {
         original + self.offset
@@ -213,18 +212,14 @@ where
 
 impl<T> Painter<'_, T>
 where
-    T: ImageMut,
-    T::Pixel: Clone,
-    for<'a> <T as DesignatorMut<'a>>::PixelMut: DerefMut<Target = T::Pixel>,
+    T: Clone,
 {
     fn apply_strategy(&mut self, position: Vector<i32>, strategy: &mut PixelStrategy<T>) {
-        if let Some(mut pixel) = ImageMut::pixel_mut(self.target, position) {
-            strategy.apply(position.split(), pixel.deref_mut());
-        }
+        strategy.apply(position, self.target);
     }
 
     /// Clear the target with provided color.
-    pub fn clear(&mut self, clear_color: T::Pixel) {
+    pub fn clear(&mut self, clear_color: T) {
         ImageMut::clear(self.target, clear_color)
     }
 
@@ -234,7 +229,7 @@ where
         from_y: i32,
         to_y: i32,
         strategy: &mut PixelStrategy<T>,
-        skip: usize,
+        skip: i32,
     ) {
         let mut iter = from_y..=to_y;
         let mut iter_rev = (to_y..=from_y).rev();
@@ -245,7 +240,7 @@ where
             &mut iter_rev
         };
 
-        for y in iter_ref.skip(skip) {
+        for y in iter_ref.skip(skip.try_into().unwrap_or(0)) {
             let pose = (x, y);
             self.apply_strategy(pose.into(), strategy);
         }
@@ -253,70 +248,25 @@ where
 
     fn horizontal_line(
         &mut self,
-        from_x: i32,
-        to_x: i32,
+        x: RangeInclusive<i32>,
         y: i32,
         strategy: &mut PixelStrategy<T>,
-        skip: usize,
+        skip: i32,
     ) {
-        if let Some(mut writer) = self.target.fast_horizontal_writer() {
-            let skip = skip as i32;
-            let range = if from_x < to_x {
-                (from_x + skip).min(to_x)..=to_x
-            } else {
-                to_x..=(from_x - skip).max(to_x)
-            };
-            match strategy {
-                PixelStrategy::Overwrite(value) => writer.overwrite(range, y, value),
-                PixelStrategy::Modify(modifier) => writer.apply_function(range, y, modifier),
-            }
-        } else {
-            self.slow_horizontal_line(from_x, to_x, y, strategy, skip);
-        }
-    }
-
-    fn slow_horizontal_line(
-        &mut self,
-        from_x: i32,
-        to_x: i32,
-        y: i32,
-        strategy: &mut PixelStrategy<T>,
-        skip: usize,
-    ) {
-        let mut iter = from_x..=to_x;
-        let mut iter_rev = (to_x..=from_x).rev();
-
-        let iter_ref: &mut dyn Iterator<Item = i32> = if from_x < to_x {
-            &mut iter
-        } else {
-            &mut iter_rev
-        };
-
-        for x in iter_ref.skip(skip) {
-            let position = (x, y);
-            if let Some(mut pixel) = ImageMut::pixel_mut(self.target, position.into()) {
-                strategy.apply(position, pixel.deref_mut());
-            }
-        }
+        strategy.apply_to_line(x, y, skip, self.target);
     }
 
     fn filled_rect(&mut self, from: Vector<i32>, to: Vector<i32>, strategy: &mut PixelStrategy<T>) {
         for y in from.y()..=to.y() {
-            self.horizontal_line(from.x(), to.x(), y, strategy, 0);
+            self.horizontal_line(from.x()..=to.x(), y, strategy, 0);
         }
     }
 }
 
 /// Painter trait to generalize pixel-perfect and subpixel paint routines.
-pub trait Paint<T, C>
-where
-    T: ImageMut,
-{
-    /// Get reference to pixel.
-    fn pixel(&self, position: Vector<C>) -> Option<PixelRef<'_, T>>;
-
-    /// Get mutable reference to pixel.
-    fn pixel_mut(&mut self, position: Vector<C>) -> Option<PixelMut<'_, T>>;
+pub trait Paint<T, C> {
+    /// Get pixel.
+    fn pixel(&self, position: Vector<C>) -> Option<T>;
 
     /// Use passed strategy on a pixel at the given position.
     fn mod_pixel<S>(&mut self, position: Vector<C>, strategy: S)
@@ -326,73 +276,56 @@ where
     /// Use passed strategy on each pixel in the line.
     fn line<'a, S>(&mut self, from: Vector<C>, to: Vector<C>, strategy: S)
     where
-        T::Pixel: 'a,
+        T: 'a,
         S: 'a + Into<PixelStrategy<'a, T>>;
 
     /// Use passed strategy on each pixel in the rectangle.
     /// The `dimensions` determine size of the rectangle, zero or negative value produces no rectangle.
     fn rect_f<'a, S>(&mut self, from: Vector<C>, dimensions: Vector<C>, strategy: S)
     where
-        T::Pixel: 'a,
+        T: 'a,
         S: 'a + Into<PixelStrategy<'a, T>>;
 
     /// Use passed strategy on each pixel of rectangle bounds.
     /// The `dimensions` determine size of the rectangle, zero or negative value produces no rectangle.
     fn rect_b<'a, S>(&mut self, from: Vector<C>, dimensions: Vector<C>, strategy: S)
     where
-        T::Pixel: 'a,
+        T: 'a,
         S: 'a + Into<PixelStrategy<'a, T>>;
 
     /// Use passed strategy on each pixel in the triangle.
     fn triangle_f<'a, S>(&mut self, vertices: [Vector<C>; 3], strategy: S)
     where
-        T::Pixel: 'a,
+        T: 'a,
         S: 'a + Into<PixelStrategy<'a, T>>;
 
     /// Use passed function on each pixel of the triangle bounds.
     fn triangle_b<'a, S>(&mut self, vertices: [Vector<C>; 3], strategy: S)
     where
-        T::Pixel: 'a,
+        T: 'a,
         S: 'a + Into<PixelStrategy<'a, T>>;
 
     /// Use passed strategy on each pixel of polygon.
     fn polygon_f<'a, S>(&mut self, vertices: &[Vector<C>], strategy: S)
     where
-        T::Pixel: 'a,
+        T: 'a,
         S: 'a + Into<PixelStrategy<'a, T>>;
 
     /// Use passed strategy on each pixel of polygon bounds.
     fn polygon_b<'a, S>(&mut self, vertices: &[Vector<C>], strategy: S)
     where
-        T::Pixel: 'a,
+        T: 'a,
         S: 'a + Into<PixelStrategy<'a, T>>;
 
     /// Use passed strategy on each pixel in the circle.
     fn circle_f<'a, S>(&mut self, center: Vector<C>, radius: C, strategy: S)
     where
-        T::Pixel: 'a,
+        T: 'a,
         S: 'a + Into<PixelStrategy<'a, T>>;
 
     /// Use passed strategy on each pixel of the circle bounds.
     fn circle_b<'a, S>(&mut self, center: Vector<C>, radius: C, strategy: S)
     where
-        T::Pixel: 'a,
+        T: 'a,
         S: 'a + Into<PixelStrategy<'a, T>>;
-}
-
-/// A helper utility for writing horizontal lines faster.
-pub trait FastHorizontalWriter<T>
-where
-    T: ImageMut + ?Sized,
-{
-    /// Use provided `value` to overwrite every pixel in the given `x` range.
-    fn overwrite(&mut self, x: RangeInclusive<i32>, y: i32, value: &T::Pixel);
-
-    /// Apply provided `function` to overwrite every pixel in the given `x` range.
-    fn apply_function(
-        &mut self,
-        x: RangeInclusive<i32>,
-        y: i32,
-        function: &mut dyn FnMut((i32, i32), T::Pixel) -> T::Pixel,
-    );
 }

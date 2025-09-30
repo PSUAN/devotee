@@ -1,9 +1,9 @@
 use std::ops::{Deref, DerefMut};
 
-use backend::middling::{Surface, TexelDesignatorMut, TexelDesignatorRef};
+use backend::middling::Surface;
 
 use crate::util::vector::Vector;
-use crate::visual::image::{DesignatorMut, DesignatorRef, Image, ImageMut};
+use crate::visual::image::{Image, ImageMut};
 
 use super::Converter;
 
@@ -89,34 +89,15 @@ where
     }
 }
 
-impl<Surf, Convert> DesignatorRef<'_> for Adapter<'_, '_, Surf, Convert>
-where
-    Surf: Surface + ?Sized,
-    Convert: Converter<Texel = Surf::Texel>,
-{
-    type PixelRef = AdapterRef<Convert>;
-}
-
-impl<'t, Surf, Convert> DesignatorMut<'t> for Adapter<'_, '_, Surf, Convert>
-where
-    Surf: Surface + for<'a> TexelDesignatorRef<'a> + ?Sized,
-    Convert: Converter<Texel = Surf::Texel>,
-    for<'a> <Surf as TexelDesignatorMut<'a>>::TexelMut: DerefMut<Target = Surf::Texel>,
-{
-    type PixelMut =
-        AdapterMut<'t, Surf::Texel, <Surf as TexelDesignatorMut<'t>>::TexelMut, Convert>;
-}
-
 impl<Surf, Convert> Image for Adapter<'_, '_, Surf, Convert>
 where
     Surf: Surface + ?Sized,
     Surf::Texel: Clone,
-    for<'a> <Surf as TexelDesignatorRef<'a>>::TexelRef: Deref<Target = Surf::Texel>,
     Convert: Converter<Texel = Surf::Texel>,
 {
     type Pixel = Convert::Pixel;
 
-    fn pixel(&self, position: Vector<i32>) -> Option<AdapterRef<Convert>> {
+    fn pixel(&self, position: Vector<i32>) -> Option<Self::Pixel> {
         let (x, y) = position.split();
         if x < 0 || y < 0 {
             return None;
@@ -124,17 +105,13 @@ where
         let (x, y) = (x as u32, y as u32);
         let texel = self.surface.texel(x, y)?;
 
-        let cache = self.converter.inverse(&texel);
-
-        Some(AdapterRef { cache })
+        Some(self.converter.inverse(&texel))
     }
 
-    unsafe fn unsafe_pixel(&self, position: Vector<i32>) -> AdapterRef<Convert> {
+    unsafe fn pixel_unchecked(&self, position: Vector<i32>) -> Self::Pixel {
         let (x, y) = position.split();
-        let texel = unsafe { self.surface.unsafe_texel(x as u32, y as u32) };
-        let cache = self.converter.inverse(&texel);
-
-        AdapterRef { cache }
+        let texel = unsafe { self.surface.texel_unchecked(x as u32, y as u32) };
+        self.converter.inverse(&texel)
     }
 
     fn width(&self) -> i32 {
@@ -150,44 +127,37 @@ impl<Surf, Convert> ImageMut for Adapter<'_, '_, Surf, Convert>
 where
     Surf: Surface + ?Sized,
     Surf::Texel: Clone,
-    for<'a> <Surf as TexelDesignatorRef<'a>>::TexelRef: Deref<Target = Surf::Texel>,
-    for<'a> <Surf as TexelDesignatorMut<'a>>::TexelMut: DerefMut<Target = Surf::Texel>,
     Convert: Converter<Texel = Surf::Texel>,
 {
-    fn pixel_mut(
-        &mut self,
-        position: Vector<i32>,
-    ) -> Option<AdapterMut<'_, Surf::Texel, <Surf as TexelDesignatorMut<'_>>::TexelMut, Convert>>
-    {
+    fn set_pixel(&mut self, position: Vector<i32>, value: &Self::Pixel) {
+        let color = self.converter.forward(value);
         let (x, y) = position.split();
-        if x < 0 || y < 0 {
-            return None;
+        if let (Some(x), Some(y)) = (x.try_into().ok(), y.try_into().ok()) {
+            self.surface.set_texel(x, y, color);
         }
-        let (x, y) = (x as u32, y as u32);
-        let texel = self.surface.texel_mut(x, y)?;
-        let cache = self.converter.inverse(&texel);
-        let converter = &self.converter;
-
-        Some(AdapterMut {
-            texel,
-            converter,
-            pixel: cache,
-        })
     }
 
-    unsafe fn unsafe_pixel_mut(
+    fn modify_pixel(
         &mut self,
         position: Vector<i32>,
-    ) -> AdapterMut<'_, Surf::Texel, <Surf as TexelDesignatorMut<'_>>::TexelMut, Convert> {
+        function: &mut dyn FnMut((i32, i32), Self::Pixel) -> Self::Pixel,
+    ) {
         let (x, y) = position.split();
-        let texel = unsafe { self.surface.unsafe_texel_mut(x as u32, y as u32) };
-        let cache = self.converter.inverse(&texel);
-        let converter = &self.converter;
+        if let (Some(x), Some(y)) = (x.try_into().ok(), y.try_into().ok())
+            && let Some(value) = self.surface.texel(x, y)
+        {
+            let value = self.converter.inverse(&value);
+            let value = function(position.split(), value);
+            let color = self.converter.forward(&value);
+            self.surface.set_texel(x, y, color);
+        }
+    }
 
-        AdapterMut {
-            texel,
-            converter,
-            pixel: cache,
+    unsafe fn set_pixel_unchecked(&mut self, position: Vector<i32>, value: &Self::Pixel) {
+        let (x, y) = position.map(|v| v as _).split();
+        let value = self.converter.forward(value);
+        unsafe {
+            self.surface.set_texel_unchecked(x, y, value);
         }
     }
 

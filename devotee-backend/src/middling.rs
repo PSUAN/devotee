@@ -1,50 +1,32 @@
-/// Type trait that can point on a texel reference.
-pub trait TexelDesignatorRef<'a> {
-    /// Texel reference.
-    type TexelRef;
-}
-
-/// Type trait that can point on a mutable texel reference.
-pub trait TexelDesignatorMut<'a> {
-    /// Mutable texel reference.
-    type TexelMut;
-}
-
-/// Helper type to represent texel reference.
-pub type TexelRef<'a, This> = <This as TexelDesignatorRef<'a>>::TexelRef;
-
-/// Helper type to represent mutable texel reference.
-pub type TexelMut<'a, This> = <This as TexelDesignatorMut<'a>>::TexelMut;
-
 /// So-so display surface trait for reuse purposes.
-pub trait Surface: for<'a> TexelDesignatorRef<'a> + for<'a> TexelDesignatorMut<'a> {
+pub trait Surface {
     /// Specific texel type.
     type Texel;
 
-    /// Get texel reference given its coordinates.
-    fn texel(&self, x: u32, y: u32) -> Option<TexelRef<'_, Self>>;
+    /// Get texel given its coordinates.
+    fn texel(&self, x: u32, y: u32) -> Option<Self::Texel>;
 
-    /// Get mutable texel reference given its coordinates.
-    fn texel_mut(&mut self, x: u32, y: u32) -> Option<TexelMut<'_, Self>>;
+    /// Set texel given its coordinates.
+    fn set_texel(&mut self, x: u32, y: u32, value: Self::Texel);
 
-    /// Get texel reference given its coordinates unsafely.
+    /// Get texel given its coordinates unsafely.
     ///
     /// # Safety
     ///
     /// - `x` must be in range [`0`, `width - 1`];
     /// - `y` must be in range [`0`, `height - 1`];
-    unsafe fn unsafe_texel(&self, x: u32, y: u32) -> TexelRef<'_, Self> {
+    unsafe fn texel_unchecked(&self, x: u32, y: u32) -> Self::Texel {
         self.texel(x, y).unwrap()
     }
 
-    /// Get mutable texel reference given its coordinates unsafely.
+    /// Set texel value given its coordinates unsafely.
     ///
     /// # Safety
     ///
     /// - `x` must be in range [`0`, `width - 1`];
     /// - `y` must be in range [`0`, `height - 1`];
-    unsafe fn unsafe_texel_mut(&mut self, x: u32, y: u32) -> TexelMut<'_, Self> {
-        self.texel_mut(x, y).unwrap()
+    unsafe fn set_texel_unchecked(&mut self, x: u32, y: u32, value: Self::Texel) {
+        self.set_texel(x, y, value)
     }
 
     /// Clear the surface with the given color.

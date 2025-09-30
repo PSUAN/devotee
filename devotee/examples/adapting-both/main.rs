@@ -1,5 +1,4 @@
 use std::env;
-use std::ops::{Deref, DerefMut};
 use std::time::Duration;
 
 use devotee::input::winit_input::KeyboardMouse;
@@ -9,7 +8,7 @@ use devotee::visual::adapter::generic::Adapter;
 use devotee::visual::image::ImageMut;
 use devotee::visual::{Paint, Painter};
 use devotee_backend::Middleware;
-use devotee_backend::middling::{InputHandler, Surface, TexelDesignatorMut, TexelDesignatorRef};
+use devotee_backend::middling::{InputHandler, Surface};
 use devotee_backend_pixels::{
     PixelsBackend, PixelsContext, PixelsEvent, PixelsEventContext, PixelsEventControl, PixelsInit,
     PixelsSurface,
@@ -74,14 +73,7 @@ impl Internal {
 type RenderImage<'a, 'b, S, C> = Adapter<'a, 'b, S, C>;
 
 trait Config {
-    type Surface<'a, 'b: 'a>: Surface<Texel = <Self::Converter as Converter>::Texel>
-        + for<'t> TexelDesignatorRef<
-            't,
-            TexelRef: Deref<Target = <Self::Converter as Converter>::Texel>,
-        > + for<'t> TexelDesignatorMut<
-            't,
-            TexelMut: DerefMut<Target = <Self::Converter as Converter>::Texel>,
-        >;
+    type Surface<'a, 'b: 'a>: Surface<Texel = <Self::Converter as Converter>::Texel>;
     type Converter: Converter<Pixel = Color, Texel: Clone>;
 }
 

@@ -1,9 +1,6 @@
-use std::ops::DerefMut;
-
 use crate::util::vector::Vector;
 
-use super::image::{DesignatorMut, DesignatorRef, PixelMut, PixelRef};
-use super::{FastHorizontalWriter, Image, ImageMut};
+use super::{Image, ImageMut};
 
 #[derive(Clone, Copy, Debug)]
 struct Zone {
@@ -130,25 +127,18 @@ where
     }
 }
 
-impl<'a, T> DesignatorRef<'a> for View<&T>
-where
-    T: DesignatorRef<'a> + ?Sized,
-{
-    type PixelRef = T::PixelRef;
-}
-
 impl<T> Image for View<&T>
 where
     T: Image + ?Sized,
 {
     type Pixel = T::Pixel;
 
-    fn pixel(&self, position: Vector<i32>) -> Option<PixelRef<'_, Self>> {
+    fn pixel(&self, position: Vector<i32>) -> Option<T::Pixel> {
         self.target.pixel(self.position_if_in_bounds(position)?)
     }
 
-    unsafe fn unsafe_pixel(&self, position: Vector<i32>) -> PixelRef<'_, Self> {
-        unsafe { self.target.unsafe_pixel(self.deform_position(position)) }
+    unsafe fn pixel_unchecked(&self, position: Vector<i32>) -> T::Pixel {
+        unsafe { self.target.pixel_unchecked(self.deform_position(position)) }
     }
 
     fn width(&self) -> i32 {
@@ -164,13 +154,6 @@ where
             Rotation::CCW | Rotation::CW => self.zone.dimensions.x() * self.scale,
         }
     }
-}
-
-impl<'a, T> DesignatorRef<'a> for View<&mut T>
-where
-    T: DesignatorRef<'a> + ?Sized,
-{
-    type PixelRef = T::PixelRef;
 }
 
 impl<T> Image for View<&mut T>
@@ -179,12 +162,12 @@ where
 {
     type Pixel = T::Pixel;
 
-    fn pixel(&self, position: Vector<i32>) -> Option<PixelRef<'_, Self>> {
+    fn pixel(&self, position: Vector<i32>) -> Option<T::Pixel> {
         self.target.pixel(self.position_if_in_bounds(position)?)
     }
 
-    unsafe fn unsafe_pixel(&self, position: Vector<i32>) -> PixelRef<'_, Self> {
-        unsafe { self.target.unsafe_pixel(self.deform_position(position)) }
+    unsafe fn pixel_unchecked(&self, position: Vector<i32>) -> T::Pixel {
+        unsafe { self.target.pixel_unchecked(self.deform_position(position)) }
     }
 
     fn width(&self) -> i32 {
@@ -202,53 +185,42 @@ where
     }
 }
 
-impl<'a, T> DesignatorMut<'a> for View<&mut T>
-where
-    T: DesignatorMut<'a> + ?Sized,
-{
-    type PixelMut = T::PixelMut;
-}
-
 impl<T> ImageMut for View<&mut T>
 where
     T: ImageMut + ?Sized,
     T::Pixel: Clone,
-    for<'a> <T as DesignatorMut<'a>>::PixelMut: DerefMut<Target = T::Pixel>,
 {
-    fn pixel_mut(&mut self, position: Vector<i32>) -> Option<PixelMut<'_, Self>> {
-        self.target.pixel_mut(self.position_if_in_bounds(position)?)
+    fn set_pixel(&mut self, position: Vector<i32>, value: &T::Pixel) {
+        if let Some(position) = self.position_if_in_bounds(position) {
+            self.target.set_pixel(position, value);
+        }
     }
 
-    unsafe fn unsafe_pixel_mut(&mut self, position: Vector<i32>) -> PixelMut<'_, Self> {
+    fn modify_pixel(
+        &mut self,
+        position: Vector<i32>,
+        function: &mut dyn FnMut((i32, i32), Self::Pixel) -> Self::Pixel,
+    ) {
+        if let Some(position) = self.position_if_in_bounds(position) {
+            self.target.modify_pixel(position, function);
+        }
+    }
+
+    unsafe fn set_pixel_unchecked(&mut self, position: Vector<i32>, value: &T::Pixel) {
         unsafe {
             self.target
-                .unsafe_pixel_mut(self.zone.origin + self.deform_position(position))
+                .set_pixel_unchecked(self.zone.origin + self.deform_position(position), value);
         }
     }
 
     fn clear(&mut self, color: Self::Pixel) {
-        if self
-            .target
-            .fast_horizontal_writer()
-            .map(|mut writer| {
-                for y in 0..self.zone.dimensions.y() {
-                    writer.overwrite(
-                        self.zone.origin.x()
-                            ..=(self.zone.origin.x() + self.zone.dimensions.x() - 1),
-                        self.zone.origin.y() + y,
-                        &color,
-                    );
-                }
-            })
-            .is_none()
-        {
-            // We do believe that we are in a proper range.
-            // By this time we should have already recalculated origin and dimensions to be in bounds.
-            unsafe {
-                for y in 0..self.zone.dimensions.y() {
-                    for x in 0..self.zone.dimensions.x() {
-                        *self.target.unsafe_pixel_mut(self.zone.origin + (x, y)) = color.clone();
-                    }
+        // We do believe that we are in a proper range.
+        // By this time we should have already recalculated origin and dimensions to be in bounds.
+        unsafe {
+            for y in 0..self.zone.dimensions.y() {
+                for x in 0..self.zone.dimensions.x() {
+                    self.target
+                        .set_pixel_unchecked(self.zone.origin + (x, y), &color);
                 }
             }
         }
