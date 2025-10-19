@@ -93,7 +93,7 @@ impl
     > for Gears
 {
     fn on_init(&mut self, init: &mut SoftInit) {
-        init.set_render_window_size(480, 270);
+        init.set_render_window_size(320, 180);
         init.window().set_title("Gears demo: press ESC to exit.");
 
         self.driven_gear.angle =

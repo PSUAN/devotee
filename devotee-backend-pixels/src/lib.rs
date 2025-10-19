@@ -412,11 +412,14 @@ impl Surface for PixelsSurface<'_, '_> {
     }
 }
 
-impl Fill for PixelsSurface<'_, '_> {
-    fn fill_from(&mut self, data: &[Self::Texel]) {
+impl<I> Fill<I> for PixelsSurface<'_, '_>
+where
+    I: Iterator<Item = Self::Texel>,
+{
+    fn fill_from(&mut self, data: I) {
         let frame = self.pixels.frame_mut();
         for (texel, data) in frame.chunks_exact_mut(4).zip(data) {
-            texel.copy_from_slice(data);
+            texel.copy_from_slice(&data);
         }
     }
 }

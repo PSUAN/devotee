@@ -40,9 +40,9 @@ pub trait Surface {
 }
 
 /// The surface that can be filled directly.
-pub trait Fill: Surface {
+pub trait Fill<I>: Surface {
     /// Fill the surface from the provided `data`.
-    fn fill_from(&mut self, data: &[Self::Texel]);
+    fn fill_from(&mut self, data: I);
 }
 
 /// Input handler trait with optional input caching.

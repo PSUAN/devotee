@@ -92,14 +92,18 @@ impl<'a> SoftSurface<'a> {
     }
 }
 
-impl Fill for SoftSurface<'_> {
-    fn fill_from(&mut self, data: &[Self::Texel]) {
+impl<I> Fill<I> for SoftSurface<'_>
+where
+    I: Iterator<Item = Self::Texel>,
+{
+    fn fill_from(&mut self, data: I) {
+        let mut data = data;
         let start_x = self.render_window.0.x;
         let start_y = self.render_window.0.y;
 
         for y in 0..self.render_window.1.height {
             for x in 0..self.render_window.1.width {
-                if let Some(pixel) = data.get((x + y * self.render_window.1.width) as usize) {
+                if let Some(pixel) = data.next() {
                     for internal_y in 0..self.scale {
                         let index = ((start_x + x * self.scale) as usize)
                             + ((start_y + internal_y + (y * self.scale)) * self.surface_size.width)
@@ -107,7 +111,7 @@ impl Fill for SoftSurface<'_> {
                         if let Some(buffer) =
                             self.internal.get_mut(index..(index + self.scale as usize))
                         {
-                            buffer.fill(*pixel);
+                            buffer.fill(pixel);
                         }
                     }
                 }
