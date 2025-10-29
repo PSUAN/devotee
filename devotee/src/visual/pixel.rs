@@ -66,19 +66,13 @@ impl<T> Painter<'_, T>
 where
     T: Clone,
 {
-    fn paint_line(
-        &mut self,
-        from: Vector<i32>,
-        to: Vector<i32>,
-        strategy: &mut PixelStrategy<T>,
-        skip: i32,
-    ) {
+    fn paint_line(&mut self, from: Vector<i32>, to: Vector<i32>, strategy: &mut PixelStrategy<T>) {
         if from.x() == to.x() {
-            self.vertical_line(from.x(), from.y(), to.y(), strategy, skip);
+            self.vertical_line(from.x(), from.y()..=to.y(), strategy);
             return;
         }
         if from.y() == to.y() {
-            self.horizontal_line(from.x()..=to.x(), from.y(), strategy, skip);
+            self.horizontal_line(from.x()..=to.x(), from.y(), strategy);
             return;
         }
 
@@ -93,8 +87,7 @@ where
 
         let rev = from.x() > to.x();
 
-        let mut skip = skip;
-
+        // TODO: Speed up this segment.
         for y in iter_ref {
             let scan = scanline_segment_i32((from, to), y);
             let mut scan_rev = scan.rev().into_iter();
@@ -102,12 +95,8 @@ where
             let scan: &mut dyn Iterator<Item = i32> = if rev { &mut scan_rev } else { &mut scan };
 
             for x in scan {
-                if skip == 0 {
-                    let pose = (x, y).into();
-                    self.apply_strategy(pose, strategy);
-                } else {
-                    skip -= 1;
-                }
+                let pose = (x, y).into();
+                self.apply_strategy(pose, strategy);
             }
         }
     }
@@ -120,12 +109,7 @@ where
         // We are on a horizontal line.
         if a.y() == c.y() {
             vertices.sort_by(|a, b| a.x().cmp(b.x_ref()));
-            self.horizontal_line(
-                vertices[0].x()..=vertices[2].x(),
-                vertices[0].y(),
-                strategy,
-                0,
-            );
+            self.horizontal_line(vertices[0].x()..=vertices[2].x(), vertices[0].y(), strategy);
             return;
         }
 
@@ -138,7 +122,7 @@ where
                 .start_unchecked()
                 .min(right_range.start_unchecked());
             let right = left_range.end_unchecked().max(right_range.end_unchecked());
-            self.horizontal_line(left..=right, y, strategy, 0);
+            self.horizontal_line(left..=right, y, strategy);
         }
 
         let middle = middle + 1;
@@ -149,7 +133,7 @@ where
                 .start_unchecked()
                 .min(right_range.start_unchecked());
             let right = left_range.end_unchecked().max(right_range.end_unchecked());
-            self.horizontal_line(left..=right, y, strategy, 0);
+            self.horizontal_line(left..=right, y, strategy);
         }
     }
 
@@ -225,7 +209,6 @@ where
                         current_left + self.offset.x()..=flip.position + self.offset.x(),
                         y + self.offset.y(),
                         strategy,
-                        0,
                     );
                 }
                 current_left = flip.position;
@@ -248,7 +231,6 @@ where
             center.x() - radius..=center.x() + radius,
             center.y(),
             function,
-            0,
         );
 
         let mut x = 0;
@@ -259,8 +241,8 @@ where
 
         while x < y {
             if decision > 0 {
-                self.horizontal_line(center.x() - x..=center.x() + x, center.y() + y, function, 0);
-                self.horizontal_line(center.x() - x..=center.x() + x, center.y() - y, function, 0);
+                self.horizontal_line(center.x() - x..=center.x() + x, center.y() + y, function);
+                self.horizontal_line(center.x() - x..=center.x() + x, center.y() - y, function);
                 y -= 1;
                 checker_y += 2;
                 decision += checker_y;
@@ -269,8 +251,8 @@ where
                 checker_x += 2;
                 decision += checker_x;
 
-                self.horizontal_line(center.x() - y..=center.x() + y, center.y() + x, function, 0);
-                self.horizontal_line(center.x() - y..=center.x() + y, center.y() - x, function, 0);
+                self.horizontal_line(center.x() - y..=center.x() + y, center.y() + x, function);
+                self.horizontal_line(center.x() - y..=center.x() + y, center.y() - x, function);
             }
         }
     }
@@ -384,7 +366,7 @@ where
         let mut strategy = strategy.into();
         let from = self.position_i32(from);
         let to = self.position_i32(to);
-        self.paint_line(from, to, &mut strategy, 0);
+        self.paint_line(from, to, &mut strategy);
     }
 
     fn rect_f<'a, S>(&mut self, from: Vector<i32>, dimensions: Vector<i32>, strategy: S)
@@ -405,10 +387,10 @@ where
         let mut strategy = strategy.into();
         let from = self.position_i32(from);
         let (from, to) = (from, from + dimensions - (1, 1));
-        self.horizontal_line(from.x()..=to.x(), from.y(), &mut strategy, 1);
-        self.horizontal_line(to.x()..=from.x(), to.y(), &mut strategy, 1);
-        self.vertical_line(from.x(), to.y(), from.y(), &mut strategy, 1);
-        self.vertical_line(to.x(), from.y(), to.y(), &mut strategy, 1);
+        self.horizontal_line(from.x()..=to.x() - 1, from.y(), &mut strategy);
+        self.horizontal_line(from.x() + 1..=to.x(), to.y(), &mut strategy);
+        self.vertical_line(from.x(), from.y() + 1..=to.y(), &mut strategy);
+        self.vertical_line(to.x(), from.y()..=to.y() - 1, &mut strategy);
     }
 
     fn triangle_f<'a, S>(&mut self, vertices: [Vector<i32>; 3], strategy: S)
@@ -428,9 +410,9 @@ where
     {
         let [a, b, c] = vertices.map(|v| self.position_i32(v));
         let mut strategy = strategy.into();
-        self.paint_line(a, b, &mut strategy, 1);
-        self.paint_line(b, c, &mut strategy, 1);
-        self.paint_line(c, a, &mut strategy, 1);
+        self.paint_line(a, b, &mut strategy);
+        self.paint_line(b, c, &mut strategy);
+        self.paint_line(c, a, &mut strategy);
     }
 
     fn polygon_f<'a, S>(&mut self, vertices: &[Vector<i32>], strategy: S)
@@ -448,25 +430,20 @@ where
         S: 'a + Into<PixelStrategy<'a, T>>,
     {
         let mut strategy = strategy.into();
-        let skip = if vertices.len() > 2 {
+        if vertices.len() > 2 {
             self.paint_line(
                 // SAFETY: we have checked that `vertices` contain at least 3 elements.
                 self.position_i32(*vertices.last().unwrap()),
                 self.position_i32(vertices[0]),
                 &mut strategy,
-                1,
             );
-            1
-        } else {
-            0
-        };
+        }
 
         for window in vertices.windows(2) {
             self.paint_line(
                 self.position_i32(window[0]),
                 self.position_i32(window[1]),
                 &mut strategy,
-                skip,
             );
         }
     }

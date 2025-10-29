@@ -62,13 +62,7 @@ impl<T> Painter<'_, T>
 where
     T: Clone,
 {
-    fn subline(
-        &mut self,
-        from: Vector<f32>,
-        to: Vector<f32>,
-        function: &mut PixelStrategy<T>,
-        skip: usize,
-    ) {
+    fn subline(&mut self, from: Vector<f32>, to: Vector<f32>, function: &mut PixelStrategy<T>) {
         let from_i32 = from.map(round_to_i32);
         let to_i32 = to.map(round_to_i32);
 
@@ -83,8 +77,7 @@ where
 
         let rev = from.x() > to.x();
 
-        let mut skip = skip;
-
+        // TODO: Speed up here.
         for y in iter_ref {
             let scan = scanline_segment_f32((from, to), y);
             let mut scan_rev = scan.rev().into_iter();
@@ -92,12 +85,8 @@ where
             let scan: &mut dyn Iterator<Item = i32> = if rev { &mut scan_rev } else { &mut scan };
 
             for x in scan {
-                if skip == 0 {
-                    let pose = (x, y).into();
-                    self.apply_strategy(pose, function);
-                } else {
-                    skip -= 1;
-                }
+                let pose = (x, y).into();
+                self.apply_strategy(pose, function);
             }
         }
     }
@@ -116,7 +105,6 @@ where
                 vertex_i32[0].x()..=vertex_i32[2].x(),
                 vertex_i32[0].y(),
                 strategy,
-                0,
             );
             return;
         }
@@ -134,7 +122,7 @@ where
                 .start_unchecked()
                 .min(right_range.start_unchecked());
             let right = left_range.end_unchecked().max(right_range.end_unchecked());
-            self.horizontal_line(left..=right, y, strategy, 0);
+            self.horizontal_line(left..=right, y, strategy);
         }
 
         let middle = middle + 1;
@@ -145,7 +133,7 @@ where
                 .start_unchecked()
                 .min(right_range.start_unchecked());
             let right = left_range.end_unchecked().max(right_range.end_unchecked());
-            self.horizontal_line(left..=right, y, strategy, 0);
+            self.horizontal_line(left..=right, y, strategy);
         }
     }
 
@@ -223,7 +211,6 @@ where
                         current_left + self.offset.x()..=flip.position + self.offset.x(),
                         y + self.offset.y(),
                         strategy,
-                        0,
                     );
                 }
                 current_left = flip.position;
@@ -264,7 +251,6 @@ where
                         round_to_i32(center.x() - b)..=round_to_i32(center.x() + b),
                         scanline,
                         strategy,
-                        0,
                     );
                 }
                 (a, b) if b.is_nan() || a >= b => {
@@ -272,7 +258,6 @@ where
                         round_to_i32(center.x() - a)..=round_to_i32(center.x() + a),
                         scanline,
                         strategy,
-                        0,
                     );
                 }
                 (_, _) => (),
@@ -299,7 +284,6 @@ where
                         round_to_i32(center.x() - b)..=round_to_i32(center.x() + b),
                         scanline,
                         strategy,
-                        0,
                     );
                 }
                 (a, b) if b.is_nan() => {
@@ -307,7 +291,6 @@ where
                         round_to_i32(center.x() - a)..=round_to_i32(center.x() + a),
                         scanline,
                         strategy,
-                        0,
                     );
                 }
                 (a, b) if a > b => {
@@ -315,13 +298,11 @@ where
                         round_to_i32(center.x() - a)..=round_to_i32(center.x() - b),
                         scanline,
                         strategy,
-                        0,
                     );
                     self.horizontal_line(
                         round_to_i32(center.x() + b)..=round_to_i32(center.x() + a),
                         scanline,
                         strategy,
-                        0,
                     );
                 }
                 (a, b) => {
@@ -329,13 +310,11 @@ where
                         round_to_i32(center.x() - b)..=round_to_i32(center.x() - a),
                         scanline,
                         strategy,
-                        0,
                     );
                     self.horizontal_line(
                         round_to_i32(center.x() + a)..=round_to_i32(center.x() + b),
                         scanline,
                         strategy,
-                        0,
                     );
                 }
             }
@@ -370,7 +349,7 @@ where
         let mut strategy = strategy.into();
         let from = self.position_f32(from);
         let to = self.position_f32(to);
-        self.subline(from, to, &mut strategy, 0);
+        self.subline(from, to, &mut strategy);
     }
 
     fn rect_f<'a, S>(&mut self, from: Vector<f32>, dimensions: Vector<f32>, strategy: S)
@@ -394,10 +373,10 @@ where
         let from = self.position_f32(from);
         let (from, to) = (from, from + dimensions - (1.0, 1.0));
         let (from, to) = (from.map(round_to_i32), to.map(round_to_i32));
-        self.horizontal_line(from.x()..=to.x(), from.y(), &mut strategy, 1);
-        self.horizontal_line(to.x()..=from.x(), to.y(), &mut strategy, 1);
-        self.vertical_line(from.x(), to.y(), from.y(), &mut strategy, 1);
-        self.vertical_line(to.x(), from.y(), to.y(), &mut strategy, 1);
+        self.horizontal_line(from.x()..=to.x() - 1, from.y(), &mut strategy);
+        self.horizontal_line(from.x() + 1..=to.x(), to.y(), &mut strategy);
+        self.vertical_line(from.x(), from.y() + 1..=to.y(), &mut strategy);
+        self.vertical_line(to.x(), from.y()..=to.y() - 1, &mut strategy);
     }
 
     fn triangle_f<'a, S>(&mut self, vertices: [Vector<f32>; 3], strategy: S)
@@ -417,9 +396,9 @@ where
     {
         let mut strategy = strategy.into();
         let [a, b, c] = vertices.map(|v| self.position_f32(v));
-        self.subline(a, b, &mut strategy, 1);
-        self.subline(b, c, &mut strategy, 1);
-        self.subline(c, a, &mut strategy, 1);
+        self.subline(a, b, &mut strategy);
+        self.subline(b, c, &mut strategy);
+        self.subline(c, a, &mut strategy);
     }
 
     fn polygon_f<'a, S>(&mut self, vertices: &[Vector<f32>], strategy: S)
@@ -431,7 +410,7 @@ where
         match vertices.len() {
             0 => (),
             1 => self.apply_strategy(vertices[0].map(round_to_i32), &mut strategy),
-            2 => self.subline(vertices[0], vertices[1], &mut strategy, 0),
+            2 => self.subline(vertices[0], vertices[1], &mut strategy),
             _ => self.filled_subpolygon_raw(vertices, &mut strategy),
         }
     }
@@ -442,25 +421,20 @@ where
         S: 'a + Into<PixelStrategy<'a, T>>,
     {
         let mut strategy = strategy.into();
-        let skip = if vertices.len() > 2 {
+        if vertices.len() > 2 {
             self.subline(
                 self.position_f32(vertices[0]),
                 // SAFETY: we have checked that `vertices` contain at least 3 elements.
                 self.position_f32(*vertices.last().unwrap()),
                 &mut strategy,
-                1,
             );
-            1
-        } else {
-            0
-        };
+        }
 
         for window in vertices.windows(2) {
             self.subline(
                 self.position_f32(window[0]),
                 self.position_f32(window[1]),
                 &mut strategy,
-                skip,
             );
         }
     }

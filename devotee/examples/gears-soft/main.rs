@@ -7,7 +7,7 @@ use devotee::util::vector::Vector;
 
 use devotee::visual::adapter::Converter;
 use devotee::visual::adapter::generic::Adapter;
-use devotee::visual::image::ImageMut;
+use devotee::visual::image::{Image, ImageMut};
 use devotee::visual::{Paint, Painter};
 use devotee_backend::Middleware;
 use devotee_backend::middling::InputHandler;
@@ -140,10 +140,14 @@ impl
 
     fn on_render(&mut self, surface: &mut SoftSurface<'_>) {
         let mut adapter = Adapter::new(surface, &TwoConverter);
+        let dimensions = Vector::new(adapter.width(), adapter.height());
         adapter.clear(false);
 
         self.drive_gear.render(&mut adapter);
         self.driven_gear.render(&mut adapter);
+
+        let mut painter = Painter::new(&mut adapter);
+        painter.rect_b((1, 1).into(), dimensions - (2, 2), &mut |_, v: bool| !v);
     }
 
     fn on_event(

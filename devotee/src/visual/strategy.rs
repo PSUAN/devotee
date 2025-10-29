@@ -27,16 +27,15 @@ where
         &mut self,
         x: RangeInclusive<i32>,
         y: i32,
-        skip: i32,
         image: &mut dyn ImageMut<Pixel = T>,
     ) {
         let start = *x.start();
         let end = *x.end();
 
         let x = if start < end {
-            start + skip..=end
+            start..=end
         } else {
-            end..=start - skip
+            end..=start
         };
 
         match self {

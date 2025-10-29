@@ -35,13 +35,18 @@ pub trait ImageMut: Image {
         function: &mut dyn FnMut((i32, i32), Self::Pixel) -> Self::Pixel,
     );
 
+    // TODO: Speed up in specific cases.
     /// Set horizontal line values.
     fn set_horizontal_line(&mut self, x_range: RangeInclusive<i32>, y: i32, value: &Self::Pixel) {
-        for x in x_range {
+        let start = (*x_range.start()).max(0);
+        let end = (*x_range.end()).min(self.width() - 1);
+
+        for x in start..=end {
             self.set_pixel(Vector::new(x, y), value);
         }
     }
 
+    // TODO: Speed up in specific cases.
     /// Modify all pixels in the horizontal line.
     fn modify_horizontal_line(
         &mut self,
@@ -49,7 +54,10 @@ pub trait ImageMut: Image {
         y: i32,
         function: &mut dyn FnMut((i32, i32), Self::Pixel) -> Self::Pixel,
     ) {
-        for x in x_range {
+        let start = (*x_range.start()).max(0);
+        let end = (*x_range.end()).min(self.width() - 1);
+
+        for x in start..=end {
             self.modify_pixel(Vector::new(x, y), function);
         }
     }

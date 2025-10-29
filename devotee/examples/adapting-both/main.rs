@@ -50,7 +50,7 @@ struct Internal {
 
 impl Internal {
     fn update(&mut self, duration: Duration, input: &KeyboardMouse) {
-        if input.mouse().just_pressed(MouseButton::Left) {
+        if input.mouse().is_pressed(MouseButton::Left) {
             if let Some(mouse) = input.mouse().position() {
                 self.position = Some(mouse.map(|v| v as _));
             }

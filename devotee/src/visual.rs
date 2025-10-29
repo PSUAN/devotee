@@ -223,42 +223,32 @@ where
         ImageMut::clear(self.target, clear_color)
     }
 
-    fn vertical_line(
-        &mut self,
-        x: i32,
-        from_y: i32,
-        to_y: i32,
-        strategy: &mut PixelStrategy<T>,
-        skip: i32,
-    ) {
-        let mut iter = from_y..=to_y;
-        let mut iter_rev = (to_y..=from_y).rev();
+    fn vertical_line(&mut self, x: i32, y: RangeInclusive<i32>, strategy: &mut PixelStrategy<T>) {
+        if x < 0 || x >= self.width() {
+            return;
+        }
 
-        let iter_ref: &mut dyn Iterator<Item = i32> = if from_y < to_y {
-            &mut iter
+        let start = *y.start();
+        let end = *y.end();
+        let y = if start < end {
+            start.max(0)..=end.min(self.height() - 1)
         } else {
-            &mut iter_rev
+            end.max(0)..=start.min(self.height() - 1)
         };
 
-        for y in iter_ref.skip(skip.try_into().unwrap_or(0)) {
+        for y in y {
             let pose = (x, y);
             self.apply_strategy(pose.into(), strategy);
         }
     }
 
-    fn horizontal_line(
-        &mut self,
-        x: RangeInclusive<i32>,
-        y: i32,
-        strategy: &mut PixelStrategy<T>,
-        skip: i32,
-    ) {
-        strategy.apply_to_line(x, y, skip, self.target);
+    fn horizontal_line(&mut self, x: RangeInclusive<i32>, y: i32, strategy: &mut PixelStrategy<T>) {
+        strategy.apply_to_line(x, y, self.target);
     }
 
     fn filled_rect(&mut self, from: Vector<i32>, to: Vector<i32>, strategy: &mut PixelStrategy<T>) {
         for y in from.y()..=to.y() {
-            self.horizontal_line(from.x()..=to.x(), y, strategy, 0);
+            self.horizontal_line(from.x()..=to.x(), y, strategy);
         }
     }
 }
