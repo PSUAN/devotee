@@ -1,6 +1,6 @@
 [package]
 name = "devotee-backend-softbuffer"
-version = "0.2.0-beta.14"
+version = "0.2.0-beta.15"
 edition = "2024"
 publish = true
 authors = ["PSUAN collective", "Hara Red <rtc6fg4.fejg2@gmail.com>"]
@@ -16,10 +16,10 @@ categories = ["game-engines"]
 [dependencies]
 devotee-backend = { path = "../devotee-backend", version = "0.2.0-beta.4" }
 
-softbuffer = "0.4.6"
+softbuffer = { version = "0.4.6", default-features = false }
 winit = { version = "0.30.9", default-features = false, features = ["rwh_06"] }
 
 [features]
 default = ["x11"]
-x11 = ["winit/x11"]
-wayland = ["winit/wayland"]
+x11 = ["winit/x11", "softbuffer/x11"]
+wayland = ["winit/wayland", "softbuffer/wayland"]
