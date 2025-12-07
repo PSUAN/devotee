@@ -31,8 +31,8 @@ impl<T> View<T> {
         if position.x() < self.zone.origin.x() || position.y() < self.zone.origin.y() {
             return None;
         }
-        if position.x() >= self.zone.dimensions.x() + self.zone.dimensions.x()
-            || position.y() >= self.zone.dimensions.y() + self.zone.dimensions.y()
+        if position.x() >= self.zone.origin.x() + self.zone.dimensions.x()
+            || position.y() >= self.zone.origin.y() + self.zone.dimensions.y()
         {
             return None;
         }
