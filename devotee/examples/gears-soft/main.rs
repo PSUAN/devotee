@@ -243,7 +243,7 @@ impl Gear {
         }
     }
 
-    fn render(&self, image: &mut dyn ImageMut<Pixel = bool>) {
+    fn render(&self, image: &mut dyn ImageMut<bool>) {
         let mut painter = Painter::new(image).with_offset(self.center);
         for i in 0..=self.teeth_count {
             let angle = i as f32 * 2.0 * consts::PI / self.teeth_count as f32 + self.angle;

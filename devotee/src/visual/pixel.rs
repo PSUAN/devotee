@@ -1,6 +1,7 @@
 use crate::util::getter::Getter;
 use crate::util::vector::Vector;
 use crate::visual::Paint;
+use crate::visual::view::View;
 
 use super::strategy::PixelStrategy;
 use super::util::AngleIterator;
@@ -302,31 +303,44 @@ where
         }
     }
 
-    fn zip_map_images<O: Clone, U: Image<Pixel = O> + ?Sized>(
+    fn draw_view<O: Clone>(
         &mut self,
         at: Vector<i32>,
-        image: &U,
+        view: &View<O>,
         function: &mut ImageMapper<T, O>,
     ) {
-        let image_start_x = if at.x() < 0 { -at.x() } else { 0 };
-        let image_start_y = if at.y() < 0 { -at.y() } else { 0 };
+        let (this_start_x, this_start_y) = self.target.get_start().split();
 
-        let image_end_x = if at.x() + image.width() >= self.target.width() {
+        let image_start_x = if at.x() < this_start_x {
+            -at.x() + this_start_x
+        } else {
+            this_start_x
+        };
+        let image_start_y = if at.y() < this_start_y {
+            -at.y() + this_start_y
+        } else {
+            this_start_y
+        };
+
+        let image_start_x = image_start_x.max(view.get_start().x());
+        let image_start_y = image_start_y.max(view.get_start().y());
+
+        let image_end_x = if at.x() + view.width() >= self.target.width() {
             self.target.width() - at.x()
         } else {
-            image.width()
+            view.width()
         };
-        let image_end_y = if at.y() + image.height() >= self.target.height() {
+        let image_end_y = if at.y() + view.height() >= self.target.height() {
             self.target.height() - at.y()
         } else {
-            image.height()
+            view.height()
         };
         for x in image_start_x..image_end_x {
             for y in image_start_y..image_end_y {
                 let step = (x, y).into();
                 let pose = at + step;
                 unsafe {
-                    let color = Image::pixel_unchecked(image, step);
+                    let color = Image::pixel_unchecked(view, step);
                     let pixel = function(
                         pose.split(),
                         self.target.pixel_unchecked(pose).clone(),
@@ -346,7 +360,7 @@ where
 {
     fn pixel(&self, position: Vector<i32>) -> Option<T> {
         let position = self.position_i32(position);
-        Image::pixel(self.target, position)
+        Image::pixel(&self.target, position)
     }
 
     fn mod_pixel<S>(&mut self, position: Vector<i32>, strategy: S)
@@ -479,7 +493,7 @@ where
     /// - `position + self.offset` must be in the `[0, (width, height))` range.
     pub unsafe fn pixel_unchecked(&self, position: Vector<i32>) -> T {
         let position = self.position_i32(position);
-        unsafe { Image::pixel_unchecked(self.target, position) }
+        unsafe { Image::pixel_unchecked(&self.target, position) }
     }
 
     /// Set pixel value.
@@ -488,30 +502,30 @@ where
     /// - `position + self.offset` must be in the `[0, (width, height))` range.
     pub unsafe fn set_pixel_unchecked(&mut self, position: Vector<i32>, value: T) {
         let position = self.position_i32(position);
-        unsafe { ImageMut::set_pixel_unchecked(self.target, position, &value) }
+        unsafe { ImageMut::set_pixel_unchecked(&mut self.target, position, &value) }
     }
 
     /// Use provided function and the given image.
-    pub fn image<O, U>(&mut self, at: Vector<i32>, image: &U, function: &mut ImageMapper<T, O>)
+    pub fn image<I, O>(&mut self, at: Vector<i32>, image: &I, function: &mut ImageMapper<T, O>)
     where
-        U: Image<Pixel = O> + ?Sized,
         O: Clone,
+        for<'a> &'a I: Into<View<'a, O>>,
     {
         let at = self.position_i32(at);
-        self.zip_map_images(at, image, function)
+        let view = image.into();
+        self.draw_view(at, &view, function)
     }
 
     /// Use provided spatial mapper, font and mapper function to draw text.
-    pub fn text<M, U, O>(
+    pub fn text<M, O>(
         &mut self,
         at: Vector<i32>,
         mapper: M,
-        font: &dyn Getter<Index = char, Item = U>,
+        font: &dyn Getter<Index = char, Item = impl Image<O>>,
         text: &str,
         function: &mut ImageMapper<T, O>,
     ) where
-        M: FnMut(char, &U) -> Vector<i32>,
-        U: Image<Pixel = O>,
+        M: FnMut(char, &dyn Image<O>) -> Vector<i32>,
         O: Clone,
     {
         let at = self.position_i32(at);
@@ -519,7 +533,8 @@ where
         for code_point in text.chars() {
             if let Some(symbol) = font.get(&code_point) {
                 let local = at + mapper(code_point, symbol);
-                self.zip_map_images(local, symbol, function);
+                let view = View::from(symbol);
+                self.draw_view(local, &view, function);
             }
         }
     }

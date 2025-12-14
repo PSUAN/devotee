@@ -6,7 +6,7 @@ pub trait Getter {
     /// Indexing type for collection.
     type Index;
     /// The type of element being stored.
-    type Item;
+    type Item: ?Sized;
     /// Try retrieving value reference from collection by index.
     fn get(&self, index: &Self::Index) -> Option<&Self::Item>;
 }

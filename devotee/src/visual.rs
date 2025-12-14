@@ -4,6 +4,7 @@ use image::{Image, ImageMut};
 use strategy::PixelStrategy;
 
 use crate::util::vector::Vector;
+use crate::visual::view::ViewMut;
 
 /// General image-related traits.
 pub mod image;
@@ -31,10 +32,7 @@ mod util;
 
 /// Helper printer mapper for the `Text` trait.
 /// It breaks lines on newline symbol (`'\n'`) and ignores any special characters.
-pub fn printer<U>() -> impl FnMut(char, &U) -> Vector<i32>
-where
-    U: Image,
-{
+pub fn printer<P>() -> impl FnMut(char, &dyn Image<P>) -> Vector<i32> {
     let mut column = 0;
     let mut line = 0;
     move |code_point, representation| {
@@ -159,15 +157,26 @@ impl Iterator for ScanIterator<i32> {
 }
 
 /// Painter to draw on encapsulated target.
-pub struct Painter<'image, T> {
-    target: &'image mut dyn ImageMut<Pixel = T>,
+pub struct Painter<'target, T> {
+    target: ViewMut<'target, T>,
     offset: Vector<i32>,
 }
 
-impl<'image, T> Painter<'image, T> {
-    /// Create new painter instance.
-    pub fn new(target: &'image mut dyn ImageMut<Pixel = T>) -> Self {
+impl<'target, T> Painter<'target, T> {
+    /// Create new painter instance based on the provided view.
+    pub fn from_view(target: ViewMut<'target, T>) -> Self {
         let offset = Vector::<i32>::zero();
+        Self { target, offset }
+    }
+
+    /// Create new painter instance.
+    pub fn new<'image, I>(image: &'image mut I) -> Self
+    where
+        I: ?Sized,
+        ViewMut<'target, T>: From<&'image mut I>,
+    {
+        let offset = Vector::<i32>::zero();
+        let target = image.into();
         Self { target, offset }
     }
 
@@ -201,12 +210,12 @@ where
 
     /// Get target's width.
     pub fn width(&self) -> i32 {
-        Image::width(self.target)
+        Image::width(&self.target)
     }
 
     /// Get target's height.
     pub fn height(&self) -> i32 {
-        Image::height(self.target)
+        Image::height(&self.target)
     }
 }
 
@@ -215,12 +224,12 @@ where
     T: Clone,
 {
     fn apply_strategy(&mut self, position: Vector<i32>, strategy: &mut PixelStrategy<T>) {
-        strategy.apply(position, self.target);
+        strategy.apply(position, &mut self.target);
     }
 
     /// Clear the target with provided color.
     pub fn clear(&mut self, clear_color: T) {
-        ImageMut::clear(self.target, clear_color)
+        ImageMut::clear(&mut self.target, clear_color)
     }
 
     fn vertical_line(&mut self, x: i32, y: RangeInclusive<i32>, strategy: &mut PixelStrategy<T>) {
@@ -243,7 +252,7 @@ where
     }
 
     fn horizontal_line(&mut self, x: RangeInclusive<i32>, y: i32, strategy: &mut PixelStrategy<T>) {
-        strategy.apply_to_line(x, y, self.target);
+        strategy.apply_to_line(x, y, &mut self.target);
     }
 
     fn filled_rect(&mut self, from: Vector<i32>, to: Vector<i32>, strategy: &mut PixelStrategy<T>) {

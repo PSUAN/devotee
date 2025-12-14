@@ -3,18 +3,15 @@ use std::ops::RangeInclusive;
 use crate::util::vector::Vector;
 
 /// General image trait.
-pub trait Image {
-    /// Internal pixel representation.
-    type Pixel;
-
+pub trait Image<P> {
     /// Get specific pixel.
-    fn pixel(&self, position: Vector<i32>) -> Option<Self::Pixel>;
+    fn pixel(&self, position: Vector<i32>) -> Option<P>;
 
     /// Get specific pixel without bounds check.
     ///
     /// # Safety
     /// - position must be in range [(0, 0), (width - 1, height - 1)]
-    unsafe fn pixel_unchecked(&self, position: Vector<i32>) -> Self::Pixel;
+    unsafe fn pixel_unchecked(&self, position: Vector<i32>) -> P;
 
     /// Get width of this image.
     fn width(&self) -> i32;
@@ -24,20 +21,16 @@ pub trait Image {
 }
 
 /// Mutable part of an Image.
-pub trait ImageMut: Image {
+pub trait ImageMut<P>: Image<P> {
     /// Set specific pixel as `position`.
-    fn set_pixel(&mut self, position: Vector<i32>, value: &Self::Pixel);
+    fn set_pixel(&mut self, position: Vector<i32>, value: &P);
 
     /// Modify specific pixel using provided function.
-    fn modify_pixel(
-        &mut self,
-        position: Vector<i32>,
-        function: &mut dyn FnMut((i32, i32), Self::Pixel) -> Self::Pixel,
-    );
+    fn modify_pixel(&mut self, position: Vector<i32>, function: &mut dyn FnMut((i32, i32), P) -> P);
 
     // TODO: Speed up in specific cases.
     /// Set horizontal line values.
-    fn set_horizontal_line(&mut self, x_range: RangeInclusive<i32>, y: i32, value: &Self::Pixel) {
+    fn set_horizontal_line(&mut self, x_range: RangeInclusive<i32>, y: i32, value: &P) {
         let start = (*x_range.start()).max(0);
         let end = (*x_range.end()).min(self.width() - 1);
 
@@ -52,7 +45,7 @@ pub trait ImageMut: Image {
         &mut self,
         x_range: RangeInclusive<i32>,
         y: i32,
-        function: &mut dyn FnMut((i32, i32), Self::Pixel) -> Self::Pixel,
+        function: &mut dyn FnMut((i32, i32), P) -> P,
     ) {
         let start = (*x_range.start()).max(0);
         let end = (*x_range.end()).min(self.width() - 1);
@@ -66,8 +59,8 @@ pub trait ImageMut: Image {
     ///
     /// # Safety
     /// - position must be in range [(0, 0), (width - 1, height - 1)]
-    unsafe fn set_pixel_unchecked(&mut self, position: Vector<i32>, value: &Self::Pixel);
+    unsafe fn set_pixel_unchecked(&mut self, position: Vector<i32>, value: &P);
 
     /// Clear this image with color provided.
-    fn clear(&mut self, color: Self::Pixel);
+    fn clear(&mut self, color: P);
 }

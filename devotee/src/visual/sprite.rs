@@ -23,12 +23,10 @@ impl<P, const W: usize, const H: usize> Sprite<P, W, H> {
     }
 }
 
-impl<P, const W: usize, const H: usize> Image for Sprite<P, W, H>
+impl<P, const W: usize, const H: usize> Image<P> for Sprite<P, W, H>
 where
     P: Clone,
 {
-    type Pixel = P;
-
     fn pixel(&self, position: Vector<i32>) -> Option<P> {
         if position.x() < 0 || position.y() < 0 {
             return None;
@@ -55,7 +53,7 @@ where
     }
 }
 
-impl<P, const W: usize, const H: usize> ImageMut for Sprite<P, W, H>
+impl<P, const W: usize, const H: usize> ImageMut<P> for Sprite<P, W, H>
 where
     P: Copy,
 {
@@ -72,7 +70,7 @@ where
     fn modify_pixel(
         &mut self,
         position: Vector<i32>,
-        function: &mut dyn FnMut((i32, i32), Self::Pixel) -> Self::Pixel,
+        function: &mut dyn FnMut((i32, i32), P) -> P,
     ) {
         if position.x() < 0 || position.y() < 0 {
             return;

@@ -16,7 +16,7 @@ impl<'a, T> PixelStrategy<'a, T>
 where
     T: Clone,
 {
-    pub(super) fn apply(&mut self, position: Vector<i32>, image: &mut dyn ImageMut<Pixel = T>) {
+    pub(super) fn apply(&mut self, position: Vector<i32>, image: &mut dyn ImageMut<T>) {
         match self {
             PixelStrategy::Overwrite(value) => image.set_pixel(position, value),
             PixelStrategy::Modify(function) => image.modify_pixel(position, function),
@@ -27,7 +27,7 @@ where
         &mut self,
         x: RangeInclusive<i32>,
         y: i32,
-        image: &mut dyn ImageMut<Pixel = T>,
+        image: &mut dyn ImageMut<T>,
     ) {
         let start = *x.start();
         let end = *x.end();

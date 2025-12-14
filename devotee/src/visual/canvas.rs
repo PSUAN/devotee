@@ -30,13 +30,11 @@ where
     }
 }
 
-impl<P> Image for Canvas<P>
+impl<P> Image<P> for Canvas<P>
 where
     P: Clone,
 {
-    type Pixel = P;
-
-    fn pixel(&self, position: Vector<i32>) -> Option<Self::Pixel> {
+    fn pixel(&self, position: Vector<i32>) -> Option<P> {
         if position.x() < 0 || position.y() < 0 {
             return None;
         }
@@ -65,7 +63,7 @@ where
     }
 }
 
-impl<P> ImageMut for Canvas<P>
+impl<P> ImageMut<P> for Canvas<P>
 where
     P: Clone,
 {
@@ -82,7 +80,7 @@ where
     fn modify_pixel(
         &mut self,
         position: Vector<i32>,
-        function: &mut dyn FnMut((i32, i32), Self::Pixel) -> Self::Pixel,
+        function: &mut dyn FnMut((i32, i32), P) -> P,
     ) {
         if position.x() < 0 || position.y() < 0 {
             return;
@@ -94,7 +92,7 @@ where
         }
     }
 
-    unsafe fn set_pixel_unchecked(&mut self, position: Vector<i32>, value: &Self::Pixel) {
+    unsafe fn set_pixel_unchecked(&mut self, position: Vector<i32>, value: &P) {
         let (x, y) = (position.x() as usize, position.y() as usize);
         self.data[x + self.width * y] = value.clone();
     }

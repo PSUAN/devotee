@@ -329,7 +329,7 @@ where
 {
     fn pixel(&self, position: Vector<f32>) -> Option<T> {
         let position = self.position_f32(position).map(round_to_i32);
-        Image::pixel(self.target, position)
+        Image::pixel(&self.target, position)
     }
 
     fn mod_pixel<S>(&mut self, position: Vector<f32>, strategy: S)

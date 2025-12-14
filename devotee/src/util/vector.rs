@@ -13,6 +13,14 @@ impl<T> Vector<T> {
         Self { x, y }
     }
 
+    /// Get new vector instance with `x` and `y` values swapped.
+    pub fn swapped(self) -> Self {
+        Self {
+            x: self.y,
+            y: self.x,
+        }
+    }
+
     /// Split this vector into its components.
     pub fn split(self) -> (T, T) {
         (self.x, self.y)

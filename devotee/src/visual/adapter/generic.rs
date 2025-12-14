@@ -89,15 +89,13 @@ where
     }
 }
 
-impl<Surf, Convert> Image for Adapter<'_, '_, Surf, Convert>
+impl<Surf, Convert> Image<Convert::Pixel> for Adapter<'_, '_, Surf, Convert>
 where
     Surf: Surface + ?Sized,
     Surf::Texel: Clone,
     Convert: Converter<Texel = Surf::Texel>,
 {
-    type Pixel = Convert::Pixel;
-
-    fn pixel(&self, position: Vector<i32>) -> Option<Self::Pixel> {
+    fn pixel(&self, position: Vector<i32>) -> Option<Convert::Pixel> {
         let (x, y) = position.split();
         if x < 0 || y < 0 {
             return None;
@@ -108,7 +106,7 @@ where
         Some(self.converter.inverse(&texel))
     }
 
-    unsafe fn pixel_unchecked(&self, position: Vector<i32>) -> Self::Pixel {
+    unsafe fn pixel_unchecked(&self, position: Vector<i32>) -> Convert::Pixel {
         let (x, y) = position.split();
         let texel = unsafe { self.surface.texel_unchecked(x as u32, y as u32) };
         self.converter.inverse(&texel)
@@ -123,13 +121,13 @@ where
     }
 }
 
-impl<Surf, Convert> ImageMut for Adapter<'_, '_, Surf, Convert>
+impl<Surf, Convert> ImageMut<Convert::Pixel> for Adapter<'_, '_, Surf, Convert>
 where
     Surf: Surface + ?Sized,
     Surf::Texel: Clone,
     Convert: Converter<Texel = Surf::Texel>,
 {
-    fn set_pixel(&mut self, position: Vector<i32>, value: &Self::Pixel) {
+    fn set_pixel(&mut self, position: Vector<i32>, value: &Convert::Pixel) {
         let color = self.converter.forward(value);
         let (x, y) = position.split();
         if let (Some(x), Some(y)) = (x.try_into().ok(), y.try_into().ok()) {
@@ -140,7 +138,7 @@ where
     fn modify_pixel(
         &mut self,
         position: Vector<i32>,
-        function: &mut dyn FnMut((i32, i32), Self::Pixel) -> Self::Pixel,
+        function: &mut dyn FnMut((i32, i32), Convert::Pixel) -> Convert::Pixel,
     ) {
         let (x, y) = position.split();
         if let (Some(x), Some(y)) = (x.try_into().ok(), y.try_into().ok())
@@ -153,7 +151,7 @@ where
         }
     }
 
-    unsafe fn set_pixel_unchecked(&mut self, position: Vector<i32>, value: &Self::Pixel) {
+    unsafe fn set_pixel_unchecked(&mut self, position: Vector<i32>, value: &Convert::Pixel) {
         let (x, y) = position.map(|v| v as _).split();
         let value = self.converter.forward(value);
         unsafe {
@@ -161,7 +159,7 @@ where
         }
     }
 
-    fn clear(&mut self, color: Self::Pixel) {
+    fn clear(&mut self, color: Convert::Pixel) {
         let color = self.converter.forward(&color);
         self.surface.clear(color);
     }
