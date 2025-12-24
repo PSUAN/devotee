@@ -163,17 +163,10 @@ pub struct Painter<'target, T> {
 }
 
 impl<'target, T> Painter<'target, T> {
-    /// Create new painter instance based on the provided view.
-    pub fn from_view(target: ViewMut<'target, T>) -> Self {
-        let offset = Vector::<i32>::zero();
-        Self { target, offset }
-    }
-
     /// Create new painter instance.
-    pub fn new<'image, I>(image: &'image mut I) -> Self
+    pub fn new<I>(image: I) -> Self
     where
-        I: ?Sized,
-        ViewMut<'target, T>: From<&'image mut I>,
+        ViewMut<'target, T>: From<I>,
     {
         let offset = Vector::<i32>::zero();
         let target = image.into();
