@@ -18,7 +18,7 @@ impl<P, const W: usize, const H: usize> Sprite<P, W, H> {
     }
 
     /// Create new Sprite with given data.
-    pub const fn with_data(data: [[P; W]; H]) -> Self {
+    pub const fn from_raw_data(data: [[P; W]; H]) -> Self {
         Self { data }
     }
 }

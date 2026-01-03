@@ -24,6 +24,19 @@ where
         }
     }
 
+    /// Try creating new canvas instance from raw data.
+    /// Fails if `data.len()` is not equal to `width` times `height`.
+    pub fn try_from_raw_data(data: Box<[P]>, width: usize, height: usize) -> Option<Self> {
+        if data.len() != width * height {
+            return None;
+        }
+        Some(Self {
+            data,
+            width,
+            height,
+        })
+    }
+
     /// Get raw internal data as a continuous slice.
     pub fn raw_data(&self) -> &[P] {
         &self.data
