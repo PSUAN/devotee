@@ -35,7 +35,7 @@ impl
     > for Basic
 {
     fn on_init(&mut self, init: &mut PixelsInit<'_>) {
-        init.set_render_window_size(320, 240);
+        init.set_render_window_size(160, 120);
         init.window().set_title("Basic demo: press ESC to exit");
     }
 
@@ -59,10 +59,12 @@ impl
         if let Some(position) = self.position {
             painter.line((0, 0).into(), position, &[0xff, 0xff, 0xff, 0xff]);
             painter.line(
-                (319, 239).into(),
+                (159, 119).into(),
                 position,
                 &mut |_, [r, g, b, a]: [u8; 4]| [b, r, g, a],
             );
+            painter.mod_pixel((80, 60).into(), &[0xff, 0x00, 0x00, 0xff]);
+            painter.line((80, 60).into(), position, &[0x00, 0x00, 0x00, 0xff]);
         }
     }
 

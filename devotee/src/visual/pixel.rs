@@ -27,39 +27,18 @@ fn scanline_segment_i32(segment: (Vector<i32>, Vector<i32>), scanline: i32) -> S
 
     let steep = delta_x.abs() < delta_y;
     if steep {
-        let y = scanline;
-        let x = ((delta_x + 1) * (y - from.y())
-            + (delta_x - 1) * (y - to.y())
-            + (from.x() + to.x()) * delta_y)
-            / (delta_y * 2);
-
-        Scan::Single(x).sorted()
+        let horizontal_segments = delta_x + delta_x.signum();
+        let vertical_segments = delta_y + 1;
+        let x = from.x() + (horizontal_segments * (scanline - from.y())) / vertical_segments;
+        Scan::Single(x)
     } else {
-        let (left, right) = if from.x() < to.x() {
-            (from.x(), to.x())
-        } else {
-            (to.x(), from.x())
-        };
-
-        let y = scanline;
-        let center_x = (delta_x + 1) * (y - from.y())
-            + (delta_x - 1) * (y - to.y())
-            + (from.x() + to.x()) * delta_y;
-
-        let left_x = (delta_x + 1) * (y - from.y() + 1)
-            + (delta_x - 1) * (y - to.y() + 1)
-            + (from.x() + to.x()) * delta_y;
-        let right_x = (delta_x + 1) * (y - from.y() - 1)
-            + (delta_x - 1) * (y - to.y() - 1)
-            + (from.x() + to.x()) * delta_y;
-
-        let first_x = (center_x + left_x) / (4 * delta_y);
-        let second_x = (center_x + right_x) / (4 * delta_y);
-        if first_x < second_x {
-            Scan::Inclusive(left.max(first_x), right.min(second_x - 1))
-        } else {
-            Scan::Inclusive(left.max(second_x), right.min(first_x - 1))
-        }
+        let horizontal_segments = delta_x + delta_x.signum();
+        let vertical_segments = delta_y + 1;
+        let left_x = from.x() + (scanline - from.y()) * horizontal_segments / vertical_segments;
+        let right_x = from.x()
+            + (scanline - from.y() + 1) * horizontal_segments / vertical_segments
+            - delta_x.signum();
+        Scan::Inclusive(left_x, right_x).sorted()
     }
 }
 
@@ -363,9 +342,10 @@ where
         Image::pixel(&self.target, position)
     }
 
-    fn mod_pixel<S>(&mut self, position: Vector<i32>, strategy: S)
+    fn mod_pixel<'a, S>(&mut self, position: Vector<i32>, strategy: S)
     where
-        for<'a> S: Into<PixelStrategy<'a, T>>,
+        T: 'a,
+        S: Into<PixelStrategy<'a, T>>,
     {
         let mut strategy = strategy.into();
         let position = self.position_i32(position);

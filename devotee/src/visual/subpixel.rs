@@ -332,9 +332,10 @@ where
         Image::pixel(&self.target, position)
     }
 
-    fn mod_pixel<S>(&mut self, position: Vector<f32>, strategy: S)
+    fn mod_pixel<'a, S>(&mut self, position: Vector<f32>, strategy: S)
     where
-        for<'a> S: Into<PixelStrategy<'a, T>>,
+        T: 'a,
+        S: Into<PixelStrategy<'a, T>>,
     {
         let mut strategy = strategy.into();
         let position = self.position_f32(position).map(round_to_i32);

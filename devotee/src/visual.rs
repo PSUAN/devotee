@@ -261,9 +261,10 @@ pub trait Paint<T, C> {
     fn pixel(&self, position: Vector<C>) -> Option<T>;
 
     /// Use passed strategy on a pixel at the given position.
-    fn mod_pixel<S>(&mut self, position: Vector<C>, strategy: S)
+    fn mod_pixel<'a, S>(&mut self, position: Vector<C>, strategy: S)
     where
-        for<'a> S: Into<PixelStrategy<'a, T>>;
+        T: 'a,
+        S: Into<PixelStrategy<'a, T>>;
 
     /// Use passed strategy on each pixel in the line.
     fn line<'a, S>(&mut self, from: Vector<C>, to: Vector<C>, strategy: S)
