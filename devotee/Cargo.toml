@@ -1,6 +1,6 @@
 [package]
 name = "devotee"
-version = "0.2.0-beta.31"
+version = "0.2.0-beta.32"
 edition = "2024"
 publish = true
 authors = ["PSUAN collective", "Hara Red <rtc6fg4.fejg2@gmail.com>"]
@@ -28,13 +28,13 @@ winit = { version = "0.30.9", optional = true, default-features = false, feature
 ] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-rodio = { version = "0.21.1", default-features = false, features = [
+rodio = { version = "0.22.2", default-features = false, features = [
     "tracing",
     "playback"
 ], optional = true }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-rodio = { version = "0.21.1", default-features = false, features = [
+rodio = { version = "0.22.2", default-features = false, features = [
     "tracing",
     "playback",
     "wasm-bindgen",
