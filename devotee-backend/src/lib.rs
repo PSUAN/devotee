@@ -1,3 +1,4 @@
+#![no_std]
 #![deny(missing_docs)]
 
 //! Set of definitions for backend-y stuff of the devotee project.
