@@ -44,14 +44,14 @@ impl<M> PixelsBackend<'_, M> {
 
 impl<'w, M> PixelsBackend<'w, M>
 where
-    for<'init, 'context, 'surface, 'event_context, 'event_control> M: Middleware<
-            PixelsInit<'init>,
-            PixelsContext<'context>,
-            PixelsSurface<'surface, 'w>,
-            PixelsEvent,
-            PixelsEventContext<'event_context, 'w>,
-            PixelsEventControl<'event_control>,
-        >,
+    for<'init, 'context, 'surface, 'event_context, 'event_control, 'active_event_loop> M:
+        Middleware<
+                PixelsInit<'init>,
+                PixelsContext<'context>,
+                PixelsSurface<'surface, 'w>,
+                PixelsEvent,
+                PixelsEventContext<'event_context, 'w, 'active_event_loop>,
+            >,
 {
     /// Run this backend to completion.
     pub fn run(&mut self) -> Result<(), Error> {
@@ -167,14 +167,14 @@ where
 
 impl<'w, M> ApplicationHandler for PixelsBackend<'w, M>
 where
-    for<'init, 'control, 'surface, 'event_context, 'event_control> M: Middleware<
-            PixelsInit<'init>,
-            PixelsContext<'control>,
-            PixelsSurface<'surface, 'w>,
-            PixelsEvent,
-            PixelsEventContext<'event_context, 'w>,
-            PixelsEventControl<'event_control>,
-        >,
+    for<'init, 'control, 'surface, 'event_context, 'event_control, 'active_event_loop> M:
+        Middleware<
+                PixelsInit<'init>,
+                PixelsContext<'control>,
+                PixelsSurface<'surface, 'w>,
+                PixelsEvent,
+                PixelsEventContext<'event_context, 'w, 'active_event_loop>,
+            >,
 {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         if self.internal.is_none() && self.init(event_loop).is_err() {
@@ -199,12 +199,14 @@ where
                 pixels: &mut internal.pixels,
                 dimensions: self.settings.render_window_size,
             };
-            let context = PixelsEventContext { surface };
-            let mut control = PixelsEventControl { event_loop };
+            let mut context = PixelsEventContext {
+                surface,
+                event_loop,
+            };
 
-            if let Some(event) =
-                self.middleware
-                    .on_event(PixelsEvent::Window(event), &context, &mut control)
+            if let Some(event) = self
+                .middleware
+                .on_event(PixelsEvent::Window(event), &mut context)
             {
                 Self::handle_event(
                     &self.settings,
@@ -228,13 +230,13 @@ where
                 pixels: &mut internal.pixels,
                 dimensions: self.settings.render_window_size,
             };
-            let context = PixelsEventContext { surface };
-            let mut control = PixelsEventControl { event_loop };
-            let _ = self.middleware.on_event(
-                PixelsEvent::Device(device_id, event),
-                &context,
-                &mut control,
-            );
+            let mut context = PixelsEventContext {
+                surface,
+                event_loop,
+            };
+            let _ = self
+                .middleware
+                .on_event(PixelsEvent::Device(device_id, event), &mut context);
         }
     }
 }
@@ -335,11 +337,12 @@ pub enum PixelsEvent {
 }
 
 /// A context passed to the event handler.
-pub struct PixelsEventContext<'s, 'w> {
+pub struct PixelsEventContext<'s, 'w, 'a> {
     surface: PixelsSurface<'s, 'w>,
+    event_loop: &'a ActiveEventLoop,
 }
 
-impl EventContext<PhysicalPosition<f64>> for PixelsEventContext<'_, '_> {
+impl EventContext<PhysicalPosition<f64>> for PixelsEventContext<'_, '_, '_> {
     type SurfaceSpace = Option<PhysicalPosition<u32>>;
 
     fn estimate_surface_space(&self, event_space: PhysicalPosition<f64>) -> Self::SurfaceSpace {
@@ -350,6 +353,13 @@ impl EventContext<PhysicalPosition<f64>> for PixelsEventContext<'_, '_> {
             .window_pos_to_pixel((x, y))
             .ok()
             .map(|(x, y)| PhysicalPosition::new(x as _, y as _))
+    }
+}
+
+impl PixelsEventContext<'_, '_, '_> {
+    /// Request event loop termination.
+    pub fn shutdown(&self) {
+        self.event_loop.exit();
     }
 }
 
@@ -382,20 +392,6 @@ impl Surface for PixelsSurface<'_, '_> {
         }
     }
 
-    unsafe fn texel_unchecked(&self, x: u32, y: u32) -> [u8; 4] {
-        let buffer = self.pixels.frame();
-        let offset = (4 * (x + y * self.dimensions.width)) as usize;
-        let slice = &buffer[offset..(offset + 4)];
-        slice.try_into().unwrap()
-    }
-
-    unsafe fn set_texel_unchecked(&mut self, x: u32, y: u32, value: [u8; 4]) {
-        let buffer = self.pixels.frame_mut();
-        let offset = (4 * (x + y * self.dimensions.width)) as usize;
-        let slice = &mut buffer[offset..(offset + 4)];
-        slice.copy_from_slice(&value);
-    }
-
     fn clear(&mut self, value: Self::Texel) {
         let frame = self.pixels.frame_mut();
         for pixel in frame.chunks_exact_mut(4) {
@@ -414,25 +410,16 @@ impl Surface for PixelsSurface<'_, '_> {
 
 impl<I> Fill<I> for PixelsSurface<'_, '_>
 where
-    I: Iterator<Item = Self::Texel>,
+    I: Iterator,
+    <I as Iterator>::Item: Iterator<Item = [u8; 4]>,
 {
     fn fill_from(&mut self, data: I) {
+        let data = data.flatten();
+
         let frame = self.pixels.frame_mut();
         for (texel, data) in frame.chunks_exact_mut(4).zip(data) {
             texel.copy_from_slice(&data);
         }
-    }
-}
-
-/// Event control structure.
-pub struct PixelsEventControl<'a> {
-    event_loop: &'a ActiveEventLoop,
-}
-
-impl PixelsEventControl<'_> {
-    /// Tell the backend to shut itself down.
-    pub fn shutdown(&self) {
-        self.event_loop.exit();
     }
 }
 

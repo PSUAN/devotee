@@ -7,7 +7,7 @@
 pub mod middling;
 
 /// Middleware is an adapter between a backend and an application itself.
-pub trait Middleware<Init, UpdateContext, Surface, Event, EventContext, Control> {
+pub trait Middleware<Init, UpdateContext, OnRender, Event, EventContext> {
     /// Handle the initialization event.
     fn on_init(&mut self, init: &mut Init);
 
@@ -15,13 +15,8 @@ pub trait Middleware<Init, UpdateContext, Surface, Event, EventContext, Control>
     fn on_update(&mut self, context: &mut UpdateContext);
 
     /// Handle render call, draw on the provided surface.
-    fn on_render(&mut self, surface: &mut Surface);
+    fn on_render(&mut self, surface: &mut OnRender);
 
-    /// Handle event originated from the backend.
-    fn on_event(
-        &mut self,
-        event: Event,
-        event_context: &EventContext,
-        event_control: &mut Control,
-    ) -> Option<Event>;
+    /// Handle the backend event.
+    fn on_event(&mut self, event: Event, event_context: &mut EventContext) -> Option<Event>;
 }

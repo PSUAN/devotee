@@ -9,26 +9,6 @@ pub trait Surface {
     /// Set texel given its coordinates.
     fn set_texel(&mut self, x: u32, y: u32, value: Self::Texel);
 
-    /// Get texel given its coordinates unsafely.
-    ///
-    /// # Safety
-    ///
-    /// - `x` must be in range [`0`, `width - 1`];
-    /// - `y` must be in range [`0`, `height - 1`];
-    unsafe fn texel_unchecked(&self, x: u32, y: u32) -> Self::Texel {
-        self.texel(x, y).unwrap()
-    }
-
-    /// Set texel value given its coordinates unsafely.
-    ///
-    /// # Safety
-    ///
-    /// - `x` must be in range [`0`, `width - 1`];
-    /// - `y` must be in range [`0`, `height - 1`];
-    unsafe fn set_texel_unchecked(&mut self, x: u32, y: u32, value: Self::Texel) {
-        self.set_texel(x, y, value)
-    }
-
     /// Clear the surface with the given color.
     fn clear(&mut self, value: Self::Texel);
 

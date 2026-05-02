@@ -56,8 +56,7 @@ where
             SoftContext<'context>,
             SoftSurface<'surface>,
             SoftEvent,
-            SoftEventContext,
-            SoftEventControl<'control>,
+            SoftEventContext<'control>,
         >,
 {
     /// Run this backend to completion.
@@ -178,8 +177,7 @@ where
             SoftContext<'context>,
             SoftSurface<'surface>,
             SoftEvent,
-            SoftEventContext,
-            SoftEventControl<'control>,
+            SoftEventContext<'control>,
         >,
 {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
@@ -201,16 +199,16 @@ where
         event: WindowEvent,
     ) {
         if let Some(internal) = &mut self.internal {
-            let context = SoftEventContext::new(
+            let mut context = SoftEventContext::new(
                 internal.surface_size,
                 self.settings.scale_mode,
                 self.settings.render_window_size,
+                event_loop,
             );
-            let mut control = SoftEventControl { event_loop };
 
-            if let Some(event) =
-                self.middleware
-                    .on_event(SoftEvent::Window(event), &context, &mut control)
+            if let Some(event) = self
+                .middleware
+                .on_event(SoftEvent::Window(event), &mut context)
             {
                 Self::handle_event(
                     &self.settings,
@@ -230,18 +228,16 @@ where
         event: DeviceEvent,
     ) {
         if let Some(internal) = &mut self.internal {
-            let context = SoftEventContext::new(
+            let mut context = SoftEventContext::new(
                 internal.surface_size,
                 self.settings.scale_mode,
                 self.settings.render_window_size,
+                event_loop,
             );
-            let mut control = SoftEventControl { event_loop };
 
-            let _ = self.middleware.on_event(
-                SoftEvent::Device(device_id, event),
-                &context,
-                &mut control,
-            );
+            let _ = self
+                .middleware
+                .on_event(SoftEvent::Device(device_id, event), &mut context);
         }
     }
 }
@@ -365,16 +361,18 @@ pub enum SoftEvent {
 }
 
 /// A context passed to the event handler.
-pub struct SoftEventContext {
+pub struct SoftEventContext<'a> {
     render_window: (PhysicalPosition<u32>, PhysicalSize<u32>),
     scale: u32,
+    event_loop: &'a ActiveEventLoop,
 }
 
-impl SoftEventContext {
+impl<'a> SoftEventContext<'a> {
     fn new(
         surface_size: PhysicalSize<u32>,
         scale: ScaleMode,
         render_window_size: PhysicalSize<u32>,
+        event_loop: &'a ActiveEventLoop,
     ) -> Self {
         let (render_window_position, scale) =
             surface::estimate_render_window_position_scale(surface_size, scale, render_window_size);
@@ -382,11 +380,12 @@ impl SoftEventContext {
         Self {
             render_window,
             scale,
+            event_loop,
         }
     }
 }
 
-impl EventContext<PhysicalPosition<f64>> for SoftEventContext {
+impl EventContext<PhysicalPosition<f64>> for SoftEventContext<'_> {
     type SurfaceSpace = Option<PhysicalPosition<u32>>;
 
     fn estimate_surface_space(&self, event_space: PhysicalPosition<f64>) -> Self::SurfaceSpace {
@@ -405,12 +404,7 @@ impl EventContext<PhysicalPosition<f64>> for SoftEventContext {
     }
 }
 
-/// Event control structure.
-pub struct SoftEventControl<'a> {
-    event_loop: &'a ActiveEventLoop,
-}
-
-impl SoftEventControl<'_> {
+impl SoftEventContext<'_> {
     /// Tell the backend to shut itself down.
     pub fn shutdown(&self) {
         self.event_loop.exit();

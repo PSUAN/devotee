@@ -14,14 +14,17 @@ keywords = ["gamedev", "graphics"]
 categories = ["game-engines"]
 
 [features]
-default = ["rodio-sound-system", "winit-input", "winit-x11"]
+default = ["rodio-sound-system", "winit-input", "winit-x11", "ugly-graphics"]
+
+ugly-graphics = ["dep:ugly-graphics"]
 rodio-sound-system = ["rodio"]
-winit-input = ["winit"]
+winit-input = ["dep:winit"]
 winit-x11 = ["winit/x11"]
 winit-wayland = ["winit/wayland"]
 
 [dependencies]
-devotee-backend = { path = "../devotee-backend", version = "0.2.0-beta.7" }
+devotee-backend = { path = "../devotee-backend", version = "0.2.0-beta.9" }
+ugly-graphics = { version = "0.1.3", optional = true }
 
 winit = { version = "0.30.9", optional = true, default-features = false, features = [
     "rwh_06",
@@ -41,5 +44,5 @@ rodio = { version = "0.22.2", default-features = false, features = [
 ], optional = true }
 
 [dev-dependencies]
-devotee-backend-softbuffer = { path = "../devotee-backend-softbuffer", version = "0.2.0-beta.14" }
-devotee-backend-pixels = { path = "../devotee-backend-pixels", version = "0.2.0-beta.15" }
+devotee-backend-softbuffer = { path = "../devotee-backend-softbuffer", version = "0.2.0-beta.16" }
+devotee-backend-pixels = { path = "../devotee-backend-pixels", version = "0.2.0-beta.17" }

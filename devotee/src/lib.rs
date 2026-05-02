@@ -13,5 +13,5 @@ pub mod input;
 /// Various utility.
 pub mod util;
 
-/// Visual-related module.
-pub mod visual;
+/// Graphics-related capabilities.
+pub mod graphics;

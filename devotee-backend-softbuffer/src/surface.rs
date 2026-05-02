@@ -1,3 +1,4 @@
+use std::iter;
 use std::num::NonZeroU32;
 use std::ops::{Deref, DerefMut};
 use std::rc::Rc;
@@ -94,26 +95,29 @@ impl<'a> SoftSurface<'a> {
 
 impl<I> Fill<I> for SoftSurface<'_>
 where
-    I: Iterator<Item = Self::Texel>,
+    I: Iterator,
+    <I as Iterator>::Item: Iterator<Item = u32> + Clone,
 {
     fn fill_from(&mut self, data: I) {
-        let mut data = data;
-        let start_x = self.render_window.0.x;
-        let start_y = self.render_window.0.y;
+        let (start_x, start_y) = (self.render_window.0.x, self.render_window.0.y);
+        let surface_width = self.surface_size.width as usize;
+        let target_slice_length = (self.render_window.1.width * self.scale) as usize;
 
-        for y in 0..self.render_window.1.height {
-            for x in 0..self.render_window.1.width {
-                if let Some(pixel) = data.next() {
-                    for internal_y in 0..self.scale {
-                        let index = ((start_x + x * self.scale) as usize)
-                            + ((start_y + internal_y + (y * self.scale)) * self.surface_size.width)
-                                as usize;
-                        if let Some(buffer) =
-                            self.internal.get_mut(index..(index + self.scale as usize))
-                        {
-                            buffer.fill(pixel);
-                        }
-                    }
+        let x = start_x as usize;
+
+        for (line_index, line) in data.enumerate() {
+            let y = line_index * self.scale as usize + start_y as usize;
+
+            for internal_line_index in 0..self.scale {
+                let line_iterator = line.clone();
+                let source_iterator =
+                    line_iterator.flat_map(|pixel| iter::repeat_n(pixel, self.scale as _));
+                let y = y + internal_line_index as usize;
+                let slice_start = y * surface_width + x;
+                let target_slice =
+                    &mut self.internal[slice_start..slice_start + target_slice_length];
+                for (source, target) in source_iterator.zip(target_slice) {
+                    *target = source;
                 }
             }
         }
@@ -165,30 +169,6 @@ impl Surface for SoftSurface<'_> {
                 let slice_y = y * self.surface_size.width;
                 buffer[((start_x + slice_y) as usize)..((end_x + slice_y) as usize)].fill(value)
             }
-        }
-    }
-
-    unsafe fn texel_unchecked(&self, x: u32, y: u32) -> u32 {
-        let window_start = self.render_window.0;
-        let scale = self.scale;
-        let surface_size = self.surface_size;
-        let buffer = self.internal.deref();
-        buffer[(window_start.x + x * scale + (y * scale + window_start.y) * surface_size.width)
-            as usize]
-    }
-
-    unsafe fn set_texel_unchecked(&mut self, x: u32, y: u32, value: u32) {
-        let window_start = self.render_window.0;
-        let scale = self.scale;
-        let buffer = self.internal.deref_mut();
-
-        let start_x = window_start.x + x * scale;
-        let start_y = window_start.y + y * scale;
-
-        let end_x = (start_x + self.scale).min(self.surface_size.width);
-        for y in start_y..(start_y + self.scale) {
-            let slice_y = y * self.surface_size.width;
-            buffer[((start_x + slice_y) as usize)..((end_x + slice_y) as usize)].fill(value)
         }
     }
 
