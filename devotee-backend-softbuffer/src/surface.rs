@@ -114,10 +114,13 @@ where
                     line_iterator.flat_map(|pixel| iter::repeat_n(pixel, self.scale as _));
                 let y = y + internal_line_index as usize;
                 let slice_start = y * surface_width + x;
-                let target_slice =
-                    &mut self.internal[slice_start..slice_start + target_slice_length];
-                for (source, target) in source_iterator.zip(target_slice) {
-                    *target = source;
+                if let Some(target_slice) = self
+                    .internal
+                    .get_mut(slice_start..slice_start + target_slice_length)
+                {
+                    for (source, target) in source_iterator.zip(target_slice) {
+                        *target = source;
+                    }
                 }
             }
         }
