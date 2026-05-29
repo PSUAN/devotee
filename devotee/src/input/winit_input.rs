@@ -1,20 +1,19 @@
 use std::collections::HashSet;
 
-use backend::middling::{self, InputHandler};
-use winit::dpi::PhysicalPosition;
-use winit::event::{ElementState, WindowEvent};
-use winit::keyboard::PhysicalKey;
+use devotee_backend::middling;
+use winit::dpi;
+use winit::event;
+use winit::keyboard;
 
 use crate::util::vector::Vector;
 
-pub use winit::event::MouseButton;
-pub use winit::keyboard::KeyCode;
+pub use winit as reimport;
 
 /// Keyboard-related input system.
 #[derive(Clone, Default, Debug)]
 pub struct Keyboard {
-    pressed: HashSet<KeyCode>,
-    was_pressed: HashSet<KeyCode>,
+    pressed: HashSet<keyboard::KeyCode>,
+    was_pressed: HashSet<keyboard::KeyCode>,
 }
 
 impl Keyboard {
@@ -24,17 +23,17 @@ impl Keyboard {
     }
 
     /// Check if the key is pressed.
-    pub fn is_pressed(&self, key: KeyCode) -> bool {
+    pub fn is_pressed(&self, key: keyboard::KeyCode) -> bool {
         self.pressed.contains(&key)
     }
 
     /// Check if the key was pressed during the previous tick and not before.
-    pub fn just_pressed(&self, key: KeyCode) -> bool {
+    pub fn just_pressed(&self, key: keyboard::KeyCode) -> bool {
         self.pressed.contains(&key) && !self.was_pressed.contains(&key)
     }
 
     /// Check if the key was released during the previous tick.
-    pub fn just_released(&self, key: KeyCode) -> bool {
+    pub fn just_released(&self, key: keyboard::KeyCode) -> bool {
         !self.pressed.contains(&key) && self.was_pressed.contains(&key)
     }
 
@@ -49,13 +48,17 @@ impl Keyboard {
     }
 }
 
-impl<Context> InputHandler<WindowEvent, Context> for Keyboard {
-    fn handle_event(&mut self, event: WindowEvent, _context: &Context) -> Option<WindowEvent> {
-        if let WindowEvent::KeyboardInput { event, .. } = event {
-            if let PhysicalKey::Code(code) = event.physical_key {
+impl<Context> middling::InputHandler<event::WindowEvent, Context> for Keyboard {
+    fn handle_event(
+        &mut self,
+        event: event::WindowEvent,
+        _context: &Context,
+    ) -> Option<event::WindowEvent> {
+        if let event::WindowEvent::KeyboardInput { event, .. } = event {
+            if let keyboard::PhysicalKey::Code(code) = event.physical_key {
                 match event.state {
-                    ElementState::Pressed => self.pressed.insert(code),
-                    ElementState::Released => self.pressed.remove(&code),
+                    event::ElementState::Pressed => self.pressed.insert(code),
+                    event::ElementState::Released => self.pressed.remove(&code),
                 };
             }
             None
@@ -76,8 +79,8 @@ pub type MousePosition = Option<Vector<i32>>;
 #[derive(Clone, Debug)]
 pub struct Mouse {
     position: MousePosition,
-    pressed: HashSet<MouseButton>,
-    was_pressed: HashSet<MouseButton>,
+    pressed: HashSet<event::MouseButton>,
+    was_pressed: HashSet<event::MouseButton>,
 }
 
 impl Mouse {
@@ -94,17 +97,17 @@ impl Mouse {
     }
 
     /// Check if the button is pressed.
-    pub fn is_pressed(&self, button: MouseButton) -> bool {
+    pub fn is_pressed(&self, button: event::MouseButton) -> bool {
         self.pressed.contains(&button)
     }
 
     /// Check if the button was pressed during the previous tick and not before.
-    pub fn just_pressed(&self, button: MouseButton) -> bool {
+    pub fn just_pressed(&self, button: event::MouseButton) -> bool {
         self.pressed.contains(&button) && !self.was_pressed.contains(&button)
     }
 
     /// Check if the button was released during the previous tick.
-    pub fn just_released(&self, button: MouseButton) -> bool {
+    pub fn just_released(&self, button: event::MouseButton) -> bool {
         !self.pressed.contains(&button) && self.was_pressed.contains(&button)
     }
 
@@ -114,26 +117,30 @@ impl Mouse {
     }
 }
 
-impl<EventContext, SurfaceSpace> InputHandler<WindowEvent, EventContext> for Mouse
+impl<EventContext, SurfaceSpace> middling::InputHandler<event::WindowEvent, EventContext> for Mouse
 where
     EventContext: middling::EventContext<
-            PhysicalPosition<f64>,
-            SurfaceSpace = Option<PhysicalPosition<SurfaceSpace>>,
+            dpi::PhysicalPosition<f64>,
+            SurfaceSpace = Option<dpi::PhysicalPosition<SurfaceSpace>>,
         >,
     SurfaceSpace: TryInto<i32>,
 {
-    fn handle_event(&mut self, event: WindowEvent, context: &EventContext) -> Option<WindowEvent> {
+    fn handle_event(
+        &mut self,
+        event: event::WindowEvent,
+        context: &EventContext,
+    ) -> Option<event::WindowEvent> {
         match event {
-            WindowEvent::MouseInput { state, button, .. } => {
+            event::WindowEvent::MouseInput { state, button, .. } => {
                 match state {
-                    ElementState::Pressed => self.pressed.insert(button),
-                    ElementState::Released => self.pressed.remove(&button),
+                    event::ElementState::Pressed => self.pressed.insert(button),
+                    event::ElementState::Released => self.pressed.remove(&button),
                 };
                 None
             }
-            WindowEvent::CursorMoved { position, .. } => {
+            event::WindowEvent::CursorMoved { position, .. } => {
                 fn convert<SurfaceSpace>(
-                    PhysicalPosition { x, y }: PhysicalPosition<SurfaceSpace>,
+                    dpi::PhysicalPosition { x, y }: dpi::PhysicalPosition<SurfaceSpace>,
                 ) -> Option<Vector<i32>>
                 where
                     SurfaceSpace: TryInto<i32>,
@@ -182,22 +189,27 @@ impl KeyboardMouse {
     }
 }
 
-impl<EventContext, SurfaceSpace> InputHandler<WindowEvent, EventContext> for KeyboardMouse
+impl<EventContext, SurfaceSpace> middling::InputHandler<event::WindowEvent, EventContext>
+    for KeyboardMouse
 where
     EventContext: middling::EventContext<
-            PhysicalPosition<f64>,
-            SurfaceSpace = Option<PhysicalPosition<SurfaceSpace>>,
+            dpi::PhysicalPosition<f64>,
+            SurfaceSpace = Option<dpi::PhysicalPosition<SurfaceSpace>>,
         >,
     SurfaceSpace: TryInto<i32>,
 {
-    fn handle_event(&mut self, event: WindowEvent, context: &EventContext) -> Option<WindowEvent> {
+    fn handle_event(
+        &mut self,
+        event: event::WindowEvent,
+        context: &EventContext,
+    ) -> Option<event::WindowEvent> {
         let event = self.keyboard.handle_event(event, context)?;
         self.mouse.handle_event(event, context)
     }
 
     fn update(&mut self) {
-        InputHandler::<WindowEvent, EventContext>::update(&mut self.keyboard);
-        InputHandler::<WindowEvent, EventContext>::update(&mut self.mouse);
+        middling::InputHandler::<event::WindowEvent, EventContext>::update(&mut self.keyboard);
+        middling::InputHandler::<event::WindowEvent, EventContext>::update(&mut self.mouse);
     }
 }
 
@@ -205,7 +217,7 @@ where
 #[derive(Debug, Clone, Copy)]
 pub struct NoInput;
 
-impl<Event, EventContext> InputHandler<Event, EventContext> for NoInput {
+impl<Event, EventContext> middling::InputHandler<Event, EventContext> for NoInput {
     fn handle_event(&mut self, event: Event, _: &EventContext) -> Option<Event> {
         Some(event)
     }

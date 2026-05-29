@@ -1,15 +1,15 @@
-use backend::middling::Surface;
+use devotee_backend::middling;
 use ugly_graphics::{image, strategy};
 
 /// An adapter that wraps [`Surface`] to provide [`Image`](`image::Image`) and
 /// [`ImageMut`](`image::ImageMut`) traits.
 pub struct SurfaceAdapter<'a, P> {
-    surface: &'a mut dyn Surface<Texel = P>,
+    surface: &'a mut dyn middling::Surface<Texel = P>,
 }
 
 impl<'a, P> SurfaceAdapter<'a, P> {
     /// Create new [`SurfaceAdapter`] instance.
-    pub fn new(surface: &'a mut dyn Surface<Texel = P>) -> Self {
+    pub fn new(surface: &'a mut dyn middling::Surface<Texel = P>) -> Self {
         Self { surface }
     }
 }

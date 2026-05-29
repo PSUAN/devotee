@@ -2,7 +2,7 @@ use std::ops;
 
 use ugly_graphics::image::{self, Dimensions};
 
-pub use ugly_graphics;
+pub use ugly_graphics as reimport;
 
 /// An adapter between `ugly-graphics`' traits and
 /// [`Surface`](`backend::middling::Surface`).
