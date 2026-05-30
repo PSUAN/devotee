@@ -2,6 +2,8 @@
 
 //! Devotee is a simple visualization engine.
 
+pub use devotee_backend;
+
 /// Default application implementation for the devotee project.
 pub mod app;
 
