@@ -6,7 +6,7 @@ use devotee_backend::middling::InputHandler;
 use devotee_backend_pixels::{
     Error, PixelsBackend, PixelsContext, PixelsEvent, PixelsEventContext, PixelsInit, PixelsSurface,
 };
-use ugly_graphics::image::ImageMut as _;
+use ugly_graphics::image::ImageMut;
 use ugly_graphics::operation::pixel::Pixel;
 use ugly_graphics::operation::scanline::line::Line;
 use ugly_graphics::painter::Painter;
@@ -53,7 +53,7 @@ impl
     fn on_render(&mut self, surface: &mut PixelsSurface<'_, '_>) {
         let mut adapter = SurfaceAdapter::new(surface);
 
-        adapter.set([0x20, 0x40, 0x60, 0xff]);
+        adapter.write(&strategy::overwrite([0x20, 0x40, 0x60, 0xff]));
 
         let mut painter = Painter::new(&mut adapter);
 
@@ -66,7 +66,7 @@ impl
             painter.draw(Line::new(
                 (159, 119),
                 position.split(),
-                strategy::apply(&|[r, g, b, a]: [u8; 4]| [b, r, g, a]),
+                strategy::overwrite([0x00, 0xff, 0x00, 0xff]),
             ));
             painter.draw(Line::new(
                 (80, 60),

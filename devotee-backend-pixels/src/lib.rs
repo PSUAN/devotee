@@ -394,7 +394,7 @@ impl Surface for PixelsSurface<'_, '_> {
 
     fn clear(&mut self, value: Self::Texel) {
         let frame = self.pixels.frame_mut();
-        for pixel in frame.chunks_exact_mut(4) {
+        for pixel in frame.as_chunks_mut::<4>().0 {
             pixel.copy_from_slice(&value);
         }
     }
@@ -417,7 +417,7 @@ where
         let data = data.flatten();
 
         let frame = self.pixels.frame_mut();
-        for (texel, data) in frame.chunks_exact_mut(4).zip(data) {
+        for (texel, data) in frame.as_chunks_mut::<4>().0.iter_mut().zip(data) {
             texel.copy_from_slice(&data);
         }
     }

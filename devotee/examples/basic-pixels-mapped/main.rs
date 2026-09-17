@@ -7,7 +7,7 @@ use devotee_backend_pixels::{
     Error, PixelsBackend, PixelsContext, PixelsEvent, PixelsEventContext, PixelsInit, PixelsSurface,
 };
 use ugly_graphics::image::sprite::Sprite;
-use ugly_graphics::image::{Dimensions, ImageMut};
+use ugly_graphics::image::{Dimensions, ImageMut as _};
 use ugly_graphics::operation::scanline::line::Line;
 use ugly_graphics::painter::Painter;
 use ugly_graphics::strategy;
@@ -63,7 +63,7 @@ impl
     }
 
     fn on_render(&mut self, surface: &mut PixelsSurface) {
-        self.sprite.set(false);
+        self.sprite.write(&strategy::overwrite(false));
         let mut painter = Painter::new(&mut self.sprite);
         if let Some(position) = self.position {
             painter.draw(Line::new(
